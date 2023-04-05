@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>SONIC wAETHER</title>
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #coords {
+        position: absolute;
+        bottom: 65px;
+        left: 20px;
+        background-color: white;
+        padding: 5px;
+        border-radius: 5px;
+      }
+    </style>
+  </head>
+
+
+	<link rel="stylesheet" type="text/css" href="stylemap.css">
+
+<body>
+	<body style="background-image: url(https://cdn.midjourney.com/118de265-5081-49e8-8f82-d14c285c05d1/grid_0.png); background-repeat: no-repeat; background-attachment: fixed; background-position: center; background-size: cover;"></body>
+	<header>
+		<h1><a href="index.html">SONIC AETHER</a></h1>
+		<nav>
+			<ul>
+				<li><a href="aronstadler.html">ARON STADLER_</a></li>
+				<li><a href="fieldrec.html">FIELD RECORDING_</a></li>
+				<li><a href="sound.html">SOUND DESIGN_</a></li>
+				<li><a href="about.html">ABOUT CONTACT_</a></li>
+			</ul>
+		</nav>
+	</header>
+	
+	<footer>
+		<p>Daniel de Jong &copy; 2023</p>
+	</footer>
+	<script src="script.js"></script>
+
+    <div id="map"></div>
+    <div id="coords"></div>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAKElYBCyaRIAA0HhcTkrNrusbKIq6Av6Q"></script>
+    <script>
+      function initMap() {
+    var map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 3,
+        center: {lat: 30, lng: 0},
+        mapTypeId: 'satellite',
+        fullscreenControl: true
+    });
+
+    // Create a single InfoWindow object
+    var infowindow = new google.maps.InfoWindow();
+
+    map.addListener('click', function(event) {
+        var latitude = event.latLng.lat();
+        var longitude = event.latLng.lng();
+        document.getElementById('coords').innerHTML = 'Latitude: ' + latitude + '<br>Longitude: ' + longitude;
+
+        var apiURL = 'https://api.openweathermap.org/data/2.5/weather?lat=' + latitude + '&lon=' + longitude + '&appid=0fe5d834ac7ae4d88f32cb010e29d780';
+
+        fetch(apiURL)
+            .then(response => response.json())
+            .then(data => {
+                var temp = Math.round(data.main.temp - 273.15);
+                var desc = data.weather[0].description;
+                var pressure = data.main.pressure;
+                var humidity = data.main.humidity;
+                var windSpeed = data.wind.speed;
+                var windDirection = data.wind.deg;
+
+                var weatherBox = document.createElement('div');
+                weatherBox.setAttribute('id', 'weather-box');
+                weatherBox.innerHTML = 'Temperature: ' + temp + '°C<br>Description: ' + desc + '<br>Pressure: ' + pressure + 'hPa<br>Humidity: ' + humidity + '%<br>Wind Speed: ' + windSpeed + 'm/s<br>Wind Direction: ' + windDirection + '°';
+
+                // Update the content and position of the InfoWindow
+                infowindow.setContent(weatherBox);
+                infowindow.setPosition(event.latLng);
+                infowindow.open(map);
+            })
+            .catch(error => console.error(error));
+    });
+}
+    </script>
+    <script async defer
+    src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAKElYBCyaRIAA0HhcTkrNrusbKIq6Av6Q&callback=initMap">
+    </script>
+    <div class="video-container">
+      <iframe width="500" height="1" src="https://www.youtube.com/embed/XIfqLCUg-PM?autoplay=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+</body>
+</html>
