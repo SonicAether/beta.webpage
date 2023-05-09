@@ -58,7 +58,7 @@ main {
 }
 .text-container {
     position: absolute;
-    top: 910px;
+    top: 810px;
     right: center;
     padding: 35px;
     font-family: Arial;
@@ -74,7 +74,7 @@ footer {
 	text-align:center; 
 	padding-top :px; 
 	padding-bottom :px;  
-    position: absolute;
+    position: relative;
     bottom: 0;
     width: 100%;
     height: 55px;
