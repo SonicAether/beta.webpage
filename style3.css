@@ -53,9 +53,9 @@ main {
 }
 .text-container {
     position: absolute;
-    top: 210px;
+    top: 250px;
     right: 0;
-    padding: 35px;
+    padding: 25px;
     font-family: Arial;
     color: black;
     font-weight: bold;
