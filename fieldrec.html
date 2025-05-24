@@ -1,47 +1,94 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>SONIC AETHER | Field Recording</title>
-	<link rel="stylesheet" type="text/css" href="style2.css">
+    <title>SONIC AETHER | Field Recording</title>
+    <link rel="stylesheet" type="text/css" href="timeline.css">
 </head>
 <body>
-	<body style="background-image: url(https://cdn.midjourney.com/118de265-5081-49e8-8f82-d14c285c05d1/grid_0.png); background-repeat: no-repeat; background-attachment: fixed; background-position: center; background-size: cover;"></body>
-	<header>
-		<h1><a href="index.html">SONIC AETHER</a></h1>
-		<nav>
-			<ul>
-				<li><a href="aronstadler.html">ARON STADLER_</a></li>
-				<li><a href="sound.html">SOUND DESIGN_</a></li>
-				<li><a href="lwsm.html">SONIC wAETHER_</a></li>
-				<li><a href="about.html">ABOUT CONTACT_</a></li>
-			</ul>
-		</nav>
-	</header>
-	<main>
-		<section>
+    <header>
+        <h1><a href="index.html">SONIC AETHER</a></h1>
+        <nav>
+            <ul>
+                <li><a href="aronstadler.html">ARON STADLER_</a></li>
+                <li><a href="sound.html">SOUND DESIGN_</a></li>
+                <li><a href="lwsm.html">SONIC wAETHER_</a></li>
+                <li><a href="about.html">ABOUT CONTACT_</a></li>
+            </ul>
+        </nav>
+    </header>
 
-			<div class="video-container">
-				<iframe width="560" height="315" src="https://www.youtube.com/embed/7Y5K7zvVMJE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-			</div>
-			<div class="text-container">
-				<h2>SOUND MAPS OF NORTHERN GERMANY AND THE NETHERLANDS | 6 Months Of Field Recording</h2>
-				<p>„You listen to the place, not the sound.“
+    <main>
+        <div class="timeline-container">
+            <!-- START: Example Timeline Post 1 (Images + Audio + Description) -->
+            <div class="timeline-post">
+                <div class="post-date">
+                    April 16, 2024
+                </div>
+                <div class="image-gallery">
+                    <div class="image-wrapper">
+                        <img src="https://dn721203.ca.archive.org/0/items/img-3227_202505/IMG_2472.jpg" alt="Recording scene">
+                    </div>
+                </div>
+                <div class="audio-player-wrapper">
+                    <audio controls src="https://ia600706.us.archive.org/7/items/250506-002-fichtenrauschen-knyphauser-wald-vogel/250501_006_Stapeler%20Moor%2C%20Moorvögel%2C%20Gesang%20Abend.wav">
+                        Your browser does not support the audio element.
+                    </audio>
+                </div>
+                <div class="post-description">
+                    <p>A stormy day in the mountains of the Azores.</p>
+                </div>
+            </div>
+            <!-- END: Example Timeline Post 1 -->
 
-This quote from sound ecologist Gordon Hempton describes very well how field recordings are perceived by us. Unlike composed instrumental music or especially electronic music, which is only placed in an (artificial) space, a sound from outside does not describe the instrument, but very accurately the character of the place including many of its inhabitants at a specific time. This sound is highly complex and contains a huge amount of information.
+            <!-- START: Example Timeline Post 2 (Two Images + Description, NO AUDIO) -->
+            <div class="timeline-post">
+                <div class="post-date">
+                    April 15, 2024
+                </div>
+                <div class="image-gallery">
+                    <div class="image-wrapper">
+                        <img src="https://s1.directupload.eu/images/250524/gn3vimik.jpg" alt="Field recording setup">
+                    </div>
+                    <div class="image-wrapper">
+                        <img src="https://s1.directupload.eu/images/250524/u7zqbizt.jpg" alt="Nature view">
+                    </div>
+                </div>
+                <!-- No audio player wrapper here -->
+                <div class="post-description">
+                    <p>Recording low rumble from the heavy surf on the Azores, hidden from the wind.</p>
+                </div>
+            </div>
+            <!-- END: Example Timeline Post 2 -->
 
-The work “Sound Maps Of Northern Germany and the Netherlands | 6 Months Of Field Recording” is an extensive documentation of the sounds of the north and the coast during times of very quiet air spaces (COVID-19 flight bans). 
-I made recordings on the Dutch island of Schiermonnikoog and the East Frisian island of Langeoog for sounds of the sea. Moor and forest recordings were made in Friesland and the Geest regions of Schleswig-Holstein. Time of day, day, season and weather have a huge influence.
-The finished 30-minute sound composition reveals a large portfolio for the full spectrum of sonic characteristics. I tried to explore the relationship of anonymous natural white noise vs. distinct, clearly recognizable sound. First introduced by sound ecologist Bernie Krause, I used the parameters „geophony“, „biophony“ and „anthrophony“ to organize my recordings.
+            <!-- START: VIDEO TIMELINE POST (as before) -->
+            <div class="timeline-post">
+                <div class="post-date">
+                    FEATURED PROJECT
+                </div>
+                <div class="video-container">
+                    <iframe width="560" height="315" src="https://www.youtube.com/embed/7Y5K7zvVMJE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+                <div class="post-description">
+                    <h2>SOUND MAPS OF NORTHERN GERMANY AND THE NETHERLANDS | 6 Months Of Field Recording</h2>
+                    <p>„You listen to the place, not the sound.“</p>
+                    <!-- ... rest of video description ... -->
+                </div>
+            </div>
+            <!-- END: VIDEO TIMELINE POST -->
 
-In total, I gathered about 600 recordings or almost 100 hours of high quality sound material.
-Following this work, various (film) music compositions were created using this source material, mainly oriented towards experimental ambient music under the alias Aron Stadler.</p>
-			</div>
-	
-		</section>
-	</main>
-	<footer>
-		<p>Daniel de Jong &copy; 2024</p>
-	</footer>
-	<script src="script.js"></script>
+            <!-- Add more timeline-post sections here as needed -->
+            <!-- To add audio:
+            1. Inside a .timeline-post, add the .audio-player-wrapper div.
+            2. Inside that, add the <audio> tag.
+            3. Update the src="" attribute in the <audio> tag to your audio file's path.
+            4. If a post doesn't need audio, simply omit the .audio-player-wrapper.
+            -->
+        </div>
+    </main>
+
+    <footer>
+        <p>Daniel de Jong © 2024</p>
+    </footer>
+    <script src="script.js"></script>
 </body>
 </html>
