@@ -1,0 +1,191 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: url(https://cdn.midjourney.com/118de265-5081-49e8-8f82-d14c285c05d1/grid_0.png);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+    color: #333;
+}
+
+header {
+    background-color: #000000;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    font-size: 45px;
+}
+
+header h1 {
+    margin: 0;
+    font-family: Lusitana, serif;
+}
+
+header h1 a {
+    color: white;
+    text-decoration: none;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    font-size: 20px;
+}
+
+header nav li {
+    margin-left: 20px;
+}
+
+header nav a {
+    color: white;
+    text-decoration: none;
+}
+
+main {
+    padding: 40px 0 85px 0; /* Space for header and fixed footer */
+}
+
+/* --- Timeline Styles --- */
+.timeline-container {
+    width: 80%;
+    margin: 0 auto; /* Centered */
+}
+
+.timeline-post {
+    margin-bottom: 40px; /* Space between posts */
+    padding-bottom: 40px; /* Space before the separator line */
+    border-bottom: 3px solid #555; /* Thick separator line, dark gray */
+}
+
+.timeline-post:last-child {
+    border-bottom: none; /* No line after the last post */
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.post-date {
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.6); /* Slightly darker for date */
+    padding: 8px 15px;
+    display: inline-block;
+    border-radius: 4px;
+    display: block;
+    text-align: left;
+    margin-left: 0;
+}
+
+.image-gallery {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px; /* Space below gallery if description follows */
+}
+
+.image-wrapper {
+    flex: 1 1 40%;
+    position: relative;
+    padding-top: 75%; /* 4:3 Aspect Ratio */
+    border: 3px solid white;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: #333;
+}
+
+.image-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.audio-player-wrapper {
+    margin-top: 20px; /* Space above the audio player */
+    margin-bottom: 15px; /* Space below audio player if description follows */
+}
+
+.audio-player-wrapper {
+    margin-top: 20px; /* Space above the audio player */
+    margin-bottom: 15px; /* Space below audio player if description follows */
+}
+
+.audio-player-wrapper audio {
+    width: 100%; /* Make the player take the full width of its container */
+    display: block; /* Ensures it behaves like a block element for width and margin */
+    /* You can add more specific styling to the player if needed,
+       but browser default controls are generally quite good and minimal.
+       Styling audio players extensively can be tricky and browser-dependent. */
+}
+
+.post-description {
+    background-color: rgba(255, 255, 255, 0.8); /* Slightly more opaque background */
+    color: #222; /* Darker text for better contrast */
+    padding: 20px 25px;
+    border-radius: 5px;
+    font-size: 15px; /* Slightly larger base font for descriptions */
+    line-height: 1.7;
+    margin-top: 20px; /* Space between image gallery/video and description */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+}
+
+.post-description h2 {
+    font-size: 22px; /* Larger font size for titles within description */
+    color: #111; /* Even darker for titles */
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: bold; /* Ensure it's bold */
+}
+
+.post-description p {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+.post-description p:last-child {
+    margin-bottom: 0;
+}
+
+/* Video container styles (now within timeline post) */
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    /* padding-top: 30px; REMOVED - not needed if only video is inside */
+    height: 0;
+    overflow: hidden;
+    margin-bottom: 0; /* Description will handle spacing below if present */
+    border: 3px solid white; /* Optional: frame video like images */
+    box-sizing: border-box; /* If border is added */
+}
+
+.video-container iframe,
+.video-container object,
+.video-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+footer {
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    padding-top: 18px;
+    padding-bottom: 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 55px;
+    box-sizing: border-box;
+}
