@@ -129,7 +129,7 @@ main {
 }
 
 .post-description {
-    background-color: rgba(255, 255, 255, 0.8); /* Slightly more opaque background */
+    background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque background */
     color: #222; /* Darker text for better contrast */
     padding: 20px 25px;
     border-radius: 5px;
