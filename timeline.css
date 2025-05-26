@@ -111,15 +111,26 @@ main {
 }
 
 .audio-player-wrapper {
-    margin-top: 20px; /* Space above the audio player */
-    margin-bottom: 15px; /* Space below audio player if description follows */
+    margin-top: 30px;
+    margin-bottom: 30px;
+    padding: 25px;
+    background-color: #333; /* Darker background - good if your page text is light */
+    /* If your main page text is dark, consider a lighter contrasting color for the player bg */
+    /* e.g., background-color: #e9ecef; */
+    border: 1px solid #777; /* A border to define the edge */
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* More pronounced shadow */
 }
 
-.audio-player-wrapper {
-    margin-top: 20px; /* Space above the audio player */
-    margin-bottom: 15px; /* Space below audio player if description follows */
+.audio-player-wrapper audio {
+    width: 100%;
+    display: block;
+    /* You could try to slightly alter the player colors with filters,
+       but results vary greatly by browser and can look odd.
+       Example (use with caution):
+       filter: invert(1) hue-rotate(180deg);
+    */
 }
-
 .audio-player-wrapper audio {
     width: 100%; /* Make the player take the full width of its container */
     display: block; /* Ensures it behaves like a block element for width and margin */
