@@ -1,0 +1,305 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: url(https://cdn.midjourney.com/6a81894f-03b7-464c-84ac-be4aa4e72ca7/0_0.png);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+    color: #333;
+}
+
+header {
+    background-color: #000000;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px; /* This padding could cause overflow without box-sizing */
+    font-size: 40px;
+    width: 100%; /* Explicitly set width */
+    box-sizing: border-box; /* Crucial: includes padding and border in the element's total width and height */
+}
+
+header h1 {
+    margin: 0;
+    font-family: Lusitana, serif;
+}
+
+header h1 a {
+    color: white;
+    text-decoration: none;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    font-size: 20px;
+}
+
+header nav li {
+    margin-left: 20px;
+}
+
+header nav a {
+    color: white;
+    text-decoration: none;
+}
+
+main {
+    padding: 40px 0 85px 0; /* Space for header and fixed footer */
+}
+
+/* --- Timeline Styles --- */
+.timeline-container {
+    width: 50%;
+    margin: 0 auto; /* Centered */
+}
+
+.timeline-post {
+    margin-bottom: 40px; /* Space between posts */
+    padding-bottom: 40px; /* Space before the separator line */
+    border-bottom: 3px solid #555; /* Thick separator line, dark gray */
+}
+
+.timeline-post:last-child {
+    border-bottom: none; /* No line after the last post */
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.post-date {
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.8); /* Slightly darker for date */
+    padding: 8px 15px;
+    display: inline-block;
+    border-radius: 4px;
+    display: block;
+    text-align: left;
+    margin-left: 0;
+}
+
+.image-gallery {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px; /* Space below gallery if description follows */
+}
+
+.image-wrapper {
+    flex: 1 1 40%;
+    position: relative;
+    padding-top: 75%; /* 4:3 Aspect Ratio */
+    border: 3px solid white;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: #333;
+}
+
+.image-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.audio-player-wrapper {
+    margin-top: 30px;
+    margin-bottom: 30px;
+    padding: 25px;
+    background-color: #333; /* Darker background - good if your page text is light */
+    /* If your main page text is dark, consider a lighter contrasting color for the player bg */
+    /* e.g., background-color: #e9ecef; */
+    border: 1px solid #777; /* A border to define the edge */
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); /* More pronounced shadow */
+}
+
+.audio-player-wrapper audio {
+    width: 100%;
+    display: block;
+    /* You could try to slightly alter the player colors with filters,
+       but results vary greatly by browser and can look odd.
+       Example (use with caution):
+       filter: invert(1) hue-rotate(180deg);
+    */
+}
+.audio-player-wrapper audio {
+    width: 100%; /* Make the player take the full width of its container */
+    display: block; /* Ensures it behaves like a block element for width and margin */
+    /* You can add more specific styling to the player if needed,
+       but browser default controls are generally quite good and minimal.
+       Styling audio players extensively can be tricky and browser-dependent. */
+}
+
+.post-description {
+    background-color: rgba(255, 255, 255, 0.85); /* Slightly more opaque background */
+    color: #222; /* Darker text for better contrast */
+    padding: 20px 25px;
+    border-radius: 5px;
+    font-size: 15px; /* Slightly larger base font for descriptions */
+    line-height: 1.7;
+    margin-top: 20px; /* Space between image gallery/video and description */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* Subtle shadow for depth */
+}
+
+.post-description h2 {
+    font-size: 22px; /* Larger font size for titles within description */
+    color: #111; /* Even darker for titles */
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: bold; /* Ensure it's bold */
+}
+
+.post-description p {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+.post-description p:last-child {
+    margin-bottom: 0;
+}
+
+/* Video container styles (now within timeline post) */
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    /* padding-top: 30px; REMOVED - not needed if only video is inside */
+    height: 0;
+    overflow: hidden;
+    margin-bottom: 0; /* Description will handle spacing below if present */
+    border: 3px solid white; /* Optional: frame video like images */
+    box-sizing: border-box; /* If border is added */
+}
+
+.video-container iframe,
+.video-container object,
+.video-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+footer {
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    padding-top: 18px;
+    padding-bottom: 0;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 55px;
+    box-sizing: border-box;
+}
+
+/* --- Mobile Optimizations --- */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column; /* Stack logo and nav */
+        align-items: center;
+        padding: 15px;
+        font-size: 30px; /* Reduce header font size */
+    }
+
+    header h1 {
+        margin-bottom: 10px; /* Space between logo and nav */
+    }
+
+    header nav ul {
+        flex-direction: column; /* Stack nav items */
+        align-items: center;
+        font-size: 18px; /* Adjust nav font size */
+    }
+
+    header nav li {
+        margin-left: 0; /* Remove left margin */
+        margin-bottom: 10px; /* Add space between stacked nav items */
+    }
+    header nav li:last-child {
+        margin-bottom: 0;
+    }
+
+    main {
+        padding: 20px 0 70px 0; /* Adjust padding, account for smaller fixed footer if needed */
+    }
+
+    .timeline-container {
+        width: 90%; /* Use more screen width on mobile */
+    }
+
+    .post-date {
+        font-size: 14px;
+        /* Ensure it's centered if it's inline-block */
+        display: block;
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .image-gallery {
+        flex-direction: column; /* Stack images in the gallery */
+    }
+
+    .image-wrapper {
+        flex: 1 1 100%; /* Make images take full width of the gallery */
+        /* Adjust padding-top if you want a different aspect ratio on mobile or let it be */
+    }
+
+    .audio-player-wrapper {
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+    /* The audio player itself should already be 100% width,
+       but let's ensure its container behaves well. */
+    .audio-player-wrapper audio {
+        width: 100%;
+        /* Potentially add min-width if controls get too squished,
+           but 100% should usually work with viewport tag. */
+    }
+
+
+    .post-description {
+        padding: 15px;
+        font-size: 14px;
+    }
+
+    .post-description h2 {
+        font-size: 18px;
+    }
+
+    /* Make video container also full width within its parent */
+    .video-container {
+        /* It's already responsive due to padding-bottom trick, no change needed here generally */
+    }
+
+    footer {
+        padding-top: 15px;
+        height: auto; /* Allow footer height to adjust if text wraps */
+        min-height: 50px; /* Or a specific smaller height */
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even smaller screen adjustments if needed */
+    header {
+        font-size: 24px;
+    }
+    header nav ul {
+        font-size: 16px;
+    }
+    .timeline-container {
+        width: 95%;
+    }
+}
