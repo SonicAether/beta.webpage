@@ -16,10 +16,10 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 18px; /* This padding could cause overflow without box-sizing */
-    font-size: 38px;
+    padding: 20px; /* This padding could cause overflow without box-sizing */
+    font-size: 45px;
     width: 100%; /* Explicitly set width */
-    /* box-sizing: border-box; /* Crucial: includes padding and border in the element's total width and height */
+    box-sizing: border-box; /* Crucial: includes padding and border in the element's total width and height */
 }
 
 header h1 {
@@ -37,7 +37,7 @@ header nav ul {
     margin: 0;
     padding: 0;
     display: flex;
-    font-size: 20px;
+    font-size: 18px;
 }
 
 header nav li {
