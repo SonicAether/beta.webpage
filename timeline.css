@@ -206,114 +206,29 @@ footer {
 /* --- Mobile Optimizations --- */
 @media (max-width: 768px) {
     header {
-        /* flex-direction: column; */ /* REMOVE OR COMMENT OUT THIS LINE */
-        /* display: flex; is inherited from the base style */
-        /* justify-content: space-between; is also inherited and will try to push h1 and nav apart */
-        align-items: center; /* Keeps them vertically centered relative to each other */
-        padding: 15px; /* Keep reduced padding for mobile */
-        /* font-size: 30px; */ /* The base header font-size is 45px. The h1 has its own.
-                                  This font-size on header itself might not be doing much unless children inherit.
-                                  You might want to reduce font-size for h1 and nav items specifically if needed. */
-        flex-wrap: wrap; /* IMPORTANT: If h1 and nav are too wide for the screen, this allows nav to drop below h1 */
-                         /* If you prefer them to shrink or overflow, remove this. */
+        flex-direction: column; /* Stack logo and nav */
+        align-items: center;
+        padding: 15px;
+        font-size: 30px; /* Reduce header font size */
     }
 
     header h1 {
-        /* margin-bottom: 10px; */ /* This was for when they were stacked. Remove if not needed. */
-        margin-right: 15px; /* Add some space between H1 and Nav if they are side-by-side */
-        font-size: 28px; /* Example: Adjust H1 font size for mobile if needed */
-                         /* You might need to make this even smaller depending on screen width */
+        margin-bottom: 10px; /* Space between logo and nav */
     }
 
-    /* The styles for 'header nav ul' which stack the nav items can remain,
-       as that's usually good for mobile unless you have very few items. */
     header nav ul {
-        flex-direction: column; /* THIS KEEPS YOUR NAV ITEMS (Aron Stadler, etc.) STACKED */
-        align-items: center;    /* This centers the stacked nav items block */
-        font-size: 16px;        /* Example: Adjust nav item font size for mobile */
+        flex-direction: column; /* Stack nav items */
+        align-items: center;
+        font-size: 18px; /* Adjust nav font size */
     }
 
     header nav li {
-        margin-left: 0;
-        margin-bottom: 8px; /* Slightly reduced space between stacked nav items */
+        margin-left: 0; /* Remove left margin */
+        margin-bottom: 10px; /* Add space between stacked nav items */
     }
     header nav li:last-child {
         margin-bottom: 0;
     }
-
-    main {
-        padding: 20px 0 70px 0; /* Adjust padding, account for smaller fixed footer if needed */
-    }
-
-    .timeline-container {
-        width: 90%; /* Use more screen width on mobile */
-    }
-
-    .post-date {
-        font-size: 14px;
-        /* Ensure it's centered if it's inline-block */
-        display: block;
-        text-align: center;
-        margin-left: auto;
-        margin-right: auto;
-    }
-
-    .image-gallery {
-        flex-direction: column; /* Stack images in the gallery */
-    }
-
-    .image-wrapper {
-        flex: 1 1 100%; /* Make images take full width of the gallery */
-        /* Adjust padding-top if you want a different aspect ratio on mobile or let it be */
-    }
-
-    .audio-player-wrapper {
-        margin-top: 15px;
-        margin-bottom: 10px;
-    }
-    /* The audio player itself should already be 100% width,
-       but let's ensure its container behaves well. */
-    .audio-player-wrapper audio {
-        width: 100%;
-        /* Potentially add min-width if controls get too squished,
-           but 100% should usually work with viewport tag. */
-    }
-
-
-    .post-description {
-        padding: 15px;
-        font-size: 14px;
-    }
-
-    .post-description h2 {
-        font-size: 18px;
-    }
-
-    /* Make video container also full width within its parent */
-    .video-container {
-        /* It's already responsive due to padding-bottom trick, no change needed here generally */
-    }
-
-    footer {
-        padding-top: 15px;
-        height: auto; /* Allow footer height to adjust if text wraps */
-        min-height: 50px; /* Or a specific smaller height */
-        font-size: 12px;
-    }
-}
-
-@media (max-width: 480px) {
-    /* Even smaller screen adjustments if needed */
-    header {
-        font-size: 24px;
-    }
-    header nav ul {
-        font-size: 16px;
-    }
-    .timeline-container {
-        width: 95%;
-    }
-}
 
     main {
         padding: 20px 0 70px 0; /* Adjust padding, account for smaller fixed footer if needed */
