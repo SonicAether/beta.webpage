@@ -189,3 +189,104 @@ footer {
     height: 55px;
     box-sizing: border-box;
 }
+
+/* --- Mobile Optimizations --- */
+@media (max-width: 768px) {
+    header {
+        flex-direction: column; /* Stack logo and nav */
+        align-items: center;
+        padding: 15px;
+        font-size: 30px; /* Reduce header font size */
+    }
+
+    header h1 {
+        margin-bottom: 10px; /* Space between logo and nav */
+    }
+
+    header nav ul {
+        flex-direction: column; /* Stack nav items */
+        align-items: center;
+        font-size: 18px; /* Adjust nav font size */
+    }
+
+    header nav li {
+        margin-left: 0; /* Remove left margin */
+        margin-bottom: 10px; /* Add space between stacked nav items */
+    }
+    header nav li:last-child {
+        margin-bottom: 0;
+    }
+
+    main {
+        padding: 20px 0 70px 0; /* Adjust padding, account for smaller fixed footer if needed */
+    }
+
+    .timeline-container {
+        width: 90%; /* Use more screen width on mobile */
+    }
+
+    .post-date {
+        font-size: 14px;
+        /* Ensure it's centered if it's inline-block */
+        display: block;
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
+    .image-gallery {
+        flex-direction: column; /* Stack images in the gallery */
+    }
+
+    .image-wrapper {
+        flex: 1 1 100%; /* Make images take full width of the gallery */
+        /* Adjust padding-top if you want a different aspect ratio on mobile or let it be */
+    }
+
+    .audio-player-wrapper {
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+    /* The audio player itself should already be 100% width,
+       but let's ensure its container behaves well. */
+    .audio-player-wrapper audio {
+        width: 100%;
+        /* Potentially add min-width if controls get too squished,
+           but 100% should usually work with viewport tag. */
+    }
+
+
+    .post-description {
+        padding: 15px;
+        font-size: 14px;
+    }
+
+    .post-description h2 {
+        font-size: 18px;
+    }
+
+    /* Make video container also full width within its parent */
+    .video-container {
+        /* It's already responsive due to padding-bottom trick, no change needed here generally */
+    }
+
+    footer {
+        padding-top: 15px;
+        height: auto; /* Allow footer height to adjust if text wraps */
+        min-height: 50px; /* Or a specific smaller height */
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even smaller screen adjustments if needed */
+    header {
+        font-size: 24px;
+    }
+    header nav ul {
+        font-size: 16px;
+    }
+    .timeline-container {
+        width: 95%;
+    }
+}
