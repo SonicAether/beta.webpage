@@ -1,0 +1,241 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    background-image: url(https://cdn.midjourney.com/09300142-8738-403b-80ae-69cc1390c349/0_0.png); /* This background will be used */
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
+    color: #333;
+}
+
+header {
+    background-color: #000000;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    font-size: 45px;
+}
+
+header h1 {
+    margin: 0;
+    font-family: Lusitana, serif;
+}
+
+header h1 a {
+    color: white;
+    text-decoration: none;
+}
+
+header nav ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    font-size: 20px;
+}
+
+header nav li {
+    margin-left: 20px;
+}
+
+header nav a {
+    color: white;
+    text-decoration: none;
+}
+
+main {
+    padding: 40px 0 85px 0; /* Space for header and fixed footer */
+}
+
+/* --- Timeline Styles (Existing) --- */
+.timeline-container {
+    width: 50%;
+    margin: 0 auto;
+}
+
+.timeline-post {
+    margin-bottom: 40px;
+    padding-bottom: 40px;
+    border-bottom: 3px solid #555;
+}
+
+.timeline-post:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.post-date {
+    font-size: 16px;
+    font-weight: bold;
+    color: #fff;
+    text-align: center;
+    margin-bottom: 20px;
+    background-color: rgba(0, 0, 0, 0.6);
+    padding: 8px 15px;
+    display: inline-block;
+    border-radius: 4px;
+}
+
+.image-gallery {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.image-wrapper {
+    flex: 1 1 40%;
+    position: relative;
+    padding-top: 75%;
+    border: 3px solid white;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-color: #333;
+}
+
+.image-wrapper img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.audio-player-wrapper {
+    margin-top: 20px;
+    margin-bottom: 15px;
+}
+
+.audio-player-wrapper audio {
+    width: 100%;
+    display: block;
+}
+
+.post-description {
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #222;
+    padding: 20px 25px;
+    border-radius: 5px;
+    font-size: 15px;
+    line-height: 1.7;
+    margin-top: 20px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.post-description h2 {
+    font-size: 22px;
+    color: #111;
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+
+.post-description p {
+    margin-top: 0;
+    margin-bottom: 12px;
+}
+.post-description p:last-child {
+    margin-bottom: 0;
+}
+
+/* --- Styles for general video containers (if used elsewhere) --- */
+.video-container { /* This seems to be for a different video setup, kept for compatibility */
+    position: relative;
+    padding-bottom: 56.25%;
+    height: 0;
+    overflow: hidden;
+    margin-bottom: 0;
+    border: 3px solid white;
+    box-sizing: border-box;
+}
+
+.video-container iframe,
+.video-container object,
+.video-container embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* --- NEW Video Gallery Styles --- */
+.video-gallery {
+    /* This class is the main container for your video blocks */
+    /* No specific styles needed here if .video-block handles its own centering */
+}
+
+.video-block {
+    width: 50vw; /* Video block takes 50% of the viewport width */
+    margin: 40px auto; /* Centers the block and adds 40px top/bottom margin */
+    box-sizing: border-box;
+}
+
+.video-player-wrapper {
+    position: relative;
+    /* Aspect ratio based on 1280x545 videos: (545 / 1280) * 100% = 42.578125% */
+    /* Using calc for precision */
+    padding-bottom: calc(545 / 1280 * 100%);
+    height: 0;
+    overflow: hidden;
+    background-color: #000; /* Optional: background during video load */
+}
+
+.video-player-wrapper iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none; /* Remove default iframe border */
+}
+
+.video-caption {
+    background-color:rgba(255, 255, 255, 0.85); /* White background for the caption */
+    color: #333;             /* Dark text color for readability */
+    padding: 15px;           /* Padding around the text */
+    margin-top: 10px;        /* Space between video and caption */
+    text-align: center;      /* Center the text in the caption block */
+    font-size: 16px; 
+    font-weight: bold;        
+    line-height: 1.6;        /* Adjust line height for readability */
+    /* Optional: add rounded corners or a subtle shadow if desired */
+    /* border-radius: 4px; */
+    /* box-shadow: 0 1px 3px rgba(0,0,0,0.1); */
+}
+
+.video-caption a {
+    color: #0056b3; /* A clear link color, adjust to your site's theme */
+    text-decoration: none;
+}
+
+.video-caption a:hover {
+    text-decoration: underline;
+}
+
+/* --- Footer Styles --- */
+footer {
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    padding-top: 18px;
+    padding-bottom: 0; /* Adjusted to ensure text is vertically centered with height */
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 55px; /* Fixed height for the footer */
+    box-sizing: border-box; /* Include padding in height calculation */
+    display: flex; /* For vertical centering of text */
+    align-items: center; /* For vertical centering of text */
+    justify-content: center; /* For horizontal centering of text */
+}
+
+footer p {
+    margin: 0; /* Remove default paragraph margin */
+}
