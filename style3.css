@@ -22,15 +22,15 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px;
-    font-size: 45px; /* Dies ist sehr groß für den Header-Font, evtl. anpassen */
-    width: 100%;
+    padding: 20px; /* This padding could cause overflow without box-sizing */
+    font-size: 45px;
+    width: 100%; /* Explicitly set width */
+    box-sizing: border-box; /* Crucial: includes padding and border in the element's total width and height */
 }
 
 header h1 {
     margin: 0;
-    font-family: 'Lusitana', serif;
-    font-size: 45px; /* Oder hier die Größe anpassen */
+    font-family: Lusitana, serif;
 }
 
 header h1 a {
@@ -43,27 +43,16 @@ header nav ul {
     margin: 0;
     padding: 0;
     display: flex;
+    font-size: 20px;
 }
 
 header nav li {
     margin-left: 20px;
 }
 
-header nav li:first-child {
-    margin-left: 0; /* Kein linker Rand für das erste Element */
-}
-
 header nav a {
     color: white;
     text-decoration: none;
-    font-size: 20px; /* Schriftgröße für Nav-Links */
-    padding: 5px 10px;
-    border-radius: 4px;
-    transition: background-color 0.3s ease;
-}
-
-header nav a:hover {
-    background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Main Content Stile */
