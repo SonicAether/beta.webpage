@@ -1,24 +1,36 @@
+/* Globale Stile & Resets */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
+    color: white; /* Standardtextfarbe für besseren Kontrast zum Hintergrund */
+    background-image: url(https://cdn.midjourney.com/71886731-ed40-4d23-ae95-c926ccfcd87c/0_0.png);
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-position: center;
+    background-size: cover;
 }
 
+* {
+    box-sizing: border-box; /* Stellt sicher, dass Padding und Border in der Gesamtbreite/Höhe enthalten sind */
+}
+
+/* Header Stile (unverändert laut Anforderung) */
 header {
     background-color: #000000;
     color: white;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px; /* This padding could cause overflow without box-sizing */
-    font-size: 45px;
-    width: 100%; /* Explicitly set width */
-    box-sizing: border-box; /* Crucial: includes padding and border in the element's total width and height */
+    padding: 20px;
+    font-size: 45px; /* Dies ist sehr groß für den Header-Font, evtl. anpassen */
+    width: 100%;
 }
 
 header h1 {
     margin: 0;
-    font-family: Lusitana, serif;
+    font-family: 'Lusitana', serif;
+    font-size: 45px; /* Oder hier die Größe anpassen */
 }
 
 header h1 a {
@@ -31,60 +43,151 @@ header nav ul {
     margin: 0;
     padding: 0;
     display: flex;
-    font-size: 20px;
 }
 
 header nav li {
     margin-left: 20px;
 }
 
+header nav li:first-child {
+    margin-left: 0; /* Kein linker Rand für das erste Element */
+}
+
 header nav a {
     color: white;
     text-decoration: none;
+    font-size: 20px; /* Schriftgröße für Nav-Links */
+    padding: 5px 10px;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
 }
 
+header nav a:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Main Content Stile */
 main {
-    max-width: 560px;
-    margin: 0 auto;
-    padding: 250px 0;
-    display: non;
+    padding-top: 40px; /* Abstand zum Header */
+    padding-bottom: 100px; /* Abstand zum Footer, damit Inhalt nicht verdeckt wird */
+}
+
+.content-wrapper {
+    max-width: 1200px; /* Breite des Inhaltsbereichs */
+    margin: 0 auto; /* Zentrierung */
+    padding: 20px;
+    background-color: rgba(0, 0, 0, 0.6); /* Semi-transparenter Hintergrund für Lesbarkeit */
+    border-radius: 8px;
+}
+
+.music-showcase h2, .external-links h2 {
+    font-family: 'Lusitana', serif;
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 30px;
+    font-size: 2em;
+    color: #eee;
+}
+
+/* Spotify Embeds */
+.spotify-embed {
+    margin-bottom: 30px; /* Abstand zwischen Spotify Playern und dem Rest */
+}
+
+.spotify-embed iframe {
+    display: block; /* Verhindert unerwünschten Leerraum unter dem iframe */
+    width: 100%;
+    border-radius: 12px; /* Beibehaltung des Stils aus dem HTML */
 }
 
 
-.video-container iframe, .video-container object, .video-container embed { 
-	position:absolute; 
-	top:10px; 
-    padding:50px;
-	left:0; 
-	width:100%; 
-	height:100%; 
+/* Video Grid für YouTube */
+.video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsive Spalten */
+    gap: 20px; /* Abstand zwischen den Videos */
+    margin-bottom: 40px;
 }
-.text-container {
+
+.media-item.youtube-embed {
+    background-color: rgba(255, 255, 255, 0.05); /* Leichter Hintergrund für Video-Container */
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.youtube-aspect-ratio {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* 16:9 Aspect Ratio (9 / 16 = 0.5625) */
+    height: 0;
+    overflow: hidden;
+    border-radius: 8px; /* Abrundung auch hier für den Container */
+}
+
+.youtube-aspect-ratio iframe {
     position: absolute;
-    top: 250px;
-    right: 0;
-    padding: 25px;
-    font-family: Arial;
-    color: black;
-    font-weight: bold;
-    font-size: 22px;
-    background-color: rgba(255, 255, 255, 0.5);
-  }
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none; /* Entfernt Standard-Rahmen von iframes */
+}
 
+/* Externe Links Sektion */
+.external-links {
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.external-links ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex; /* Ordnet Links nebeneinander an, wenn genug Platz */
+    flex-wrap: wrap; /* Umbruch bei Bedarf */
+    justify-content: center; /* Zentriert die Links */
+    gap: 15px; /* Abstand zwischen den Link-Buttons */
+}
+
+.external-links li {
+    margin: 5px 0; /* Vertikaler Abstand bei Umbruch */
+}
+
+.external-links a {
+    display: inline-block;
+    padding: 12px 25px;
+    background-color: #333; /* Dunkler Button-Hintergrund */
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 16px;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.external-links a:hover {
+    background-color: #555; /* Hellerer Button-Hintergrund beim Hover */
+    transform: translateY(-2px);
+}
+
+
+/* Footer Stile */
 footer {
-    background-color:#000000; 
-	color:white; 
-	text-align:center; 
-	padding-top :px; 
-	padding-bottom :px;  
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    padding: 15px 0; /* Angepasstes Padding */
     position: fixed;
     bottom: 0;
     width: 100%;
-    height: 55px;
+    height: 55px; /* Höhe beibehalten */
+    font-size: 0.9em;
 }
-header nav li:nth-child(2) {
-    margin-left: 20px;
-}
-h1 {
-    font-family: Lusitana;
-}
+
+/* Entferne die nicht mehr benötigten spezifischen .video-container und .text-container Stile */
+/*
+.video-container iframe, .video-container object, .video-container embed { ... }
+.text-container { ... }
+*/
