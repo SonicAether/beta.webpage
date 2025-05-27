@@ -194,13 +194,19 @@ footer {
     background-color: #000000;
     color: white;
     text-align: center;
-    padding-top: 18px;
-    padding-bottom: 0;
+    /* padding: 15px 0;  Entferne oder reduziere das Padding */
     position: fixed;
     bottom: 0;
     width: 100%;
-    height: 55px;
-    box-sizing: border-box;
+    height: 40px; /* Reduziere die Höhe des Footers */
+    display: flex; /* Aktiviere Flexbox für vertikale Zentrierung */
+    align-items: center; /* Zentriert den Inhalt vertikal */
+    justify-content: center; /* Zentriert den Inhalt horizontal (war schon durch text-align: center) */
+    font-size: 0.9em;
+}
+
+footer p {
+    margin: 0; /* Entferne Standard-Margin des p-Elements, um Zentrierung nicht zu stören */
 }
 
 /* --- Mobile Optimizations --- */
@@ -284,11 +290,23 @@ footer {
     }
 
     footer {
-        padding-top: 15px;
-        height: auto; /* Allow footer height to adjust if text wraps */
-        min-height: 50px; /* Or a specific smaller height */
-        font-size: 12px;
-    }
+    background-color: #000000;
+    color: white;
+    text-align: center;
+    /* padding: 15px 0;  Entferne oder reduziere das Padding */
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 40px; /* Reduziere die Höhe des Footers */
+    display: flex; /* Aktiviere Flexbox für vertikale Zentrierung */
+    align-items: center; /* Zentriert den Inhalt vertikal */
+    justify-content: center; /* Zentriert den Inhalt horizontal (war schon durch text-align: center) */
+    font-size: 0.9em;
+}
+
+footer p {
+    margin: 0; /* Entferne Standard-Margin des p-Elements, um Zentrierung nicht zu stören */
+}
 }
 
 @media (max-width: 480px) {
