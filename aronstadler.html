@@ -34,7 +34,10 @@ body {
   position: absolute; inset: -3%; width: 106%; height: 106%; object-fit: cover;
   opacity: 0; transition: opacity 3s ease; will-change: opacity, transform;
 }
-#scans img.on { opacity: 1; animation: drift 18s linear forwards; }
+/* the outgoing image keeps drifting while it fades, so it never snaps back */
+#scans img.on, #scans img.out { animation: drift 19s linear forwards; }
+#scans img.on { opacity: 1; z-index: 1; }
+#scans img.out { opacity: 0; z-index: 0; }
 @keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.06) translate(-1.2%, 0.8%); } }
 #scans::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -168,8 +171,9 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   function show(k) {
     const im = layers[1 - front];
     const go = () => {
-      im.classList.remove("on"); void im.offsetWidth; im.classList.add("on");
-      layers[front].classList.remove("on");
+      im.classList.remove("on", "out"); void im.offsetWidth; im.classList.add("on");
+      const prev = layers[front];
+      if (prev.classList.contains("on")) { prev.classList.remove("on"); prev.classList.add("out"); }
       front = 1 - front;
       nEl.textContent = String(k + 1).padStart(2, "0");
       bar.classList.remove("run"); void bar.offsetWidth; if (!reduce) bar.classList.add("run");

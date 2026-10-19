@@ -100,7 +100,11 @@ const pointMat = new THREE.ShaderMaterial({
       if (dot(c,c) > 0.25) discard;
       float s = pow(vShade, 1.35);
       vec3 col = uInk * (0.1 + s * 1.05);
-      if (vWater > 0.5) col = mix(uInk, uIce, 0.55) * (0.16 + 0.5 * vShade);
+      if (vWater > 0.5) {
+        // water: cool tint with a slow, scattered glint
+        float glint = pow(0.5 + 0.5 * sin(uTime * 0.9 + vShade * 61.0), 6.0);
+        col = vec3(0.42, 0.66, 0.78) * (0.22 + 0.35 * vShade) + uIce * glint * 0.55;
+      }
       col *= mix(1.0, 0.72, uListen);
       col += uInk * vSweep * 0.35;
       col = mix(col, uIce, clamp(vRing, 0.0, 1.0) * 0.8);
@@ -154,13 +158,17 @@ function buildTerrain(img) {
       rnd.push(rand()); wat.push(isW);
     }
   }
-  // open sea to the south, thinning toward the horizon
-  const seaN = Math.round((WORLD * SEA_EXT) / (cell * cell * stride * stride) * keepWater);
-  for (let n = 0; n < seaN; n++) {
-    const t = Math.pow(rand(), 1.4);
-    if (rand() < t * 0.6) continue;
-    pos.push((rand() - 0.5) * WORLD, 0, DEPTH / 2 + t * SEA_EXT);
-    shade.push(rand()); rnd.push(rand()); wat.push(1);
+  // open sea to the south: same jittered grid and density as the scanned water,
+  // thinning only far out toward the horizon so there is no seam at the coast
+  const step = cell * stride;
+  for (let z = DEPTH / 2 + step * 0.5; z < DEPTH / 2 + SEA_EXT; z += step) {
+    const far = (z - DEPTH / 2) / SEA_EXT;
+    const keep = keepWater * (1 - Math.pow(Math.max(0, far - 0.35) / 0.65, 1.5) * 0.85);
+    for (let x = -WORLD / 2; x < WORLD / 2; x += step) {
+      if (rand() > keep) continue;
+      pos.push(x + (rand() - 0.5) * step, 0, z + (rand() - 0.5) * step);
+      shade.push(rand()); rnd.push(rand()); wat.push(1);
+    }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
