@@ -16,9 +16,7 @@
 .hero img {
   position: absolute; inset: -2%; width: 104%; height: 104%; object-fit: cover;
   filter: saturate(1.05) brightness(0.88);
-  animation: breathe 48s ease-in-out infinite alternate;
 }
-@keyframes breathe { from { transform: scale(1); } to { transform: scale(1.045); } }
 .hero::after { /* scan lines + edges */
   content: ""; position: absolute; inset: 0; z-index: 2;
   background:
@@ -37,16 +35,32 @@
 .wordmark span { display: block; }
 .top .brand { visibility: hidden; }
 
-/* header descriptions on hover/focus */
-.top nav li { position: relative; }
+/* header: each link sits inside a column of light (set by script);
+   where the columns are too narrow it moves large to the bottom right */
+.top nav ul { position: relative; }
+body.pillars .top nav { position: fixed; inset: 0 0 auto 0; height: 0; z-index: 3; }
+body.pillars .top nav li { position: absolute; top: calc(30px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); text-align: center; }
+body.pillars .top nav a {
+  display: block; color: #22123a; font-size: var(--nav-fs, 12px); font-weight: 500; letter-spacing: 0.2em; line-height: 1.55;
+  padding-bottom: 6px; border-bottom: 1px solid rgba(34,18,58,.25); transition: border-color .3s;
+}
+body.pillars .top nav a:hover, body.pillars .top nav a:focus-visible { border-color: #22123a; color: #22123a; }
+body.pillars .top nav a br { display: block; }
+body.pillars .hero::after { background:
+  repeating-linear-gradient(0deg, rgba(5,6,7,.18) 0 1px, transparent 1px 3px),
+  radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(5,6,7,.5) 100%),
+  linear-gradient(180deg, transparent 60%, rgba(5,6,7,.72) 100%); }
 .top nav .hint {
-  position: absolute; right: 0; top: calc(100% + 12px); width: max-content; max-width: 230px;
-  font-family: var(--f-text); font-style: italic; font-size: 14px; line-height: 1.4; letter-spacing: 0; text-transform: none;
-  color: var(--ink); text-align: right; pointer-events: none;
+  display: block; margin-top: 12px; font-family: var(--f-text); font-style: italic; font-size: 15px; line-height: 1.35;
+  letter-spacing: 0; text-transform: none; color: #2c1846; pointer-events: none;
   opacity: 0; transform: translateY(-4px); transition: opacity .35s ease, transform .35s ease;
 }
-.top nav .hint::before { content: ""; display: block; width: 1px; height: 10px; background: var(--ice); margin: 0 0 8px auto; }
 .top nav li:hover .hint, .top nav a:focus-visible + .hint { opacity: 1; transform: none; }
+body:not(.pillars) .top nav .hint { display: none; }
+body:not(.pillars) .top nav a br { display: none; }
+body.navbottom .top nav { position: fixed; z-index: 3; right: max(22px, env(safe-area-inset-right, 0px)); bottom: calc(52px + env(safe-area-inset-bottom, 0px)); }
+body.navbottom .top nav ul { flex-direction: column; align-items: flex-end; gap: 10px; max-width: none; }
+body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 0.2em; text-shadow: 0 0 18px rgba(5,6,7,.9), 0 0 4px rgba(5,6,7,.8); }
 
 /* radio */
 .radio { display: grid; gap: 14px; justify-items: start; width: min(360px, 100%); }
@@ -66,11 +80,10 @@
 .scope .meta span { color: var(--ink); }
 .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
 .bottom .c { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; }
-@media (max-width: 720px) { .top nav .hint { display: none; } .wordmark { font-size: 54vw; flex-direction: column; }
+@media (max-width: 720px) { .wordmark { font-size: 54vw; flex-direction: column; }
   .hero::after { background:
     repeating-linear-gradient(0deg, rgba(5,6,7,.22) 0 1px, transparent 1px 3px),
     linear-gradient(180deg, rgba(5,6,7,.78) 0%, rgba(5,6,7,.2) 22%, transparent 50%, rgba(5,6,7,.72) 100%); } }
-@media (prefers-reduced-motion: reduce) { .hero img { animation: none; } }
 </style>
 </head>
 <body>
@@ -82,10 +95,10 @@
     <div class="brand"><a href="index.html" aria-current="page">SONIC AETHER</a></div>
     <nav aria-label="Main">
       <ul>
-        <li><a href="fieldrec.html">LISTENING SHRINES_</a><span class="hint">Field recordings, resting in an imaginary terrain</span></li>
-        <li><a href="aronstadler.html">ARON STADLER_</a><span class="hint">Noise, tone, and the threshold between</span></li>
-        <li><a href="sound.html">SOUND FOR FILM_</a><span class="hint">Sound design for moving image</span></li>
-        <li><a href="about.html">ABOUT CONTACT_</a><span class="hint">Daniel de Jong</span></li>
+        <li><a href="fieldrec.html">LISTENING<br> SHRINES_</a><span class="hint">Field recordings, resting in an imaginary terrain</span></li>
+        <li><a href="aronstadler.html">ARON<br> STADLER_</a><span class="hint">Noise, tone, and the threshold between</span></li>
+        <li><a href="sound.html">SOUND<br> FOR FILM_</a><span class="hint">Sound design for moving image</span></li>
+        <li><a href="about.html">ABOUT<br> CONTACT_</a><span class="hint">Daniel de Jong</span></li>
       </ul>
     </nav>
   </header>
@@ -108,6 +121,28 @@
 </div>
 
 <script>
+/* Place each header link inside a column of light in the background image.
+   Column centres/widths were measured on assets/home.jpg (fractions of its width). */
+(() => {
+  const COLS = [0.190, 0.333, 0.490, 0.641, 0.783, 0.921], COL_W = 0.105;
+  const items = [...document.querySelectorAll(".top nav li")];
+  function layout() {
+    const W = innerWidth, H = innerHeight;
+    // matches .hero img: inset -2%, object-fit: cover, square image
+    const bw = W * 1.04, bh = H * 1.04, D = Math.max(bw, bh), ox = -0.02 * W + (bw - D) / 2;
+    const colPx = COL_W * D;
+    const visible = COLS.map((c) => ox + c * D).filter((x) => x - colPx / 2 > 8 && x + colPx / 2 < W - 8);
+    const ok = W >= 900 && colPx >= 104 && visible.length >= items.length;
+    document.body.classList.toggle("pillars", ok);
+    document.body.classList.toggle("navbottom", !ok);
+    if (!ok) { items.forEach((li) => { li.style.left = ""; li.style.width = ""; }); return; }
+    const use = visible.slice(-items.length);   // the right-most columns
+    items.forEach((li, i) => { li.style.left = use[i] + "px"; li.style.width = Math.round(colPx * 0.92) + "px"; });
+    document.body.style.setProperty("--nav-fs", Math.max(12, Math.min(16, colPx / 13)).toFixed(1) + "px");
+  }
+  addEventListener("resize", layout); layout();
+})();
+
 /* Aether Radio: a cross-section of the Listening Shrines terrain travels from
    the fjäll to the open sea. Its profile is the wavetable of a quiet drone;
    where the line crosses water, surf comes in. Drawn only while playing. */
