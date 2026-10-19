@@ -1,73 +1,227 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SONIC AETHER | Aron Stadler</title>
-    <link rel="stylesheet" type="text/css" href="style3.css">
-    <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet"> <!-- Für Lusitana Font -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Aron Stadler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@1,6..72,300&display=swap">
+<style>
+/* Layout: relit relief fixed behind; a single narrow column of releases on the left third; outlets at the foot. */
+:root {
+  --void: #050607;
+  --ink: #e2e6e8;
+  --dim: #80898e;
+  --faint: #394146;
+  --line: rgba(226, 230, 232, 0.13);
+  --glass: rgba(5, 6, 7, 0.62);
+  --ice: #a9dbe8;
+  --f-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-text: "Newsreader", "Iowan Old Style", Georgia, serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--void); color: var(--ink);
+  font-family: var(--f-mono); font-size: 11px; -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 1px solid var(--ice); outline-offset: 3px; }
+#relief { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+.wrap {
+  position: relative; z-index: 1; min-height: 100vh;
+  display: grid; grid-template-rows: auto 1fr auto; gap: 48px;
+  padding-block: calc(18px + env(safe-area-inset-top, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(22px, env(safe-area-inset-left, 0px));
+  padding-right: max(22px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.brand a { color: var(--ink); text-decoration: none; font-size: 13px; letter-spacing: 0.32em; font-weight: 500; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 20px; }
+nav a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 0.18em; }
+nav a:hover, nav a[aria-current] { color: var(--ink); }
+
+main { display: grid; align-content: center; gap: 36px; max-width: 520px; }
+.name { margin: 0; font-weight: 200; font-stretch: 112.5%; font-size: clamp(34px, 6.4vw, 78px); letter-spacing: 0.04em; line-height: .95; text-wrap: balance; }
+.name span { display: block; color: var(--dim); }
+.lede { margin: 0; font-family: var(--f-text); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.5; color: var(--ink); max-width: 34ch; }
+.tag { color: var(--dim); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; display: flex; gap: 14px; flex-wrap: wrap; }
+.tag b { color: var(--ice); font-weight: 400; }
+
+.releases { display: grid; gap: 14px; }
+.releases h2, .outlets h2 { margin: 0; font-weight: 400; font-size: 10px; color: var(--dim); letter-spacing: 0.24em; text-transform: uppercase; }
+.release {
+  background: var(--glass); border: 1px solid var(--line);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.release header { padding: 12px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+.release header b { color: var(--ink); font-weight: 400; }
+.release iframe { display: block; width: 100%; height: 152px; border: 0; background: var(--void); }
+
+.videos { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; }
+.videos a, .outlets a { color: var(--ink); text-decoration: none; font-size: 11px; letter-spacing: 0.14em; border-bottom: 1px solid var(--faint); padding-bottom: 2px; transition: border-color .3s, color .3s; }
+.videos a:hover, .outlets a:hover { border-color: var(--ice); color: var(--ice); }
+
+footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.outlets { display: grid; gap: 10px; }
+.outlets ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.readout { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; text-align: right; font-variant-numeric: tabular-nums; }
+.readout span { color: var(--dim); }
+@media (max-width: 720px) {
+  nav ul { gap: 4px 12px; max-width: 56vw; }
+  .readout { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
 </head>
 <body>
-    <header>
-        <h1><a href="index.html">SONIC AETHER</a></h1>
-        <nav>
-            <ul>
-                <li><a href="fieldrec.html">FIELD RECORDING_</a></li>
-                <li><a href="sound.html">SOUND DESIGN_</a></li>
-                <li><a href="lwsm.html">SONIC wAETHER_</a></li>
-                <li><a href="about.html">ABOUT CONTACT_</a></li>
-            </ul>
-        </nav>
-    </header>
+<canvas id="relief" aria-hidden="true"></canvas>
+<div class="wrap">
+  <header>
+    <div class="brand"><a href="index.html">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html" aria-current="page">ARON STADLER_</a></li>
+        <li><a href="sound.html">SOUND DESIGN_</a></li>
+        <li><a href="lwsm.html">SONIC wAETHER_</a></li>
+        <li><a href="about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
 
-    <main>
-        <div class="content-wrapper">
-            <section class="music-showcase">
-                <!-- Spotify Embeds könnten hier prominenter sein oder im Grid integriert werden -->
-                <div class="media-item spotify-embed">
-                    <iframe style="border-radius:12px;" src="https://open.spotify.com/embed/album/67d5gSXrGgFAW34aUZBuwM?utm_source=generator&theme=0" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                </div>
-                <div class="media-item spotify-embed">
-                    <iframe style="border-radius:12px;" src="https://open.spotify.com/embed/album/33BaFUigOl5aj3vRZ90Uay?utm_source=generator&theme=0" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                </div>
+  <main>
+    <h1 class="name">ARON<span>STADLER</span></h1>
+    <p class="tag"><span>experimental ambient</span><b>/</b><span>noise</span><b>/</b><span>field material</span></p>
+    <p class="lede">Compositions grown from a hundred hours of field recordings: geophony, biophony, and the hum in between.</p>
 
-                <!-- YouTube Video Grid -->
-                <div class="video-grid">
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/Is61Fw3eyeU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/yO79E6lUVYE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/KXtL9ygCUY8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/DPgM4UV4IVs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                </div>
-            </section>
+    <section class="releases" aria-label="Releases">
+      <h2>Releases</h2>
+      <article class="release">
+        <header><b>Release I</b><span>Spotify</span></header>
+        <iframe title="Aron Stadler on Spotify, release one" src="https://open.spotify.com/embed/album/67d5gSXrGgFAW34aUZBuwM?utm_source=generator&amp;theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </article>
+      <article class="release">
+        <header><b>Release II</b><span>Spotify</span></header>
+        <iframe title="Aron Stadler on Spotify, release two" src="https://open.spotify.com/embed/album/33BaFUigOl5aj3vRZ90Uay?utm_source=generator&amp;theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </article>
+    </section>
 
-            <section class="external-links">
-                <h2>Find my music here:</h2>
-                <ul>
-                    <li><a href="https://midirarecords.com/release/md-125-aron-stadler-rivers-of-frequency/" target="_blank" rel="noopener noreferrer">MIDIRA RECORDS</a></li>
-                    <li><a href="https://aronstadler.bandcamp.com/" target="_blank" rel="noopener noreferrer">BANDCAMP</a></li>
-                    <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">iTUNES</a></li>
-                </ul>
-            </section>
-        </div>
-    </main>
+    <section class="releases" aria-label="Videos">
+      <h2>Moving image</h2>
+      <ul class="videos">
+        <li><a href="https://www.youtube.com/watch?v=Is61Fw3eyeU" target="_blank" rel="noopener noreferrer">VIDEO I ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=yO79E6lUVYE" target="_blank" rel="noopener noreferrer">VIDEO II ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=KXtL9ygCUY8" target="_blank" rel="noopener noreferrer">VIDEO III ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=DPgM4UV4IVs" target="_blank" rel="noopener noreferrer">VIDEO IV ↗</a></li>
+      </ul>
+    </section>
+  </main>
 
-    <footer>
-        <p>© Daniel de Jong 2025</p> 
-    </footer>
-    <!-- <script src="script.js"></script> --> <!-- Auskommentiert, falls nicht benötigt -->
+  <footer>
+    <section class="outlets" aria-label="Find the music">
+      <h2>Find the music</h2>
+      <ul>
+        <li><a href="https://midirarecords.com/release/md-125-aron-stadler-rivers-of-frequency/" target="_blank" rel="noopener noreferrer">MIDIRA RECORDS ↗</a></li>
+        <li><a href="https://aronstadler.bandcamp.com/" target="_blank" rel="noopener noreferrer">BANDCAMP ↗</a></li>
+        <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
+      </ul>
+    </section>
+    <div class="readout" aria-hidden="true">RELIEF · HÄRJEDALEN, SE<br>LIGHT AZ <span id="az">315</span>° · ALT <span id="alt">35</span>°<br>Daniel de Jong © 2025</div>
+  </footer>
+</div>
+
+<script>
+/* Relit relief: height comes from the green channel of assets/relief.png
+   (reconstructed from a hillshade scan); light azimuth follows the pointer. */
+(() => {
+  const cv = document.getElementById("relief");
+  const gl = cv.getContext("webgl", { antialias: false, premultipliedAlpha: false });
+  if (!gl) return;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const vs = `attribute vec2 p; varying vec2 v; void main(){ v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`;
+  const fs = `
+    precision highp float;
+    varying vec2 v;
+    uniform sampler2D tex; uniform vec2 res, texRes; uniform vec3 L; uniform float t, zoom; uniform vec2 drift;
+    float h(vec2 uv){ vec4 c = texture2D(tex, uv); return c.g + c.b / 255.0; } // 16-bit height
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    void main(){
+      // cover-fit the texture, slow drift
+      float ar = res.x / res.y, tr = texRes.x / texRes.y;
+      vec2 uv = v - 0.5;
+      if (ar > tr) uv.y *= tr / ar; else uv.x *= ar / tr;
+      uv = uv / zoom + 0.5 + drift;
+      uv.y = 1.0 - uv.y;
+      vec2 e = 1.5 / texRes;
+      float s = 5.0;
+      vec3 n = normalize(vec3((h(uv - vec2(e.x,0.)) - h(uv + vec2(e.x,0.))) * s,
+                              (h(uv + vec2(0.,e.y)) - h(uv - vec2(0.,e.y))) * s, 0.06));
+      float lam = max(dot(n, normalize(L)), 0.0);
+      float orig = texture2D(tex, uv).r;
+      float c = mix(lam, orig, 0.28);
+      c = pow(c, 1.6) * 0.62;
+      // vignette + grain
+      vec2 q = v - 0.5; c *= smoothstep(0.95, 0.15, length(q * vec2(1.0, 1.25)));
+      c += (hash(gl_FragCoord.xy + t) - 0.5) * 0.035;
+      // fade the left reading area
+      c *= mix(0.42, 1.0, smoothstep(0.12, 0.62, v.x));
+      gl_FragColor = vec4(vec3(c) * vec3(0.97, 1.0, 1.02) + vec3(0.02,0.023,0.027), 1.0);
+    }`;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+  const pr = gl.createProgram();
+  gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = (n) => gl.getUniformLocation(pr, n);
+  const az = document.getElementById("az"), alt = document.getElementById("alt");
+  let target = 315, cur = 315, tAlt = 35, cAlt = 35, texW = 1, texH = 1, ready = false;
+
+  const img = new Image();
+  img.onload = () => {
+    texW = img.width; texH = img.height;
+    const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    ready = true;
+  };
+  img.src = "assets/relief.png";
+
+  addEventListener("pointermove", (e) => {
+    const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+    target = (Math.atan2(y, x) * 180 / Math.PI + 450) % 360;
+    tAlt = 18 + 50 * (1 - Math.min(1, Math.hypot(x, y) * 1.6));
+  });
+  function size() {
+    const d = Math.min(devicePixelRatio, 1.5);
+    cv.width = innerWidth * d; cv.height = innerHeight * d; gl.viewport(0, 0, cv.width, cv.height);
+  }
+  addEventListener("resize", size); size();
+  const t0 = performance.now();
+  function frame(now) {
+    const t = (now - t0) / 1000;
+    if (!reduce) target += 0.6 * 0.016; // slow solar drift when idle
+    let d = ((target - cur + 540) % 360) - 180; cur = (cur + d * 0.03 + 360) % 360; cAlt += (tAlt - cAlt) * 0.03;
+    const a = cur * Math.PI / 180, b = cAlt * Math.PI / 180;
+    if (ready) {
+      gl.uniform2f(U("res"), cv.width, cv.height); gl.uniform2f(U("texRes"), texW, texH);
+      gl.uniform3f(U("L"), Math.sin(a) * Math.cos(b), Math.cos(a) * Math.cos(b), Math.sin(b));
+      gl.uniform1f(U("t"), reduce ? 0 : Math.floor(t * 24));
+      gl.uniform1f(U("zoom"), 1.06 + (reduce ? 0 : Math.sin(t * 0.02) * 0.04));
+      gl.uniform2f(U("drift"), reduce ? 0 : Math.sin(t * 0.013) * 0.02, reduce ? 0 : Math.cos(t * 0.011) * 0.015);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    az.textContent = String(Math.round(cur)).padStart(3, "0"); alt.textContent = String(Math.round(cAlt)).padStart(2, "0");
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
 </body>
 </html>
