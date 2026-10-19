@@ -1,73 +1,195 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SONIC AETHER | Aron Stadler</title>
-    <link rel="stylesheet" type="text/css" href="style3.css">
-    <link href="https://fonts.googleapis.com/css2?family=Lusitana:wght@400;700&display=swap" rel="stylesheet"> <!-- Für Lusitana Font -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Aron Stadler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@1,6..72,300&display=swap">
+<style>
+/* Layout: harmonised scans crossfade behind; a single narrow column of releases on the left third; outlets at the foot. */
+:root {
+  --void: #050607;
+  --ink: #e2e6e8;
+  --dim: #80898e;
+  --faint: #394146;
+  --line: rgba(226, 230, 232, 0.13);
+  --glass: rgba(5, 6, 7, 0.62);
+  --ice: #a9dbe8;
+  --f-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-text: "Newsreader", "Iowan Old Style", Georgia, serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0; background: var(--void); color: var(--ink);
+  font-family: var(--f-mono); font-size: 11px; -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 1px solid var(--ice); outline-offset: 3px; }
+#scans { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--void); }
+#scans img {
+  position: absolute; inset: -3%; width: 106%; height: 106%; object-fit: cover;
+  opacity: 0; transition: opacity 3s ease; will-change: opacity, transform;
+}
+/* the outgoing image keeps drifting while it fades, so it never snaps back */
+#scans img.on, #scans img.out { animation: drift 19s linear forwards; }
+#scans img.on { opacity: 1; z-index: 1; }
+/* the previous scan stays fully visible underneath until the new one has faded in,
+   so brightness never dips mid-crossfade */
+#scans img.out { opacity: 1; z-index: 0; transition: none; }
+#scans img.out.gone { opacity: 0; }
+@keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.06) translate(-1.2%, 0.8%); } }
+#scans::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(5,6,7,.82) 0%, rgba(5,6,7,.55) 34%, rgba(5,6,7,.05) 70%),
+    radial-gradient(ellipse at 60% 50%, transparent 40%, rgba(5,6,7,.6) 100%);
+}
+.scanbar { width: 160px; height: 1px; background: var(--faint); margin: 8px 0 0 auto; position: relative; overflow: hidden; }
+.scanbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ice); }
+.scanbar i.run { animation: fill 15s linear forwards; }
+@keyframes fill { to { width: 100%; } }
+.wrap {
+  position: relative; z-index: 1; min-height: 100vh;
+  display: grid; grid-template-rows: auto 1fr auto; gap: 48px;
+  padding-block: calc(18px + env(safe-area-inset-top, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(22px, env(safe-area-inset-left, 0px));
+  padding-right: max(22px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.brand a { color: var(--ink); text-decoration: none; font-size: 13px; letter-spacing: 0.32em; font-weight: 500; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 20px; }
+nav a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 0.18em; }
+nav a:hover, nav a[aria-current] { color: var(--ink); }
+
+main { display: grid; align-content: center; gap: 36px; max-width: 520px; }
+.name { margin: 0; font-weight: 200; font-stretch: 112.5%; font-size: clamp(34px, 6.4vw, 78px); letter-spacing: 0.04em; line-height: .95; text-wrap: balance; }
+.name span { display: block; color: var(--dim); }
+.lede { margin: 0; font-family: var(--f-text); font-style: italic; font-weight: 300; font-size: 19px; line-height: 1.5; color: var(--ink); max-width: 34ch; }
+.tag { color: var(--dim); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; display: flex; gap: 14px; flex-wrap: wrap; }
+.tag b { color: var(--ice); font-weight: 400; }
+
+.releases { display: grid; gap: 14px; }
+.releases h2, .outlets h2 { margin: 0; font-weight: 400; font-size: 10px; color: var(--dim); letter-spacing: 0.24em; text-transform: uppercase; }
+.release {
+  background: var(--glass); border: 1px solid var(--line);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+}
+.release header { padding: 12px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); }
+.release header b { color: var(--ink); font-weight: 400; }
+.release iframe { display: block; width: 100%; height: 152px; border: 0; background: var(--void); }
+
+.videos { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; }
+.videos a, .outlets a { color: var(--ink); text-decoration: none; font-size: 11px; letter-spacing: 0.14em; border-bottom: 1px solid var(--faint); padding-bottom: 2px; transition: border-color .3s, color .3s; }
+.videos a:hover, .outlets a:hover { border-color: var(--ice); color: var(--ice); }
+
+footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+.outlets { display: grid; gap: 10px; }
+.outlets ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.readout { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; text-align: right; font-variant-numeric: tabular-nums; }
+.readout span { color: var(--dim); }
+@media (max-width: 720px) {
+  nav ul { gap: 4px 12px; max-width: 56vw; }
+  .readout { text-align: left; }
+  .scanbar { margin-left: 0; }
+  #scans::after { background: linear-gradient(180deg, rgba(5,6,7,.55), rgba(5,6,7,.78)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
 </head>
 <body>
-    <header>
-        <h1><a href="index.html">SONIC AETHER</a></h1>
-        <nav>
-            <ul>
-                <li><a href="fieldrec.html">FIELD RECORDING_</a></li>
-                <li><a href="sound.html">SOUND DESIGN_</a></li>
-                <li><a href="lwsm.html">SONIC wAETHER_</a></li>
-                <li><a href="about.html">ABOUT CONTACT_</a></li>
-            </ul>
-        </nav>
-    </header>
+<div id="scans" aria-hidden="true"></div>
+<div class="wrap">
+  <header>
+    <div class="brand"><a href="index.html">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html" aria-current="page">ARON STADLER_</a></li>
+        <li><a href="sound.html">SOUND FOR FILM_</a></li>
+        <li><a href="about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
 
-    <main>
-        <div class="content-wrapper">
-            <section class="music-showcase">
-                <!-- Spotify Embeds könnten hier prominenter sein oder im Grid integriert werden -->
-                <div class="media-item spotify-embed">
-                    <iframe style="border-radius:12px;" src="https://open.spotify.com/embed/album/67d5gSXrGgFAW34aUZBuwM?utm_source=generator&theme=0" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                </div>
-                <div class="media-item spotify-embed">
-                    <iframe style="border-radius:12px;" src="https://open.spotify.com/embed/album/33BaFUigOl5aj3vRZ90Uay?utm_source=generator&theme=0" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
-                </div>
+  <main>
+    <h1 class="name">ARON<span>STADLER</span></h1>
+    <p class="tag"><span>experimental ambient</span><b>/</b><span>noise</span><b>/</b><span>field material</span></p>
+    <p class="lede">Sound before it settles into music. Aron Stadler listens for the point where noise turns into tone and comes apart again, the narrow threshold between what is intended and what simply is.</p>
 
-                <!-- YouTube Video Grid -->
-                <div class="video-grid">
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/Is61Fw3eyeU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/yO79E6lUVYE" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/KXtL9ygCUY8" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                    <div class="media-item youtube-embed">
-                        <div class="youtube-aspect-ratio">
-                            <iframe src="https://www.youtube.com/embed/DPgM4UV4IVs" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-                        </div>
-                    </div>
-                </div>
-            </section>
+    <section class="releases" aria-label="Releases">
+      <h2>Releases</h2>
+      <article class="release">
+        <header><span><b>Fragile Synchronicity</b> · Release I</span><span>Spotify</span></header>
+        <iframe title="Fragile Synchronicity on Spotify" src="https://open.spotify.com/embed/album/67d5gSXrGgFAW34aUZBuwM?utm_source=generator&amp;theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </article>
+      <article class="release">
+        <header><span><b>Rivers of Frequency</b> · Release II</span><span>Midira · MD-125</span></header>
+        <iframe title="Rivers of Frequency on Spotify" src="https://open.spotify.com/embed/album/33BaFUigOl5aj3vRZ90Uay?utm_source=generator&amp;theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
+      </article>
+    </section>
 
-            <section class="external-links">
-                <h2>Find my music here:</h2>
-                <ul>
-                    <li><a href="https://midirarecords.com/release/md-125-aron-stadler-rivers-of-frequency/" target="_blank" rel="noopener noreferrer">MIDIRA RECORDS</a></li>
-                    <li><a href="https://aronstadler.bandcamp.com/" target="_blank" rel="noopener noreferrer">BANDCAMP</a></li>
-                    <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">iTUNES</a></li>
-                </ul>
-            </section>
-        </div>
-    </main>
+    <section class="releases" aria-label="Videos">
+      <h2>Moving image</h2>
+      <ul class="videos">
+        <li><a href="https://www.youtube.com/watch?v=Is61Fw3eyeU" target="_blank" rel="noopener noreferrer">VIDEO I ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=yO79E6lUVYE" target="_blank" rel="noopener noreferrer">VIDEO II ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=KXtL9ygCUY8" target="_blank" rel="noopener noreferrer">VIDEO III ↗</a></li>
+        <li><a href="https://www.youtube.com/watch?v=DPgM4UV4IVs" target="_blank" rel="noopener noreferrer">VIDEO IV ↗</a></li>
+      </ul>
+    </section>
+  </main>
 
-    <footer>
-        <p>© Daniel de Jong 2025</p> 
-    </footer>
-    <!-- <script src="script.js"></script> --> <!-- Auskommentiert, falls nicht benötigt -->
+  <footer>
+    <section class="outlets" aria-label="Find the music">
+      <h2>Find the music</h2>
+      <ul>
+        <li><a href="https://midirarecords.com/release/md-125-aron-stadler-rivers-of-frequency/" target="_blank" rel="noopener noreferrer">MIDIRA RECORDS ↗</a></li>
+        <li><a href="https://aronstadler.bandcamp.com/" target="_blank" rel="noopener noreferrer">BANDCAMP ↗</a></li>
+        <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
+      </ul>
+    </section>
+    <div class="readout" aria-hidden="true">LIDAR HILLSHADE · SE<br>SCAN <span id="scan-n">01</span> / <span id="scan-t">17</span><div class="scanbar"><i id="scan-bar"></i></div><br>Daniel Aron de Jong © 2026</div>
+  </footer>
+</div>
+
+<script>
+/* Background: harmonised LIDAR scans, crossfading every 15 s. */
+(() => {
+  const SCANS = ["d855d1cd","049661e6","174b0097","2fbb9e8e","95cc5818","eac657f2","0d78ea56","bb840f4e",
+                 "a36eca75","945a4be6","51c4c9fc","c0ba3ae2","3bc1751e","e2882f62","b4cccc2d","ba13871d","f9cff277"];
+  const HOLD = 15000;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const box = document.getElementById("scans");
+  const nEl = document.getElementById("scan-n"), bar = document.getElementById("scan-bar");
+  document.getElementById("scan-t").textContent = SCANS.length;
+  const layers = [new Image(), new Image()];
+  layers.forEach((im) => { im.alt = ""; im.decoding = "async"; box.appendChild(im); });
+  let i = Math.floor(Math.random() * SCANS.length), front = 0;
+  const src = (k) => `assets/scans/${SCANS[k]}.jpg`;
+  function show(k) {
+    const im = layers[1 - front];
+    const go = () => {
+      im.classList.remove("on", "out", "gone"); void im.offsetWidth; im.classList.add("on");
+      const prev = layers[front];
+      if (prev.classList.contains("on")) {
+        prev.classList.remove("on"); prev.classList.add("out");
+        setTimeout(() => prev.classList.contains("out") && prev.classList.add("gone"), 3300);
+      }
+      front = 1 - front;
+      nEl.textContent = String(k + 1).padStart(2, "0");
+      bar.classList.remove("run"); void bar.offsetWidth; if (!reduce) bar.classList.add("run");
+      new Image().src = src((k + 1) % SCANS.length); // preload the next one
+    };
+    im.onload = go; im.src = src(k);
+    if (im.complete && im.naturalWidth) { im.onload = null; go(); }
+  }
+  show(i);
+  if (!reduce) setInterval(() => { i = (i + 1) % SCANS.length; show(i); }, HOLD);
+})();
+</script>
 </body>
 </html>

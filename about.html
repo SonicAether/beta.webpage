@@ -1,39 +1,83 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>SONIC AETHER | About</title>
-	<link rel="stylesheet" type="text/css" href="style_about.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>About Sonic Aether</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,300&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* About: one column of prose, a data block for practice and equipment, contact last. */
+main { display: grid; align-content: center; gap: 36px; max-width: 660px; }
+.prose { display: grid; gap: 1em; font-family: var(--f-text); font-size: 17px; line-height: 1.65; max-width: 60ch; }
+.prose p { margin: 0; text-wrap: pretty; }
+.facts { margin: 0; display: grid; grid-template-columns: 11em minmax(0, 1fr); gap: 8px 16px; border-top: 1px solid var(--line); padding-top: 18px; }
+.facts dt { color: var(--dim); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; padding-top: 2px; }
+.facts dd { margin: 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
+.contact { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-top: 18px; }
+.mail { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; }
+.mail a { font-size: clamp(16px, 2.4vw, 22px); font-weight: 300; letter-spacing: 0.06em; text-decoration: none; border-bottom: 1px solid var(--faint); padding-bottom: 3px; user-select: all; }
+.mail a:hover { color: var(--ice); border-color: var(--ice); }
+.insta { justify-self: start; margin-top: 6px; color: var(--ink); text-decoration: none; font-size: 12px; letter-spacing: 0.06em; border-bottom: 1px solid var(--faint); padding-bottom: 2px; }
+.insta .u { color: var(--dim); font-size: 10px; margin-right: 10px; }
+.insta:hover { color: var(--ice); border-color: var(--ice); }
+#copy { color: var(--dim); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; border: 1px solid var(--line); padding: 7px 12px; }
+#copy:hover { color: var(--ink); border-color: var(--dim); }
+@media (max-width: 720px) { .facts { grid-template-columns: 1fr; gap: 2px 0; } .facts dd { margin-bottom: 8px; } }
+</style>
 </head>
 <body>
-	<body style="background-image: url(https://cdn.midjourney.com/41e9691b-f886-4246-987c-bed3f0217350/grid_0.png); background-repeat: no-repeat; background-attachment: fixed; background-position: center; background-size: cover;"></body>
-	<header>
-		<h1><a href="index.html">SONIC AETHER</a></h1>
-		<nav>
-			<ul>
-                <li><a href="aronstadler.html">ARON STADLER_</a></li>
-				<li><a href="fieldrec.html">FIELD RECORDING_</a></li>
-				<li><a href="sound.html">SOUND DESIGN_</a></li>
-				<li><a href="lwsm.html">SONIC wAETHER_</a></li>
-			</ul>
-		</nav>
-	</header>
-	<main>
-		<section>
-            <div class="right-side-text-section">
-                <p>all inquiries </p>
-				<p>mail: contact@sonicaether.com </p>
-                
-            </div>
+<div class="bg" aria-hidden="true"><img src="assets/scans/eac657f2.jpg" alt=""></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a href="index.html">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html">ARON STADLER_</a></li>
+        <li><a href="sound.html">SOUND FOR FILM_</a></li>
+        <li><a href="about.html" aria-current="page">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
 
-			<div class="video-container">
-				<iframe width="560" height="315" src="https://www.youtube.com/embed/Is61Fw3eyeU" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-			</div>
-			
-		</section>
-	</main>
-	<footer>
-		<p>Daniel de Jong &copy; 2025</p>
-	</footer>
-	<script src="script.js"></script>
+  <main>
+    <div style="display:grid;gap:20px">
+      <p class="eyebrow">About</p>
+      <h1 class="display">DANIEL ARON<span>DE JONG</span></h1>
+    </div>
+    <div class="prose">
+      <p>Daniel Aron de Jong is a sound designer, field recordist and composer from the north-west of Germany. He studied geosciences in Innsbruck and music design in Trossingen. During a practical year of his music design studies he co-developed the Mirra 14 studio monitor at Abacus Electronics.</p>
+      <p>His work moves between sound for film, long recordings of quiet places, deep listening concerts, and experimental music released as Aron Stadler. What connects them is listening: a field recording describes a place and the life in it at one particular hour, a film needs the same attention to space, and in the music the question turns inward, to the point where noise becomes tone and an intention gives way to what is simply there.</p>
+      <p>Underneath all of it lies a spiritual, and in the end a religious, motivation. For him, listening is a form of prayer: turning toward a place without wanting anything from it, letting a sound be what it is, and finding in that attention a trace of something greater than oneself. The recordings, concerts and compositions are attempts to share this listening, and to open a space where stillness can be heard.</p>
+    </div>
+    <dl class="facts">
+      <dt>Practice</dt><dd>Sound design, mixing and location sound for film · field recording · composition · deep listening concerts · sound and prayer</dd>
+      <dt>Recording &amp; monitoring</dt><dd>Nevaton MC59 omni and wide cardioid in spaced and baffled AB · Sennheiser MKH 8018 MS · Rode NT1 NOS · Immersive Soundscapes Earsight · Abacus Mirra 14 · Abacus C-Box 4</dd>
+      <dt>Studies</dt><dd>Geosciences, Innsbruck · Music design, Trossingen</dd>
+      <dt>Development</dt><dd>Abacus Mirra 14 studio monitor, co-developer (practical year, Abacus Electronics)</dd>
+      <dt>Regions</dt><dd>Friesland and East Frisia, the Wadden islands, Femundsmarka and Rogen in the Scandinavian borderland</dd>
+      <dt>Studio</dt><dd>Films with 9sekunden</dd>
+    </dl>
+    <div class="contact">
+      <p class="eyebrow">All inquiries</p>
+      <div class="mail"><a href="mailto:contact@sonicaether.com" id="mail">contact@sonicaether.com</a><button id="copy" type="button">Copy</button></div>
+      <a class="insta" href="https://www.instagram.com/daniel_aron" target="_blank" rel="noopener noreferrer"><span class="u">Instagram</span> @daniel_aron ↗</a>
+    </div>
+  </main>
+
+  <footer class="foot"><div>Daniel Aron de Jong © 2026</div><div>SCAN <span>ARCHIPELAGO · SE</span></div></footer>
+</div>
+<script>
+document.getElementById("copy").addEventListener("click", async (e) => {
+  const b = e.currentTarget, addr = document.getElementById("mail").textContent;
+  try { await navigator.clipboard.writeText(addr); b.textContent = "Copied"; }
+  catch (_) { const r = document.createRange(); r.selectNodeContents(document.getElementById("mail")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Selected"; }
+  setTimeout(() => (b.textContent = "Copy"), 1800);
+});
+</script>
 </body>
 </html>

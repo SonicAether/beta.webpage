@@ -1,95 +1,114 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-	<title>SONIC AETHER | Sound Design</title>
-	<link rel="stylesheet" type="text/css" href="sounddesign.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sound For Film</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@1,6..72,300&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* Sound For Film: a credits list; each row opens its film in place. */
+main { display: grid; align-content: start; gap: 36px; max-width: 860px; padding-top: 4vh; }
+.films { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.film { border-bottom: 1px solid var(--line); }
+.film > button {
+  width: 100%; display: grid; grid-template-columns: 2.2em minmax(0, 15em) minmax(0, 1fr) auto; align-items: baseline; gap: 6px 20px;
+  padding: 15px 0; text-align: left; transition: padding .4s ease;
+}
+.film .n { color: var(--faint); font-size: 10px; font-variant-numeric: tabular-nums; }
+.film .client { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); overflow-wrap: anywhere; }
+.film .title { font-family: var(--f-text); font-style: italic; font-size: 18px; line-height: 1.3; color: var(--ink); }
+.film .meta { color: var(--faint); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; white-space: nowrap; display: flex; gap: 14px; align-items: center; }
+.film .meta i { width: 9px; height: 9px; position: relative; display: inline-block; }
+.film .meta i::before, .film .meta i::after { content: ""; position: absolute; background: var(--dim); left: 0; right: 0; top: 4px; height: 1px; transition: transform .3s; }
+.film .meta i::after { transform: rotate(90deg); }
+.film > button[aria-expanded="true"] .meta i::after { transform: rotate(0); }
+.film > button:hover { padding-left: 12px; }
+.film > button:hover .title, .film > button[aria-expanded="true"] .title { color: var(--ice); }
+.film > button:hover .meta i::before, .film > button:hover .meta i::after { background: var(--ice); }
+.player { padding: 4px 0 22px; }
+.player .frame { position: relative; aspect-ratio: 16 / 9; max-width: 100%; background: #000; border: 1px solid var(--line); }
+.player iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.player .src { margin-top: 10px; color: var(--faint); font-size: 10px; letter-spacing: 0.14em; }
+.player .src a { color: var(--dim); }
+@media (max-width: 720px) {
+  .film > button { grid-template-columns: 2.2em minmax(0, 1fr) auto; }
+  .film .client { grid-column: 2 / 4; grid-row: 1; }
+  .film .title { grid-column: 2; grid-row: 2; }
+  .film .meta { grid-column: 3; grid-row: 2; }
+  .film .meta .studio { display: none; }
+}
+</style>
 </head>
 <body>
-	
-	<header>
-		<h1><a href="index.html">SONIC AETHER</a></h1>
-		<nav>
-			<ul>
-				<li><a href="aronstadler.html">ARON STADLER_</a></li>
-				<li><a href="fieldrec.html">FIELD RECORDING_</a></li>
-				<li><a href="lwsm.html">SONIC wAETHER_</a></li>
-				<li><a href="about.html">ABOUT CONTACT_</a></li>
-			</ul>
-		</nav>
-	</header>
-	<main>
-       <section class="video-gallery">
-		    <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/1048023331?badge=0&amp;autopause=0&amp;player_id=0&amp;app_id=58479"
-                            allow="autoplay; fullscreen; picture-in-picture; clipboard-write"
-                            title="heatherwick studio | little island (pier 55)"></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/1048023331?share=copy">heatherwick studio | little island (pier 55)</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
+<div class="bg" aria-hidden="true"><img src="assets/scans/174b0097.jpg" alt=""></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a href="index.html">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html">ARON STADLER_</a></li>
+        <li><a href="sound.html" aria-current="page">SOUND FOR FILM_</a></li>
+        <li><a href="about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
 
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/1016301796?badge=0&autopause=0&player_id=0&app_id=58479"
-                            allow="autoplay; fullscreen; picture-in-picture; clipboard-write"
-                            title="ROMEIROS | Teaser | 2024"></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/1016301796">ROMEIROS | Teaser | 2024</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
+  <main>
+    <div style="display:grid;gap:20px">
+      <p class="eyebrow">Sound design · mix · location sound</p>
+      <h1 class="display">SOUND<span>FOR FILM</span></h1>
+      <p class="lede">Architecture, landscape and documentary films, made with 9sekunden. Select a film to watch it here.</p>
+    </div>
+    <ol class="films" id="films"></ol>
+  </main>
 
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/1007807216?badge=0&autopause=0&player_id=0&app_id=58479"
-                            allow="autoplay; fullscreen; picture-in-picture; clipboard-write"
-                            title="jung | gründervilla"></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/1007807216">jung | gründervilla</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
+  <footer class="foot"><div>Daniel Aron de Jong © 2026</div><div>FILMS <span>08</span> · STUDIO <span>9SEKUNDEN</span></div></footer>
+</div>
 
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/871393594?h=6978b49970&color=06516f&title=0&byline=0&portrait=0"
-                            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/871393594">the first church</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
-
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/951178740?h=4ba92e238f&color=06516f&title=0&byline=0&portrait=0"
-                            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/951178740">james hamilton architects | fisheries cottage (construction site)</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a>
-            </div>
-
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/917861879?h=dcd9ce9a43&color=06516f&title=0&byline=0&portrait=0"
-                            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/917861879">allmannwappner | texoversum (9s version)</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
-
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/816523133?h=c1791c0544&color=06516f&title=0&byline=0&portrait=0"
-                            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/816523133">patrick voigt | the backyard of the eye</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
-
-            <div class="video-block">
-                <div class="video-player-wrapper">
-                    <iframe src="https://player.vimeo.com/video/906449792?h=420e6b2947&color=06516f&title=0&byline=0&portrait=0"
-                            allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-                </div>
-                <p class="video-caption"><a href="https://vimeo.com/906449792">bez + kock architekten | new park centre luisenpark mannheim</a> from <a href="https://vimeo.com/9sekunden">9sekunden</a> 
-            </div>
-        </section>
-    </main>
-	<footer>
-		<p>Daniel de Jong &copy; 2025</p>
-	</footer>
-	<script src="script.js"></script>
+<script>
+/* Films. h = Vimeo privacy hash for unlisted videos. */
+const FILMS = [
+  { id: "1048023331", client: "Heatherwick Studio", title: "Little Island (Pier 55)" },
+  { id: "1016301796", client: "Romeiros", title: "On a pilgrimage for mercy · Teaser", year: "2024" },
+  { id: "1007807216", client: "Jung", title: "Gründervilla" },
+  { id: "871393594", h: "6978b49970", client: "—", title: "The First Church" },
+  { id: "951178740", h: "4ba92e238f", client: "James Hamilton Architects", title: "Fisheries Cottage (construction site)" },
+  { id: "917861879", h: "dcd9ce9a43", client: "Allmannwappner", title: "Texoversum (9s version)" },
+  { id: "816523133", h: "c1791c0544", client: "Patrick Voigt", title: "The Backyard of the Eye" },
+  { id: "906449792", h: "420e6b2947", client: "Bez + Kock Architekten", title: "New Park Centre, Luisenpark Mannheim" },
+];
+const list = document.getElementById("films");
+FILMS.forEach((f, i) => {
+  const li = document.createElement("li"); li.className = "film";
+  const pid = `film-${i}`;
+  li.innerHTML = `<button type="button" aria-expanded="false" aria-controls="${pid}">
+      <span class="n">${String(i + 1).padStart(2, "0")}</span>
+      <span class="client">${f.client}</span>
+      <span class="title">${f.title}</span>
+      <span class="meta"><span class="studio">9sekunden${f.year ? " · " + f.year : ""}</span><i aria-hidden="true"></i></span>
+    </button>
+    <div class="player" id="${pid}" hidden></div>`;
+  const btn = li.querySelector("button"), box = li.querySelector(".player");
+  btn.addEventListener("click", () => {
+    const open = btn.getAttribute("aria-expanded") === "true";
+    list.querySelectorAll(".film > button[aria-expanded='true']").forEach((b) => {
+      b.setAttribute("aria-expanded", "false"); const p = b.nextElementSibling; p.hidden = true; p.innerHTML = "";
+    });
+    if (open) return;
+    const q = new URLSearchParams({ dnt: "1", autoplay: "1", title: "0", byline: "0", portrait: "0", color: "a9dbe8" });
+    if (f.h) q.set("h", f.h);
+    box.innerHTML = `<div class="frame"><iframe src="https://player.vimeo.com/video/${f.id}?${q}" title="${f.client !== "—" ? f.client + ", " : ""}${f.title}" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe></div>
+      <div class="src u">Watch on <a href="https://vimeo.com/${f.id}${f.h ? "/" + f.h : ""}" target="_blank" rel="noopener noreferrer">Vimeo ↗</a></div>`;
+    box.hidden = false; btn.setAttribute("aria-expanded", "true");
+    btn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  });
+  list.appendChild(li);
+});
+</script>
 </body>
 </html>
