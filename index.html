@@ -42,10 +42,14 @@ body.pillars .top nav { position: fixed; inset: 0 0 auto 0; height: 0; z-index: 
 body.pillars .top nav li { position: absolute; top: calc(30px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); text-align: center; }
 body.pillars .top nav a {
   display: block; color: #22123a; font-size: var(--nav-fs, 12px); font-weight: 500; letter-spacing: 0.2em; line-height: 1.55;
-  padding-bottom: 6px; border-bottom: 1px solid rgba(34,18,58,.25); transition: border-color .3s;
+  transition: opacity .3s;
 }
-body.pillars .top nav a:hover, body.pillars .top nav a:focus-visible { border-color: #22123a; color: #22123a; }
+body.pillars .top nav ul:hover a { opacity: .55; }
+body.pillars .top nav ul:hover li:hover a, body.pillars .top nav a:focus-visible { opacity: 1; color: #22123a; }
 body.pillars .top nav a br { display: block; }
+/* centre the words only: the trailing underscore and letter-spacing hang outside */
+body.pillars .top nav a { padding-left: 0.2em; }
+body.pillars .top nav a .us { display: inline-block; width: 0; overflow: visible; }
 body.pillars .hero::after { background:
   repeating-linear-gradient(0deg, rgba(5,6,7,.18) 0 1px, transparent 1px 3px),
   radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(5,6,7,.5) 100%),
@@ -95,10 +99,10 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     <div class="brand"><a href="index.html" aria-current="page">SONIC AETHER</a></div>
     <nav aria-label="Main">
       <ul>
-        <li><a href="fieldrec.html">LISTENING<br> SHRINES_</a><span class="hint">Field recordings, resting in an imaginary terrain</span></li>
-        <li><a href="aronstadler.html">ARON<br> STADLER_</a><span class="hint">Noise, tone, and the threshold between</span></li>
-        <li><a href="sound.html">SOUND<br> FOR FILM_</a><span class="hint">Sound design for moving image</span></li>
-        <li><a href="about.html">ABOUT<br> CONTACT_</a><span class="hint">Daniel de Jong</span></li>
+        <li><a href="fieldrec.html">LISTENING<br> SHRINES<span class="us">_</span></a><span class="hint">Field recordings, resting in an imaginary terrain</span></li>
+        <li><a href="aronstadler.html">ARON<br> STADLER<span class="us">_</span></a><span class="hint">Noise, tone, and the threshold between</span></li>
+        <li><a href="sound.html">SOUND<br> FOR FILM<span class="us">_</span></a><span class="hint">Sound design for moving image</span></li>
+        <li><a href="about.html">ABOUT<br> CONTACT<span class="us">_</span></a><span class="hint">Daniel de Jong</span></li>
       </ul>
     </nav>
   </header>
@@ -122,25 +126,57 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
 
 <script>
 /* Place each header link inside a column of light in the background image.
-   Column centres/widths were measured on assets/home.jpg (fractions of its width). */
+   Column centres are measured from the image pixels at the height of the links,
+   using the image's real on-screen box (so scrollbars or browser chrome don't shift them). */
 (() => {
-  const COLS = [0.190, 0.333, 0.490, 0.641, 0.783, 0.921], COL_W = 0.105;
   const items = [...document.querySelectorAll(".top nav li")];
+  const hero = document.querySelector(".hero img");
+  let cols = null; // [{c, w}] as fractions of image width, measured at row fraction `rowAt`
+  let src = null, rowCache = {};
+  function measure(fy) {
+    const key = Math.round(fy * 200);
+    if (rowCache[key]) return rowCache[key];
+    const N = src.width, y = Math.max(0, Math.min(src.height - 1, Math.round(fy * src.height)));
+    const d = src.getContext("2d").getImageData(0, Math.max(0, y - 6), N, 12).data;
+    const row = new Float32Array(N);
+    for (let x = 0; x < N; x++) { let v = 0; for (let k = 0; k < 12; k++) { const i = (k * N + x) * 4; v += d[i] * .3 + d[i + 1] * .59 + d[i + 2] * .11; } row[x] = v / 12; }
+    const sm = new Float32Array(N), R = 6;           // smooth
+    for (let x = 0; x < N; x++) { let a = 0, n = 0; for (let k = -R; k <= R; k++) { const j = x + k; if (j >= 0 && j < N) { a += row[j]; n++; } } sm[x] = a / n; }
+    let lo = Infinity, mean = 0; for (const v of sm) { lo = Math.min(lo, v); mean += v; } mean /= N;
+    const out = [], win = Math.round(N * 0.05);
+    for (let x = 1; x < N - 1; x++) {
+      let isMax = sm[x] > mean; for (let k = -win; k <= win && isMax; k++) { const j = x + k; if (j >= 0 && j < N && sm[j] > sm[x]) isMax = false; }
+      if (!isMax) continue;
+      const thr = (sm[x] + lo) / 2; let l = x, r = x;
+      while (l > 0 && sm[l] > thr) l--; while (r < N - 1 && sm[r] > thr) r++;
+      const c = (l + r) / 2 / N; if (!out.length || Math.abs(out[out.length - 1].c - c) > 0.03) out.push({ c, w: (r - l) / N });
+    }
+    return (rowCache[key] = out);
+  }
   function layout() {
-    const W = innerWidth, H = innerHeight;
-    // matches .hero img: inset -2%, object-fit: cover, square image
-    const bw = W * 1.04, bh = H * 1.04, D = Math.max(bw, bh), ox = -0.02 * W + (bw - D) / 2;
-    const colPx = COL_W * D;
-    const visible = COLS.map((c) => ox + c * D).filter((x) => x - colPx / 2 > 8 && x + colPx / 2 < W - 8);
-    const ok = W >= 900 && colPx >= 104 && visible.length >= items.length;
+    if (!src) return;
+    const r = hero.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+    const D = Math.max(r.width, r.height), ox = r.left + (r.width - D) / 2, oy = r.top + (r.height - D) / 2;
+    const labelY = (parseFloat(getComputedStyle(items[0]).top) || 30) + 18;
+    const found = measure((labelY - oy) / D);
+    const vis = found.map((o) => ({ x: ox + o.c * D, w: o.w * D })).filter((o) => o.x - o.w / 2 > 8 && o.x + o.w / 2 < vw - 8);
+    const colPx = vis.length ? Math.min(...vis.map((o) => o.w)) : 0;
+    const ok = vw >= 900 && colPx >= 100 && vis.length >= items.length;
     document.body.classList.toggle("pillars", ok);
     document.body.classList.toggle("navbottom", !ok);
     if (!ok) { items.forEach((li) => { li.style.left = ""; li.style.width = ""; }); return; }
-    const use = visible.slice(-items.length);   // the right-most columns
-    items.forEach((li, i) => { li.style.left = use[i] + "px"; li.style.width = Math.round(colPx * 0.92) + "px"; });
+    const use = vis.slice(-items.length);   // the right-most columns
+    items.forEach((li, i) => { li.style.left = use[i].x.toFixed(1) + "px"; li.style.width = Math.round(use[i].w * 0.92) + "px"; });
     document.body.style.setProperty("--nav-fs", Math.max(12, Math.min(16, colPx / 13)).toFixed(1) + "px");
   }
-  addEventListener("resize", layout); layout();
+  function init() {
+    const N = 1000; src = document.createElement("canvas"); src.width = N; src.height = Math.round(N * hero.naturalHeight / hero.naturalWidth);
+    src.getContext("2d", { willReadFrequently: true }).drawImage(hero, 0, 0, src.width, src.height);
+    layout();
+  }
+  document.body.classList.add("navbottom");
+  if (hero.complete && hero.naturalWidth) init(); else hero.addEventListener("load", init);
+  addEventListener("resize", layout);
 })();
 
 /* Aether Radio: a cross-section of the Listening Shrines terrain travels from
