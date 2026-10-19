@@ -37,7 +37,10 @@ body {
 /* the outgoing image keeps drifting while it fades, so it never snaps back */
 #scans img.on, #scans img.out { animation: drift 19s linear forwards; }
 #scans img.on { opacity: 1; z-index: 1; }
-#scans img.out { opacity: 0; z-index: 0; }
+/* the previous scan stays fully visible underneath until the new one has faded in,
+   so brightness never dips mid-crossfade */
+#scans img.out { opacity: 1; z-index: 0; transition: none; }
+#scans img.out.gone { opacity: 0; }
 @keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.06) translate(-1.2%, 0.8%); } }
 #scans::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -171,9 +174,12 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   function show(k) {
     const im = layers[1 - front];
     const go = () => {
-      im.classList.remove("on", "out"); void im.offsetWidth; im.classList.add("on");
+      im.classList.remove("on", "out", "gone"); void im.offsetWidth; im.classList.add("on");
       const prev = layers[front];
-      if (prev.classList.contains("on")) { prev.classList.remove("on"); prev.classList.add("out"); }
+      if (prev.classList.contains("on")) {
+        prev.classList.remove("on"); prev.classList.add("out");
+        setTimeout(() => prev.classList.contains("out") && prev.classList.add("gone"), 3300);
+      }
       front = 1 - front;
       nEl.textContent = String(k + 1).padStart(2, "0");
       bar.classList.remove("run"); void bar.offsetWidth; if (!reduce) bar.classList.add("run");
