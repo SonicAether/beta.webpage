@@ -1,31 +1,239 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SONIC AETHER</title>
-    <link rel="stylesheet" type="text/css" href="index.css">
-    
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Sonic Aether</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Sonic Aether: field recordings, experimental music as Aron Stadler, and sound for film by Daniel de Jong.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@1,6..72,300&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* Home: a terrain cross-section sweeps north→south as a waveform behind a short index. */
+#wave { position: fixed; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; pointer-events: none; }
+main { display: grid; align-content: center; gap: 40px; max-width: 640px; }
+.index { list-style: none; margin: 0; padding: 0; display: grid; border-top: 1px solid var(--line); }
+.index a {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 6px 24px;
+  padding: 14px 0; border-bottom: 1px solid var(--line); text-decoration: none;
+  transition: padding .4s ease, color .3s;
+}
+.index b { font-weight: 300; font-size: clamp(15px, 2vw, 20px); letter-spacing: 0.14em; }
+.index span { color: var(--dim); font-family: var(--f-text); font-style: italic; font-size: 15px; text-align: right; }
+.index a:hover, .index a:focus-visible { padding-left: 14px; }
+.index a:hover b, .index a:focus-visible b { color: var(--ice); }
+.listen { display: inline-flex; align-items: center; gap: 12px; color: var(--dim); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; }
+.listen i { width: 26px; height: 26px; border: 1px solid var(--ice); border-radius: 50%; position: relative; flex: none; }
+.listen i::before { content: ""; position: absolute; left: 10px; top: 7px; border-left: 8px solid var(--ice); border-top: 5px solid transparent; border-bottom: 5px solid transparent; }
+.listen[aria-pressed="true"] { color: var(--ice); }
+.listen[aria-pressed="true"] i::before { left: 8px; top: 8px; width: 3px; height: 9px; border: 0; background: var(--ice); box-shadow: 5px 0 0 var(--ice); }
+.listen:hover { color: var(--ink); }
+.readout { text-align: right; font-variant-numeric: tabular-nums; line-height: 1.8; }
+@media (max-width: 900px) {
+  #wave { position: relative; inset: auto; height: 120px; z-index: 0; margin: -8px 0 -16px; }
+}
+@media (max-width: 720px) {
+  .index a { grid-template-columns: 1fr; }
+  .index span { text-align: left; }
+  .readout { text-align: left; }
+}
+</style>
 </head>
 <body>
-    <header>
-        <h1>SONIC AETHER</h1>
-        <nav>
-            <ul>
-                <li><a href="aronstadler.html">ARON STADLER_</a></li>
-                <li><a href="fieldrec.html">FIELD RECORDING_</a></li>
-                <li><a href="sound.html">SOUND DESIGN_</a></li>
-                <li><a href="lwsm.html">SONIC wAETHER_</a></li>
-                <li><a href="about.html">ABOUT CONTACT_</a></li>
-            </ul>
-        </nav>
-    </header>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a href="index.html" aria-current="page">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html">ARON STADLER_</a></li>
+        <li><a href="sound.html">SOUND FOR FILM_</a></li>
+        <li><a href="about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
 
-    <main>
-        
-    </main>
+  <main>
+    <h1 class="display">SONIC<span>AETHER</span></h1>
+    <p class="lede">The shape of the land, read as a waveform. A line crosses a scanned landscape from the fjäll to the sea; press play and its profile becomes sound.</p>
+    <ul class="index">
+      <li><a href="fieldrec.html"><b>LISTENING SHRINES_</b><span>field recordings in an imaginary terrain</span></a></li>
+      <li><a href="aronstadler.html"><b>ARON STADLER_</b><span>noise, tone, and the threshold between</span></a></li>
+      <li><a href="sound.html"><b>SOUND FOR FILM_</b><span>sound design for moving image</span></a></li>
+      <li><a href="about.html"><b>ABOUT CONTACT_</b><span>Daniel de Jong</span></a></li>
+    </ul>
+    <canvas id="wave" aria-hidden="true"></canvas>
+    <div><button class="listen" id="listen" type="button" aria-pressed="false"><i aria-hidden="true"></i><span id="listen-label">Hear the land</span></button></div>
+  </main>
 
-    <footer>
-        <p>Daniel de Jong &copy; 2025</p>
-    </footer>
-    <script src="script.js"></script>
+  <footer class="foot">
+    <div>Daniel de Jong © 2025</div>
+    <div class="readout" aria-hidden="true">PROFILE N <span id="r-n">0000</span> · <span id="r-zone">fjäll</span><br>PEAK <span id="r-peak">000</span> m · WATER <span id="r-water">00</span> %</div>
+  </footer>
+</div>
+
+<script>
+/* A cross-section of the Listening Shrines terrain travels north→south and is
+   drawn as a waveform. When "Hear the land" is on, the same profile is used as
+   the wavetable of a quiet drone; open water adds a little surf. */
+(() => {
+  const cv = document.getElementById("wave"), cx = cv.getContext("2d");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const R = { n: document.getElementById("r-n"), zone: document.getElementById("r-zone"),
+              peak: document.getElementById("r-peak"), water: document.getElementById("r-water") };
+  const PERIOD = 150;           // seconds for one pass from north to open sea
+  const SEA_TAIL = 0.1;         // last part of the pass is open sea
+  let NX = 0, NZ = 0, H, Wt, ready = false, W = 0, Hc = 0, dpr = 1;
+
+  const img = new Image();
+  img.onload = () => {
+    NX = img.width; NZ = img.height;
+    const c = document.createElement("canvas"); c.width = NX; c.height = NZ;
+    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
+    const px = g.getImageData(0, 0, NX, NZ).data;
+    H = new Float32Array(NX * NZ); Wt = new Uint8Array(NX * NZ);
+    for (let i = 0; i < NX * NZ; i++) { H[i] = (px[i*4+1] * 256 + px[i*4+2]) / 65535; Wt[i] = px[i*4] === 0 ? 1 : 0; }
+    ready = true;
+  };
+  img.src = "assets/profile.png";
+
+  function size() {
+    dpr = Math.min(devicePixelRatio || 1, 2);
+    W = cv.clientWidth; Hc = cv.clientHeight;
+    cv.width = W * dpr; cv.height = Hc * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  addEventListener("resize", size); size();
+
+  // profile at a fractional row (0 = north edge, 1 = beyond the coast)
+  function profile(f, out, wat) {
+    const land = 1 - SEA_TAIL;
+    if (f >= land) { out.fill(0); wat.fill(1); return; }
+    const z = (f / land) * (NZ - 1), j0 = Math.floor(z), j1 = Math.min(j0 + 1, NZ - 1), fz = z - j0;
+    for (let i = 0; i < out.length; i++) {
+      const x = (i / (out.length - 1)) * (NX - 1), i0 = Math.floor(x), i1 = Math.min(i0 + 1, NX - 1), fx = x - i0;
+      const a = H[j0*NX+i0]*(1-fx) + H[j0*NX+i1]*fx, b = H[j1*NX+i0]*(1-fx) + H[j1*NX+i1]*fx;
+      out[i] = a * (1 - fz) + b * fz;
+      wat[i] = (Wt[j0*NX+Math.round(x)] + Wt[j1*NX+Math.round(x)]) > 0 ? 1 : 0;
+    }
+  }
+
+  const S = 360, prof = new Float32Array(S), wat = new Uint8Array(S), ghost = new Float32Array(S), gw = new Uint8Array(S);
+  let t0 = performance.now(), f = 0;
+
+  function draw(now) {
+    const t = (now - t0) / 1000;
+    f = reduce ? 0.18 : (t / PERIOD) % 1;
+    cx.clearRect(0, 0, W, Hc);
+    cx.fillStyle = "#050607"; cx.fillRect(0, 0, W, Hc);
+    if (ready) {
+      const narrow = W < 900;
+      const x0 = narrow ? 0 : Math.max(W * 0.5, 720), x1 = narrow ? W : W * 0.96;
+      const base = Hc * (narrow ? 0.78 : 0.64), amp = Hc * (narrow ? 0.62 : 0.34);
+      // faint profiles a little further north, stepping back into the distance
+      for (let k = narrow ? 0 : 6; k >= 1; k--) {
+        profile(Math.max(0, f - k * 0.012), ghost, gw);
+        cx.beginPath();
+        for (let i = 0; i < S; i++) {
+          const x = x0 + (x1 - x0) * i / (S - 1), y = base - k * 7 - ghost[i] * amp * (1 - k * 0.04);
+          i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+        }
+        cx.strokeStyle = `rgba(226,230,232,${0.05 * (7 - k) / 6})`; cx.lineWidth = 1; cx.stroke();
+      }
+      profile(f, prof, wat);
+      // the current section: thin line plus scan dots
+      cx.beginPath();
+      for (let i = 0; i < S; i++) {
+        const x = x0 + (x1 - x0) * i / (S - 1), y = base - prof[i] * amp;
+        i ? cx.lineTo(x, y) : cx.moveTo(x, y);
+      }
+      cx.strokeStyle = "rgba(226,230,232,0.55)"; cx.lineWidth = 1; cx.stroke();
+      for (let i = 0; i < S; i++) {
+        const x = x0 + (x1 - x0) * i / (S - 1);
+        if (wat[i]) {
+          const glint = Math.pow(0.5 + 0.5 * Math.sin(t * 1.1 + i * 2.7), 6);
+          cx.fillStyle = `rgba(169,219,232,${0.25 + glint * 0.6})`;
+          cx.fillRect(x, base + Math.sin(t * 0.8 + i * 0.3) * 1.2, 1.4, 1.4);
+        } else {
+          cx.fillStyle = "rgba(226,230,232,0.9)";
+          cx.fillRect(x - 0.7, base - prof[i] * amp - 0.7, 1.4, 1.4);
+        }
+      }
+      // sea level reference
+      cx.fillStyle = "rgba(226,230,232,0.12)"; cx.fillRect(x0, base + 0.5, x1 - x0, 1);
+      cx.fillStyle = "rgba(128,137,142,0.8)"; cx.font = "10px 'Martian Mono', monospace";
+      if (!narrow) cx.fillText("0 m", x1 - 22, base + 16);
+
+      let peak = 0, wsum = 0; for (let i = 0; i < S; i++) { peak = Math.max(peak, prof[i]); wsum += wat[i]; }
+      R.n.textContent = String(Math.round((1 - f) * 3920) + 2000).padStart(4, "0");
+      R.zone.textContent = f > 1 - SEA_TAIL ? "open sea" : f < 0.27 ? "fjäll" : f < 0.45 ? "forest hills" : f < 0.72 ? "moor & flats" : "coast";
+      R.peak.textContent = String(Math.round(peak * 560)).padStart(3, "0");
+      R.water.textContent = String(Math.round(wsum / S * 100)).padStart(2, "0");
+      sound.update(prof, wsum / S);
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+
+  /* the land as sound */
+  const sound = (() => {
+    let ctx, master, oscs = [], surf, last = 0, on = false;
+    function wave(p) {
+      // real/imag Fourier coefficients of the profile, used as a wavetable
+      const N = 48, M = p.length, re = new Float32Array(N + 1), im = new Float32Array(N + 1);
+      let mean = 0; for (let i = 0; i < M; i++) mean += p[i]; mean /= M;
+      for (let k = 1; k <= N; k++) {
+        let a = 0, b = 0;
+        for (let i = 0; i < M; i++) { const ph = 2 * Math.PI * k * i / M, v = p[i] - mean; a += v * Math.cos(ph); b += v * Math.sin(ph); }
+        re[k] = a / M; im[k] = b / M;
+      }
+      return ctx.createPeriodicWave(re, im);
+    }
+    function start() {
+      const AC = window.AudioContext || window.webkitAudioContext; ctx = ctx || new AC();
+      ctx.resume();
+      master = ctx.createGain(); master.gain.value = 0;
+      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2200; lp.Q.value = 0.3;
+      lp.connect(master).connect(ctx.destination);
+      [[55, -0.6], [82.6, 0.6], [110.3, 0]].forEach(([fr, pn], i) => {
+        const o = ctx.createOscillator(); o.frequency.value = fr; o.setPeriodicWave(wave(prof));
+        const g = ctx.createGain(); g.gain.value = [0.5, 0.32, 0.18][i];
+        const p = ctx.createStereoPanner(); p.pan.value = pn;
+        o.connect(g).connect(p).connect(lp); o.start(); oscs.push(o);
+      });
+      const len = ctx.sampleRate * 3, buf = ctx.createBuffer(2, len, ctx.sampleRate);
+      for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); let l = 0; for (let i = 0; i < len; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; } }
+      const n = ctx.createBufferSource(); n.buffer = buf; n.loop = true;
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 700; bp.Q.value = 0.6;
+      surf = ctx.createGain(); surf.gain.value = 0;
+      n.connect(bp).connect(surf).connect(master); n.start(); oscs.push(n);
+      master.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 2.5);
+      on = true;
+    }
+    function stop() {
+      if (!ctx || !on) return; on = false;
+      const t = ctx.currentTime, old = oscs; oscs = [];
+      master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 1.5);
+      setTimeout(() => old.forEach((o) => { try { o.stop(); } catch (_) {} }), 1700);
+    }
+    function update(p, water) {
+      if (!on) return;
+      const now = performance.now();
+      if (now - last < 350) return; last = now;
+      const w = wave(p);
+      oscs.slice(0, 3).forEach((o) => o.setPeriodicWave(w));
+      surf.gain.setTargetAtTime(water * 0.5, ctx.currentTime, 0.8);
+    }
+    return { start, stop, update, get on() { return on; } };
+  })();
+
+  const btn = document.getElementById("listen"), lbl = document.getElementById("listen-label");
+  btn.addEventListener("click", () => {
+    if (sound.on) { sound.stop(); btn.setAttribute("aria-pressed", "false"); lbl.textContent = "Hear the land"; }
+    else { sound.start(); btn.setAttribute("aria-pressed", "true"); lbl.textContent = "Listening to the land"; }
+  });
+})();
+</script>
 </body>
 </html>
