@@ -3,8 +3,10 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
-const WORLD = 220;          // terrain width in world units (1 unit ≈ 10 m on the imaginary map)
-const RELIEF = 26;          // vertical exaggeration
+const WORLD = 300;          // terrain width (x) in world units (1 unit ≈ 10 m on the imaginary map)
+let DEPTH = 392;            // terrain depth (z); set from the image aspect on load
+const RELIEF = 46;          // height of the highest fjäll above sea level
+const SEA_EXT = 170;        // open sea beyond the southern coast
 const BG = new THREE.Color(0x06080a);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isSmall = matchMedia("(max-width: 720px)").matches;
@@ -20,15 +22,15 @@ renderer.setClearColor(BG);
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 900);
-camera.position.set(-40, 120, 170);
+const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
+camera.position.set(-50, 190, 330);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.screenSpacePanning = false;
 controls.minDistance = 22;
-controls.maxDistance = 260;
+controls.maxDistance = 560;
 controls.maxPolarAngle = Math.PI * 0.46;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
@@ -59,14 +61,20 @@ const pointMat = new THREE.ShaderMaterial({
   vertexShader: /* glsl */ `
     attribute float aShade;
     attribute float aRand;
+    attribute float aWater;
     uniform float uTime, uSize, uPx, uLevel, uListen;
     uniform vec3 uFocus;
-    varying float vShade, vFog, vSweep, vRing;
+    varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
       vec3 p = position;
+      vWater = aWater;
+      // water: a slow swell, no lidar returns, so only a sparse shimmer
+      if (aWater > 0.5) {
+        p.y += sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22;
+      }
       // LIDAR sweep: a slow band travelling across the terrain
-      float sweepX = mod(uTime * 9.0, ${WORLD.toFixed(1)} * 1.6) - ${(WORLD * 0.8).toFixed(1)};
-      vSweep = exp(-pow((p.x + p.z * 0.25 - sweepX) / 2.2, 2.0));
+      float sweepX = mod(uTime * 12.0, ${WORLD.toFixed(1)} * 2.0) - ${WORLD.toFixed(1)};
+      vSweep = exp(-pow((p.x + p.z * 0.25 - sweepX) / 2.6, 2.0));
       // listening rings around the active shrine, driven by audio level
       float d = distance(p.xz, uFocus.xz);
       float r = mod(uTime * 11.0, 60.0);
@@ -76,21 +84,23 @@ const pointMat = new THREE.ShaderMaterial({
       vec4 mv = modelViewMatrix * vec4(p, 1.0);
       gl_Position = projectionMatrix * mv;
       float depth = -mv.z;
-      gl_PointSize = clamp(uSize * uPx * (180.0 / depth), 0.75, 5.0 * uPx);
+      gl_PointSize = clamp(uSize * uPx * (230.0 / depth), 0.9, 5.0 * uPx);
       vShade = aShade;
-      vFog = smoothstep(330.0, 60.0, depth);
+      vFog = smoothstep(950.0, 140.0, depth);
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
     }`,
   fragmentShader: /* glsl */ `
     uniform vec3 uInk, uIce, uBg;
     uniform float uListen;
-    varying float vShade, vFog, vSweep, vRing;
+    uniform float uTime;
+    varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
       vec2 c = gl_PointCoord - 0.5;
       if (dot(c,c) > 0.25) discard;
       float s = pow(vShade, 1.35);
-      vec3 col = uInk * (0.08 + s * 0.92);
+      vec3 col = uInk * (0.1 + s * 1.05);
+      if (vWater > 0.5) col = mix(uInk, uIce, 0.55) * (0.16 + 0.5 * vShade);
       col *= mix(1.0, 0.72, uListen);
       col += uInk * vSweep * 0.35;
       col = mix(col, uIce, clamp(vRing, 0.0, 1.0) * 0.8);
@@ -99,50 +109,67 @@ const pointMat = new THREE.ShaderMaterial({
 });
 
 function buildTerrain(img) {
-  const N = img.width;
+  const NX = img.width, NZ = img.height;
+  DEPTH = WORLD * NZ / NX;
   const cv = document.createElement("canvas");
-  cv.width = cv.height = N;
+  cv.width = NX; cv.height = NZ;
   const cx = cv.getContext("2d", { willReadFrequently: true });
   cx.drawImage(img, 0, 0);
-  const px = cx.getImageData(0, 0, N, N).data;
+  const px = cx.getImageData(0, 0, NX, NZ).data;
 
-  const H = new Float32Array(N * N);
-  // height is 16-bit: green = high byte, blue = low byte
-  for (let i = 0; i < N * N; i++) H[i] = (px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 65535;
+  // R = shade (0 marks water), G/B = 16-bit height above sea level
+  const H = new Float32Array(NX * NZ);
+  const W = new Uint8Array(NX * NZ);
+  for (let i = 0; i < NX * NZ; i++) {
+    H[i] = (px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 65535;
+    W[i] = px[i * 4] === 0 ? 1 : 0;
+  }
 
   heightAt = (x, z) => {
-    const u = THREE.MathUtils.clamp((x / WORLD + 0.5) * (N - 1), 0, N - 1);
-    const v = THREE.MathUtils.clamp((z / WORLD + 0.5) * (N - 1), 0, N - 1);
-    const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(i0 + 1, N - 1), j1 = Math.min(j0 + 1, N - 1);
+    if (z > DEPTH / 2) return 0; // open sea
+    const u = THREE.MathUtils.clamp((x / WORLD + 0.5) * (NX - 1), 0, NX - 1);
+    const v = THREE.MathUtils.clamp((z / DEPTH + 0.5) * (NZ - 1), 0, NZ - 1);
+    const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(i0 + 1, NX - 1), j1 = Math.min(j0 + 1, NZ - 1);
     const fu = u - i0, fv = v - j0;
-    const h = H[j0 * N + i0] * (1 - fu) * (1 - fv) + H[j0 * N + i1] * fu * (1 - fv) +
-              H[j1 * N + i0] * (1 - fu) * fv + H[j1 * N + i1] * fu * fv;
-    return (h - 0.5) * RELIEF;
+    const h = H[j0 * NX + i0] * (1 - fu) * (1 - fv) + H[j0 * NX + i1] * fu * (1 - fv) +
+              H[j1 * NX + i0] * (1 - fu) * fv + H[j1 * NX + i1] * fu * fv;
+    return h * RELIEF;
   };
 
   const stride = isSmall ? 2 : 1;
-  const keep = isSmall ? 0.8 : 0.86;
-  const pos = [], shade = [], rnd = [];
-  const cell = WORLD / N;
+  const keepLand = isSmall ? 0.78 : 0.72;
+  const keepWater = 0.11;
+  const pos = [], shade = [], rnd = [], wat = [];
+  const cell = WORLD / NX;
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let j = 0; j < N; j += stride) {
-    for (let i = 0; i < N; i += stride) {
-      if (rand() > keep) continue;
-      const k = j * N + i;
-      const x = (i / (N - 1) - 0.5) * WORLD + (rand() - 0.5) * cell * stride;
-      const z = (j / (N - 1) - 0.5) * WORLD + (rand() - 0.5) * cell * stride;
-      pos.push(x, (H[k] - 0.5) * RELIEF, z);
-      shade.push(px[k * 4] / 255);
-      rnd.push(rand());
+  for (let j = 0; j < NZ; j += stride) {
+    for (let i = 0; i < NX; i += stride) {
+      const k = j * NX + i, isW = W[k];
+      if (rand() > (isW ? keepWater : keepLand)) continue;
+      const x = (i / (NX - 1) - 0.5) * WORLD + (rand() - 0.5) * cell * stride;
+      const z = (j / (NZ - 1) - 0.5) * DEPTH + (rand() - 0.5) * cell * stride;
+      pos.push(x, H[k] * RELIEF, z);
+      shade.push(isW ? rand() : px[k * 4] / 255);
+      rnd.push(rand()); wat.push(isW);
     }
+  }
+  // open sea to the south, thinning toward the horizon
+  const seaN = Math.round((WORLD * SEA_EXT) / (cell * cell * stride * stride) * keepWater);
+  for (let n = 0; n < seaN; n++) {
+    const t = Math.pow(rand(), 1.4);
+    if (rand() < t * 0.6) continue;
+    pos.push((rand() - 0.5) * WORLD, 0, DEPTH / 2 + t * SEA_EXT);
+    shade.push(rand()); rnd.push(rand()); wat.push(1);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute("aShade", new THREE.Float32BufferAttribute(shade, 1));
   geo.setAttribute("aRand", new THREE.Float32BufferAttribute(rnd, 1));
+  geo.setAttribute("aWater", new THREE.Float32BufferAttribute(wat, 1));
   scene.add(new THREE.Points(geo, pointMat));
   hud.pts.textContent = (pos.length / 3).toLocaleString("en-US");
+  controls.target.set(0, 8, DEPTH * 0.05);
 }
 
 /* ───────────── shrines ───────────── */
@@ -154,9 +181,9 @@ function buildShrines() {
   const list = $("#index-list");
   SHRINES.forEach((s, idx) => {
     const x = (s.pos[0] - 0.5) * WORLD;
-    const z = (s.pos[1] - 0.5) * WORLD;
+    const z = (s.pos[1] - 0.5) * DEPTH;
     const y = heightAt(x, z);
-    const top = new THREE.Vector3(x, y + 16, z);
+    const top = new THREE.Vector3(x, y + 18, z);
     const base = new THREE.Vector3(x, y, z);
 
     const g = new THREE.BufferGeometry().setFromPoints([base, top]);
@@ -196,13 +223,13 @@ function placeLabels() {
     o.btn.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px)`;
     o.btn.classList.toggle("off", !vis);
     const dist = camera.position.distanceTo(o.top);
-    o.btn.classList.toggle("far", dist > 190);
+    o.btn.classList.toggle("far", dist > 330);
   }
 }
 
 /* ───────────── camera flights ───────────── */
 let flight = null;
-function flyTo(target, distance = 58, elev = 0.62) {
+function flyTo(target, distance = 74, elev = 0.6) {
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target).setY(0).normalize();
   if (!isFinite(dir.x)) dir.set(0, 0, 1);
   const endPos = target.clone().add(dir.multiplyScalar(distance * Math.cos(elev))).setY(target.y + distance * Math.sin(elev));
@@ -543,8 +570,8 @@ function loop() {
 
   const t = controls.target;
   hud.x.textContent = ((t.x + WORLD / 2) * 10).toFixed(0).padStart(4, "0");
-  hud.y.textContent = ((t.z + WORLD / 2) * 10).toFixed(0).padStart(4, "0");
-  hud.z.textContent = (heightAt(t.x, t.z) * 10 + 412).toFixed(1);
+  hud.y.textContent = ((DEPTH / 2 - t.z) * 10 + 2000).toFixed(0).padStart(4, "0");
+  hud.z.textContent = (heightAt(t.x, t.z) * 12).toFixed(1);
   hud.az.textContent = ((THREE.MathUtils.radToDeg(controls.getAzimuthalAngle()) + 360) % 360).toFixed(0).padStart(3, "0");
   requestAnimationFrame(loop);
 }

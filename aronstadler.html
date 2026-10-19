@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@1,6..72,300&display=swap">
 <style>
-/* Layout: relit relief fixed behind; a single narrow column of releases on the left third; outlets at the foot. */
+/* Layout: harmonised scans crossfade behind; a single narrow column of releases on the left third; outlets at the foot. */
 :root {
   --void: #050607;
   --ink: #e2e6e8;
@@ -29,7 +29,23 @@ body {
   font-family: var(--f-mono); font-size: 11px; -webkit-font-smoothing: antialiased;
 }
 :focus-visible { outline: 1px solid var(--ice); outline-offset: 3px; }
-#relief { position: fixed; inset: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+#scans { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--void); }
+#scans img {
+  position: absolute; inset: -3%; width: 106%; height: 106%; object-fit: cover;
+  opacity: 0; transition: opacity 3s ease; will-change: opacity, transform;
+}
+#scans img.on { opacity: 1; animation: drift 18s linear forwards; }
+@keyframes drift { from { transform: scale(1) translate(0, 0); } to { transform: scale(1.06) translate(-1.2%, 0.8%); } }
+#scans::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(90deg, rgba(5,6,7,.82) 0%, rgba(5,6,7,.55) 34%, rgba(5,6,7,.05) 70%),
+    radial-gradient(ellipse at 60% 50%, transparent 40%, rgba(5,6,7,.6) 100%);
+}
+.scanbar { width: 160px; height: 1px; background: var(--faint); margin: 8px 0 0 auto; position: relative; overflow: hidden; }
+.scanbar i { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--ice); }
+.scanbar i.run { animation: fill 15s linear forwards; }
+@keyframes fill { to { width: 100%; } }
 .wrap {
   position: relative; z-index: 1; min-height: 100vh;
   display: grid; grid-template-rows: auto 1fr auto; gap: 48px;
@@ -72,12 +88,14 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 @media (max-width: 720px) {
   nav ul { gap: 4px 12px; max-width: 56vw; }
   .readout { text-align: left; }
+  .scanbar { margin-left: 0; }
+  #scans::after { background: linear-gradient(180deg, rgba(5,6,7,.55), rgba(5,6,7,.78)); }
 }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
 <body>
-<canvas id="relief" aria-hidden="true"></canvas>
+<div id="scans" aria-hidden="true"></div>
 <div class="wrap">
   <header>
     <div class="brand"><a href="index.html">SONIC AETHER</a></div>
@@ -129,98 +147,39 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
         <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
       </ul>
     </section>
-    <div class="readout" aria-hidden="true">RELIEF · HÄRJEDALEN, SE<br>LIGHT AZ <span id="az">315</span>° · ALT <span id="alt">35</span>°<br>Daniel de Jong © 2025</div>
+    <div class="readout" aria-hidden="true">LIDAR HILLSHADE · SE<br>SCAN <span id="scan-n">01</span> / <span id="scan-t">17</span><div class="scanbar"><i id="scan-bar"></i></div><br>Daniel de Jong © 2025</div>
   </footer>
 </div>
 
 <script>
-/* Relit relief: height comes from the green channel of assets/relief.png
-   (reconstructed from a hillshade scan); light azimuth follows the pointer. */
+/* Background: harmonised LIDAR scans, crossfading every 15 s. */
 (() => {
-  const cv = document.getElementById("relief");
-  const gl = cv.getContext("webgl", { antialias: false, premultipliedAlpha: false });
-  if (!gl) return;
+  const SCANS = ["d855d1cd","049661e6","174b0097","2fbb9e8e","95cc5818","eac657f2","0d78ea56","bb840f4e",
+                 "a36eca75","945a4be6","51c4c9fc","c0ba3ae2","3bc1751e","e2882f62","b4cccc2d","ba13871d","f9cff277"];
+  const HOLD = 15000;
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const vs = `attribute vec2 p; varying vec2 v; void main(){ v = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`;
-  const fs = `
-    precision highp float;
-    varying vec2 v;
-    uniform sampler2D tex; uniform vec2 res, texRes; uniform vec3 L; uniform float t, zoom; uniform vec2 drift;
-    float h(vec2 uv){ vec4 c = texture2D(tex, uv); return c.g + c.b / 255.0; } // 16-bit height
-    float hash(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
-    void main(){
-      // cover-fit the texture, slow drift
-      float ar = res.x / res.y, tr = texRes.x / texRes.y;
-      vec2 uv = v - 0.5;
-      if (ar > tr) uv.y *= tr / ar; else uv.x *= ar / tr;
-      uv = uv / zoom + 0.5 + drift;
-      uv.y = 1.0 - uv.y;
-      vec2 e = 1.5 / texRes;
-      float s = 5.0;
-      vec3 n = normalize(vec3((h(uv - vec2(e.x,0.)) - h(uv + vec2(e.x,0.))) * s,
-                              (h(uv + vec2(0.,e.y)) - h(uv - vec2(0.,e.y))) * s, 0.06));
-      float lam = max(dot(n, normalize(L)), 0.0);
-      float orig = texture2D(tex, uv).r;
-      float c = mix(lam, orig, 0.28);
-      c = pow(c, 1.6) * 0.62;
-      // vignette + grain
-      vec2 q = v - 0.5; c *= smoothstep(0.95, 0.15, length(q * vec2(1.0, 1.25)));
-      c += (hash(gl_FragCoord.xy + t) - 0.5) * 0.035;
-      // fade the left reading area
-      c *= mix(0.42, 1.0, smoothstep(0.12, 0.62, v.x));
-      gl_FragColor = vec4(vec3(c) * vec3(0.97, 1.0, 1.02) + vec3(0.02,0.023,0.027), 1.0);
-    }`;
-  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
-  const pr = gl.createProgram();
-  gl.attachShader(pr, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
-  const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  const loc = gl.getAttribLocation(pr, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-  const U = (n) => gl.getUniformLocation(pr, n);
-  const az = document.getElementById("az"), alt = document.getElementById("alt");
-  let target = 315, cur = 315, tAlt = 35, cAlt = 35, texW = 1, texH = 1, ready = false;
-
-  const img = new Image();
-  img.onload = () => {
-    texW = img.width; texH = img.height;
-    const tx = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tx);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    ready = true;
-  };
-  img.src = "assets/relief.png";
-
-  addEventListener("pointermove", (e) => {
-    const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
-    target = (Math.atan2(y, x) * 180 / Math.PI + 450) % 360;
-    tAlt = 18 + 50 * (1 - Math.min(1, Math.hypot(x, y) * 1.6));
-  });
-  function size() {
-    const d = Math.min(devicePixelRatio, 1.5);
-    cv.width = innerWidth * d; cv.height = innerHeight * d; gl.viewport(0, 0, cv.width, cv.height);
+  const box = document.getElementById("scans");
+  const nEl = document.getElementById("scan-n"), bar = document.getElementById("scan-bar");
+  document.getElementById("scan-t").textContent = SCANS.length;
+  const layers = [new Image(), new Image()];
+  layers.forEach((im) => { im.alt = ""; im.decoding = "async"; box.appendChild(im); });
+  let i = Math.floor(Math.random() * SCANS.length), front = 0;
+  const src = (k) => `assets/scans/${SCANS[k]}.jpg`;
+  function show(k) {
+    const im = layers[1 - front];
+    const go = () => {
+      im.classList.remove("on"); void im.offsetWidth; im.classList.add("on");
+      layers[front].classList.remove("on");
+      front = 1 - front;
+      nEl.textContent = String(k + 1).padStart(2, "0");
+      bar.classList.remove("run"); void bar.offsetWidth; if (!reduce) bar.classList.add("run");
+      new Image().src = src((k + 1) % SCANS.length); // preload the next one
+    };
+    im.onload = go; im.src = src(k);
+    if (im.complete && im.naturalWidth) { im.onload = null; go(); }
   }
-  addEventListener("resize", size); size();
-  const t0 = performance.now();
-  function frame(now) {
-    const t = (now - t0) / 1000;
-    if (!reduce) target += 0.6 * 0.016; // slow solar drift when idle
-    let d = ((target - cur + 540) % 360) - 180; cur = (cur + d * 0.03 + 360) % 360; cAlt += (tAlt - cAlt) * 0.03;
-    const a = cur * Math.PI / 180, b = cAlt * Math.PI / 180;
-    if (ready) {
-      gl.uniform2f(U("res"), cv.width, cv.height); gl.uniform2f(U("texRes"), texW, texH);
-      gl.uniform3f(U("L"), Math.sin(a) * Math.cos(b), Math.cos(a) * Math.cos(b), Math.sin(b));
-      gl.uniform1f(U("t"), reduce ? 0 : Math.floor(t * 24));
-      gl.uniform1f(U("zoom"), 1.06 + (reduce ? 0 : Math.sin(t * 0.02) * 0.04));
-      gl.uniform2f(U("drift"), reduce ? 0 : Math.sin(t * 0.013) * 0.02, reduce ? 0 : Math.cos(t * 0.011) * 0.015);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    }
-    az.textContent = String(Math.round(cur)).padStart(3, "0"); alt.textContent = String(Math.round(cAlt)).padStart(2, "0");
-    requestAnimationFrame(frame);
-  }
-  requestAnimationFrame(frame);
+  show(i);
+  if (!reduce) setInterval(() => { i = (i + 1) % SCANS.length; show(i); }, HOLD);
 })();
 </script>
 </body>
