@@ -26,10 +26,10 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 /* background scan */
 .bg { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
-.bg img { width: 100%; height: 100%; object-fit: cover; opacity: .5; }
+.bg img { width: 100%; height: 100%; object-fit: cover; opacity: .78; }
 .bg::after {
   content: ""; position: absolute; inset: 0;
-  background: linear-gradient(90deg, rgba(5,6,7,.9) 0%, rgba(5,6,7,.7) 40%, rgba(5,6,7,.35) 100%);
+  background: linear-gradient(90deg, rgba(5,6,7,.82) 0%, rgba(5,6,7,.55) 40%, rgba(5,6,7,.12) 100%);
 }
 
 .wrap {
@@ -40,7 +40,7 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   padding-right: max(22px, env(safe-area-inset-right, 0px));
 }
 .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
-.brand a { text-decoration: none; font-size: 13px; letter-spacing: 0.32em; font-weight: 500; }
+.brand a { font-family: var(--f-text); text-decoration: none; font-size: 13px; letter-spacing: 0.32em; font-weight: 500; }
 .top nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 20px; }
 .top nav a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 0.18em; }
 .top nav a:hover, .top nav a[aria-current] { color: var(--ink); }
@@ -55,6 +55,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 @media (max-width: 720px) {
   .top nav ul { gap: 4px 12px; max-width: 56vw; }
-  .bg::after { background: linear-gradient(180deg, rgba(5,6,7,.75), rgba(5,6,7,.88)); }
+  .bg::after { background: linear-gradient(180deg, rgba(5,6,7,.62), rgba(5,6,7,.8)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
