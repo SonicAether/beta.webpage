@@ -25,17 +25,16 @@
     linear-gradient(180deg, rgba(5,6,7,.5) 0%, transparent 16%, transparent 62%, rgba(5,6,7,.72) 100%);
 }
 
-/* wordmark: one word per column of light, set vertically, placed by script.
-   The ink runs from dark (on the bright column top) to light (on pink and blue). */
-.wordmark { position: fixed; inset: 0; margin: 0; pointer-events: none; z-index: 2; font-weight: inherit; }
-.wordmark span {
-  position: absolute; top: calc(22px + env(safe-area-inset-top, 0px)); left: 0;
-  writing-mode: vertical-rl; transform: translateX(-50%);
-  font-family: var(--f-text); font-weight: 300; font-variation-settings: "opsz" 72; line-height: 1; letter-spacing: -0.01em;
-  color: #22123a; white-space: nowrap;
-  opacity: 0; transition: opacity 1.2s ease;
+/* wordmark: "Sonic / Aether" set horizontally, centred at the top of the left-most
+   column of light, level with the nav, as large as the column allows (sized by script). */
+.wordmark {
+  position: fixed; top: calc(30px + env(safe-area-inset-top, 0px)); left: 0; margin: 0; z-index: 2;
+  transform: translateX(-50%); text-align: center; pointer-events: none;
+  font-family: var(--f-text); font-weight: 300; font-variation-settings: "opsz" 72; line-height: .9; letter-spacing: -0.01em;
+  color: #22123a; opacity: 0; transition: opacity 1.2s ease;
 }
-body.placed .wordmark span { opacity: 1; }
+.wordmark span { display: block; white-space: nowrap; }
+body.placed .wordmark { opacity: 1; }
 .top .brand { visibility: hidden; }
 
 /* header: each link sits inside a column of light (set by script);
@@ -165,22 +164,15 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const found = measure((labelY - oy) / D);
     const vis = found.map((o) => ({ x: ox + o.c * D, w: o.w * D })).filter((o) => o.x - o.w / 2 > 8 && o.x + o.w / 2 < vw - 8);
     const colPx = vis.length ? Math.min(...vis.map((o) => o.w)) : 0;
-    // wordmark: the two left-most full columns, one word each, sized to the column
-    const words = [...document.querySelectorAll(".wordmark span")];
-    const top0 = parseFloat(getComputedStyle(words[0]).top) || 22, Hv = document.documentElement.clientHeight;
+    // wordmark: left-most full column, both words horizontal, widest word fills ~88% of the column
+    const wm = document.querySelector(".wordmark"), words = [...wm.querySelectorAll("span")];
     const wide = vw >= 900 && colPx >= 100;
-    if (vis.length >= (wide ? items.length + 2 : 2)) {
-      // one word per column
-      words.forEach((sp, i) => { const c = vis[i]; sp.style.left = c.x.toFixed(1) + "px"; sp.style.top = ""; sp.style.fontSize = (c.w * 0.86).toFixed(1) + "px"; });
-    } else if (vis.length >= 1) {
-      // both words stacked in the first column
+    if (vis.length) {
       const c = vis[0];
-      let fs = c.w * 0.86;
-      words.forEach((sp) => { sp.style.left = c.x.toFixed(1) + "px"; sp.style.fontSize = fs + "px"; sp.style.top = ""; });
-      const total = words[0].getBoundingClientRect().height + words[1].getBoundingClientRect().height + fs * 0.3;
-      const room = Hv * 0.62;
-      if (total > room) { fs *= room / total; words.forEach((sp) => (sp.style.fontSize = fs.toFixed(1) + "px")); }
-      words[1].style.top = (top0 + words[0].getBoundingClientRect().height + fs * 0.3).toFixed(1) + "px";
+      wm.style.fontSize = "100px";
+      const widest = Math.max(...words.map((sp) => sp.getBoundingClientRect().width));
+      wm.style.fontSize = (100 * (c.w * 0.88) / widest).toFixed(1) + "px";
+      wm.style.left = c.x.toFixed(1) + "px";
     }
     if (vis.length) document.body.classList.add("placed");
     const ok = wide && vis.length >= items.length + 1;
@@ -199,6 +191,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
   document.body.classList.add("navbottom");
   if (hero.complete && hero.naturalWidth) init(); else hero.addEventListener("load", init);
   addEventListener("resize", layout);
+  if (document.fonts) document.fonts.ready.then(layout);
 })();
 
 /* Aether Radio: a cross-section of the Listening Shrines terrain travels from
