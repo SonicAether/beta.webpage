@@ -69,21 +69,27 @@ body.navbottom .top nav { position: fixed; z-index: 3; right: max(22px, env(safe
 body.navbottom .top nav ul { flex-direction: column; align-items: flex-end; gap: 10px; max-width: none; }
 body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 0.2em; text-shadow: 0 0 18px rgba(5,6,7,.9), 0 0 4px rgba(5,6,7,.8); }
 
-/* radio */
-.radio { display: grid; gap: 14px; justify-items: start; width: min(360px, 100%); }
-.radio button { display: inline-flex; align-items: center; gap: 14px; text-align: left; }
-.radio i { width: 34px; height: 34px; border: 1px solid var(--ice); border-radius: 50%; position: relative; flex: none; transition: background .3s, box-shadow .3s; }
-.radio i::before { content: ""; position: absolute; left: 13px; top: 10px; border-left: 10px solid var(--ice); border-top: 6.5px solid transparent; border-bottom: 6.5px solid transparent; }
-.radio button[aria-pressed="true"] i::before { left: 11px; top: 11px; width: 3px; height: 11px; border: 0; background: var(--ice); box-shadow: 7px 0 0 var(--ice); }
-.radio button:hover i { background: rgba(169,219,232,.1); box-shadow: 0 0 22px rgba(169,219,232,.25); }
-.radio .t { display: grid; gap: 4px; }
-.radio .t b { font-weight: 400; font-size: 10px; letter-spacing: 0.24em; }
-.radio .t span { font-size: 10px; letter-spacing: 0.24em; color: var(--dim); }
-.radio button[aria-pressed="true"] .t b { color: var(--ice); }
-.scope { width: 100%; display: grid; gap: 6px; opacity: 0; transition: opacity .8s ease; }
-.radio.on .scope { opacity: 1; }
-#wave { width: 100%; height: 64px; display: block; }
-.bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+/* Aether Radio: a small antenna in the dark gap right of the wordmark column
+   (placed by script); the label only speaks on hover. */
+.radio {
+  position: fixed; z-index: 3; left: max(34px, env(safe-area-inset-left, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.radio button { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.radio .v { display: grid; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 9px; letter-spacing: 0.34em; color: var(--dim); opacity: .55; white-space: nowrap; transition: opacity .5s, color .5s; }
+.radio .v span { grid-area: 1 / 1; transition: opacity .5s; }
+.radio .v .act { opacity: 0; }
+.radio button:hover .v, .radio button:focus-visible .v { opacity: 1; color: var(--ink); }
+.radio button:hover .v .rest, .radio button:focus-visible .v .rest { opacity: 0; }
+.radio button:hover .v .act, .radio button:focus-visible .v .act { opacity: 1; }
+.radio i { width: 15px; height: 15px; border: 1px solid rgba(169,219,232,.7); border-radius: 50%; position: relative; flex: none; transition: box-shadow .5s; }
+.radio i::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--ice); opacity: 0; transition: opacity .5s; }
+.radio button:hover i { box-shadow: 0 0 14px rgba(169,219,232,.4); }
+.radio button[aria-pressed="true"] i::after { opacity: .9; animation: pulse 5s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#wave { width: 26px; height: 0; display: block; opacity: 0; transition: opacity 1.4s ease, height 2s ease; }
+.radio.on #wave { opacity: 1; height: 34vh; }
+.bottom { display: flex; justify-content: flex-end; align-items: flex-end; }
 .bottom .c { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; }
 @media (max-width: 720px) {
   .hero::after { background:
@@ -113,12 +119,10 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
 
   <div class="bottom">
     <section class="radio" id="radio" aria-label="Aether Radio">
-      <div class="scope" aria-hidden="true">
-        <canvas id="wave"></canvas>
-              </div>
-      <button id="listen" type="button" aria-pressed="false">
+      <canvas id="wave" aria-hidden="true"></canvas>
+      <button id="listen" type="button" aria-pressed="false" aria-label="Start transmission">
+        <span class="v" aria-hidden="true"><span class="rest">AETHER RADIO</span><span class="act" id="listen-label">START TRANSMISSION</span></span>
         <i aria-hidden="true"></i>
-        <span class="t"><b id="listen-label">START TRANSMISSION</b><span>AETHER RADIO</span></span>
       </button>
     </section>
     <div class="c">Daniel Aron de Jong © 2026</div>
@@ -162,6 +166,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const found = measure((labelY - oy) / D);
     const vis = found.map((o) => ({ x: ox + o.c * D, w: o.w * D })).filter((o) => o.x - o.w / 2 > 8 && o.x + o.w / 2 < vw - 8);
     const colPx = vis.length ? Math.min(...vis.map((o) => o.w)) : 0;
+    window.__columns = vis; window.dispatchEvent(new CustomEvent("columns", { detail: vis }));
     // wordmark: the two left-most full columns, one word each, sized to the column
     const words = [...document.querySelectorAll(".wordmark span")];
     const top0 = parseFloat(getComputedStyle(words[0]).top) || 22, Hv = document.documentElement.clientHeight;
@@ -380,27 +385,36 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
   function frame() {
     if (tx) {
       const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth, Hc = cv.clientHeight;
-      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hc * dpr); }
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(Hc * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hc * dpr); }
       cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, Hc);
-      cx.fillStyle = "rgba(226,230,232,0.12)"; cx.fillRect(0, Hc / 2, W, 1);
+      cx.fillStyle = "rgba(226,230,232,0.12)"; cx.fillRect(W / 2, 0, 1, Hc);
       tx.analyser.getByteTimeDomainData(buf);
       cx.beginPath();
-      for (let i = 0; i < buf.length; i += 4) { const x = W * i / buf.length, y = Hc / 2 + ((buf[i] - 128) / 128) * Hc * 1.6; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
-      cx.strokeStyle = "rgba(226,230,232,0.75)"; cx.lineWidth = 1; cx.stroke();
+      for (let i = 0; i < buf.length; i += 4) { const y = Hc - Hc * i / buf.length, x = W / 2 + ((buf[i] - 128) / 128) * W * 2.2; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
+      cx.strokeStyle = "rgba(226,230,232,0.7)"; cx.lineWidth = 1; cx.stroke();
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
+  // sit in the dark gap between the first two full columns of light
+  function place(vis) {
+    if (!vis || vis.length < 2) { radio.style.left = ""; return; }
+    const a = vis[0], b = vis[1];
+    radio.style.left = (((a.x + a.w / 2) + (b.x - b.w / 2)) / 2).toFixed(1) + "px";
+  }
+  addEventListener("columns", (e) => place(e.detail));
+  place(window.__columns);
+
   btn.addEventListener("click", () => {
     if (tx) {
       tx.stop(); tx = null;
-      btn.setAttribute("aria-pressed", "false"); radio.classList.remove("on"); label.textContent = "START TRANSMISSION";
+      btn.setAttribute("aria-pressed", "false"); radio.classList.remove("on"); label.textContent = "START TRANSMISSION"; btn.setAttribute("aria-label", "Start transmission");
       return;
     }
     const AC = window.AudioContext || window.webkitAudioContext; ctx = ctx || new AC(); ctx.resume();
     tx = createTransmission(ctx, ctx.destination); tx.start();
-    btn.setAttribute("aria-pressed", "true"); radio.classList.add("on"); label.textContent = "END TRANSMISSION";
+    btn.setAttribute("aria-pressed", "true"); radio.classList.add("on"); label.textContent = "END TRANSMISSION"; btn.setAttribute("aria-label", "End transmission");
   });
 })();
 
