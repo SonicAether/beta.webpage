@@ -83,8 +83,6 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
 .scope { width: 100%; display: grid; gap: 6px; opacity: 0; transition: opacity .8s ease; }
 .radio.on .scope { opacity: 1; }
 #wave { width: 100%; height: 64px; display: block; }
-.scope .meta { color: var(--dim); font-size: 10px; letter-spacing: 0.16em; font-variant-numeric: tabular-nums; }
-.scope .meta span { color: var(--ink); }
 .bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
 .bottom .c { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; }
 @media (max-width: 720px) {
@@ -117,8 +115,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     <section class="radio" id="radio" aria-label="Aether Radio">
       <div class="scope" aria-hidden="true">
         <canvas id="wave"></canvas>
-        <div class="meta">CARRIER <span id="r-f">54.0</span> Hz · DRIFT <span id="r-drift">+0.0</span> ct · <span id="r-ev">listening</span></div>
-      </div>
+              </div>
       <button id="listen" type="button" aria-pressed="false">
         <i aria-hidden="true"></i>
         <span class="t"><b id="listen-label">START TRANSMISSION</b><span>AETHER RADIO</span></span>
@@ -211,7 +208,6 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
   const cv = document.getElementById("wave"), cx = cv.getContext("2d");
   const radio = document.getElementById("radio"), btn = document.getElementById("listen");
   const label = document.getElementById("listen-label");
-  const R = { f: document.getElementById("r-f"), drift: document.getElementById("r-drift"), ev: document.getElementById("r-ev") };
 
   function createTransmission(ctx, destination) {
     const sr = ctx.sampleRate, rnd = Math.random, F0 = 54;   // carrier fundamental, Hz
@@ -250,16 +246,16 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = 340; bedLp.Q.value = 0.4;
     const bedG = G(0.36);
     bed.connect(bedLp).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
-    live.push(bed, lfo(0.019, 150, bedLp.frequency), lfo(0.011, 0.16, bedG.gain));
+    live.push(bed, lfo(0.008, 150, bedLp.frequency), lfo(0.005, 0.16, bedG.gain));
 
     // 2 · standing waves: overtone row, each partial a slowly beating L/R pair
     const ROW = [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11];
     const drones = [];
     ROW.forEach((n, i) => {
-      const base = 0.12 / Math.pow(n, 0.8) * (n > 6 ? 0.65 : 1);
+      const base = 0.075 / Math.pow(n, 0.8) * (n > 6 ? 0.55 : 1);
       const amp = G(base * 0.5);
-      lfo(1 / (24 + rnd() * 70), base * 0.5, amp.gain);          // bloom and recede, 24–94 s
-      const beat = 0.04 + rnd() * 0.22;                            // Hz between the pair
+      lfo(1 / (60 + rnd() * 140), base * 0.5, amp.gain);         // bloom and recede, 60–200 s
+      const beat = 0.015 + rnd() * 0.09;                           // Hz between the pair: slow beating
       [-1, 1].forEach((side) => {
         const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = F0 * n + side * beat / 2;
         o.connect(pan(side * (0.25 + 0.5 * (i / ROW.length)))).connect(amp);
@@ -272,7 +268,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const singers = [0, 1].map((k) => {
       const s = ctx.createBufferSource(); s.buffer = brown; s.loop = true; s.loopStart = k * 3;
       const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 60; bp.frequency.value = F0 * (10 + k * 3);
-      const g = G(2.0); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
+      const g = G(1.2); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
       return bp;
     });
 
@@ -280,7 +276,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const air = ctx.createBufferSource(); air.buffer = white; air.loop = true;
     const airBp = ctx.createBiquadFilter(); airBp.type = "bandpass"; airBp.frequency.value = 7200; airBp.Q.value = 0.9;
     const airG = G(0.006); air.connect(airBp).connect(airG); send(airG, 0.3, 0.7); air.start();
-    live.push(air, lfo(0.017, 0.005, airG.gain), lfo(0.031, 1800, airBp.frequency));
+    live.push(air, lfo(0.007, 0.005, airG.gain), lfo(0.012, 1800, airBp.frequency));
 
     // state for the readout
     const state = { drift: 0, event: "" };
@@ -307,11 +303,11 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
         const n = [16, 18, 20, 21, 24, 27, 28, 32, 36][Math.floor(rnd() * 9)];
         const o = ctx.createOscillator(); o.frequency.value = F0 * n;
         const g = G(0), dl = ctx.createDelay(2), fb = G(0.58), lp = ctx.createBiquadFilter();
-        lp.type = "lowpass"; lp.frequency.value = 2400; dl.delayTime.value = 0.31 + rnd() * 0.4;
+        lp.type = "lowpass"; lp.frequency.value = 2200; dl.delayTime.value = 0.6 + rnd() * 0.7;
         o.connect(g); g.connect(dl); dl.connect(lp).connect(fb).connect(dl);
         const out = G(1), p = pan(rnd() * 1.6 - 0.8); g.connect(out); lp.connect(out); out.connect(p); send(p, 0.3, 0.7);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.028, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
-        o.start(t); o.stop(t + 1);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.028, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+        o.start(t); o.stop(t + 2);
       },
       static(t) {
         const n = 6 + Math.floor(rnd() * 22), span = 0.3 + rnd() * 0.9;
@@ -324,17 +320,17 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
       },
       dropout(t) {
         const g = master.gain, v = LEVEL, depth = 0.25 + rnd() * 0.3;
-        g.setValueAtTime(v, t); g.linearRampToValueAtTime(v * depth, t + 0.05); g.setValueAtTime(v * depth, t + 0.1 + rnd() * 0.5); g.linearRampToValueAtTime(v, t + 0.9 + rnd());
+        g.setValueAtTime(v, t); g.linearRampToValueAtTime(v * depth, t + 0.05); g.setValueAtTime(v * depth, t + 0.3 + rnd() * 0.9); g.linearRampToValueAtTime(v, t + 2.5 + rnd() * 2);
       },
       drift(t) {
-        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 6 + rnd() * 16;
+        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 18 + rnd() * 30;
         drones.forEach((o) => { o.detune.cancelScheduledValues(t); o.detune.setValueAtTime(o.detune.value, t); o.detune.linearRampToValueAtTime(cents, t + dur); });
         state.drift = cents;
       },
       wander(t) {
         singers.forEach((bp) => {
           const n = 8 + Math.floor(rnd() * 11); bp.frequency.cancelScheduledValues(t);
-          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 4 + rnd() * 6);
+          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 14 + rnd() * 16);
         });
       },
     };
@@ -344,7 +340,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
       while (nextAt < until) {
         const k = pick(); ARTEFACTS[k](nextAt);
         const at = nextAt; setTimeout(() => (state.event = k), Math.max(0, (at - ctx.currentTime) * 1000));
-        nextAt += 3 + rnd() * 9;
+        nextAt += 8 + rnd() * 18;
       }
     }
 
@@ -352,18 +348,18 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
       analyser, state, F0,
       start() {
         const t = ctx.currentTime;
-        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 7);
-        nextAt = t + 6 + rnd() * 4;
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
+        nextAt = t + 12 + rnd() * 6;
         schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
       },
       stop() {
         clearInterval(timer);
         const t = ctx.currentTime;
-        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 3);
-        setTimeout(() => { live.forEach((n) => { try { n.stop(); } catch (_) {} }); master.disconnect(); }, 3300);
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 5);
+        setTimeout(() => { live.forEach((n) => { try { n.stop(); } catch (_) {} }); master.disconnect(); }, 5300);
       },
       // for offline rendering/tests
-      scheduleOffline(until) { nextAt = 4; master.gain.setValueAtTime(0, 0); master.gain.linearRampToValueAtTime(LEVEL, 7); schedule(until); },
+      scheduleOffline(until) { nextAt = 4; master.gain.setValueAtTime(0, 0); master.gain.linearRampToValueAtTime(LEVEL, 12); schedule(until); },
     };
   }
   window.createTransmission = createTransmission;
@@ -380,9 +376,6 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
       cx.beginPath();
       for (let i = 0; i < buf.length; i += 4) { const x = W * i / buf.length, y = Hc / 2 + ((buf[i] - 128) / 128) * Hc * 1.6; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
       cx.strokeStyle = "rgba(226,230,232,0.75)"; cx.lineWidth = 1; cx.stroke();
-      R.f.textContent = tx.F0.toFixed(1);
-      R.drift.textContent = (tx.state.drift >= 0 ? "+" : "−") + Math.abs(tx.state.drift).toFixed(1);
-      R.ev.textContent = tx.state.event || "listening";
     }
     requestAnimationFrame(frame);
   }
