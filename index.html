@@ -11,7 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap">
 <link rel="stylesheet" href="assets/site.css">
 <style>
-/* Home: one image, the header, and a small radio in the corner. */
+/* Home: one image, the header, and a small radio in the corner that receives a transmission. */
 .hero { position: fixed; inset: 0; z-index: 0; overflow: hidden; background: var(--void); }
 .hero img {
   position: absolute; inset: -2%; width: 104%; height: 104%; object-fit: cover;
@@ -68,23 +68,27 @@ body.navbottom .top nav { position: fixed; z-index: 3; right: max(22px, env(safe
 body.navbottom .top nav ul { flex-direction: column; align-items: flex-end; gap: 10px; max-width: none; }
 body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 0.2em; text-shadow: 0 0 18px rgba(5,6,7,.9), 0 0 4px rgba(5,6,7,.8); }
 
-/* radio */
-.radio { display: grid; gap: 14px; justify-items: start; width: min(360px, 100%); }
-.radio button { display: inline-flex; align-items: center; gap: 14px; text-align: left; }
-.radio i { width: 34px; height: 34px; border: 1px solid var(--ice); border-radius: 50%; position: relative; flex: none; transition: background .3s, box-shadow .3s; }
-.radio i::before { content: ""; position: absolute; left: 13px; top: 10px; border-left: 10px solid var(--ice); border-top: 6.5px solid transparent; border-bottom: 6.5px solid transparent; }
-.radio button[aria-pressed="true"] i::before { left: 11px; top: 11px; width: 3px; height: 11px; border: 0; background: var(--ice); box-shadow: 7px 0 0 var(--ice); }
-.radio button:hover i { background: rgba(169,219,232,.1); box-shadow: 0 0 22px rgba(169,219,232,.25); }
-.radio .t { display: grid; gap: 4px; }
-.radio .t b { font-weight: 400; font-size: 10px; letter-spacing: 0.24em; }
-.radio .t span { font-size: 10px; letter-spacing: 0.24em; color: var(--dim); }
-.radio button[aria-pressed="true"] .t b { color: var(--ice); }
-.scope { width: 100%; display: grid; gap: 6px; opacity: 0; transition: opacity .8s ease; }
-.radio.on .scope { opacity: 1; }
-#wave { width: 100%; height: 64px; display: block; }
-.scope .meta { color: var(--dim); font-size: 10px; letter-spacing: 0.16em; font-variant-numeric: tabular-nums; }
-.scope .meta span { color: var(--ink); }
-.bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+/* Aether Radio: a small antenna in the dark gap right of the wordmark column
+   (placed by script); the label only speaks on hover. */
+.radio {
+  position: fixed; z-index: 3; left: max(34px, env(safe-area-inset-left, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.radio button { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.radio .v { display: grid; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 9px; letter-spacing: 0.34em; color: var(--dim); opacity: .55; white-space: nowrap; transition: opacity .5s, color .5s; }
+.radio .v span { grid-area: 1 / 1; transition: opacity .5s; }
+.radio .v .act { opacity: 0; }
+.radio button:hover .v, .radio button:focus-visible .v { opacity: 1; color: var(--ink); }
+.radio button:hover .v .rest, .radio button:focus-visible .v .rest { opacity: 0; }
+.radio button:hover .v .act, .radio button:focus-visible .v .act { opacity: 1; }
+.radio i { width: 15px; height: 15px; border: 1px solid rgba(169,219,232,.7); border-radius: 50%; position: relative; flex: none; transition: box-shadow .5s; }
+.radio i::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--ice); opacity: 0; transition: opacity .5s; }
+.radio button:hover i { box-shadow: 0 0 14px rgba(169,219,232,.4); }
+.radio button[aria-pressed="true"] i::after { opacity: .9; animation: pulse 5s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+#wave { width: 26px; height: 0; display: block; opacity: 0; transition: opacity 1.4s ease, height 2s ease; }
+.radio.on #wave { opacity: 1; height: 34vh; }
+.bottom { display: flex; justify-content: flex-end; align-items: flex-end; }
 .bottom .c { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; }
 @media (max-width: 720px) {
   .hero::after { background:
@@ -114,13 +118,10 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
 
   <div class="bottom">
     <section class="radio" id="radio" aria-label="Aether Radio">
-      <div class="scope" aria-hidden="true">
-        <canvas id="wave"></canvas>
-        <div class="meta">PROFILE N <span id="r-n">0000</span> · <span id="r-zone">fjäll</span> · WATER <span id="r-water">00</span> %</div>
-      </div>
-      <button id="listen" type="button" aria-pressed="false">
+      <canvas id="wave" aria-hidden="true"></canvas>
+      <button id="listen" type="button" aria-pressed="false" aria-label="Start transmission">
+        <span class="v" aria-hidden="true"><span class="rest">AETHER RADIO</span><span class="act" id="listen-label">START TRANSMISSION</span></span>
         <i aria-hidden="true"></i>
-        <span class="t"><b>HEAR THE LAND</b><span>AETHER RADIO</span></span>
       </button>
     </section>
     <div class="c">Daniel Aron de Jong © 2026</div>
@@ -164,6 +165,7 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const found = measure((labelY - oy) / D);
     const vis = found.map((o) => ({ x: ox + o.c * D, w: o.w * D })).filter((o) => o.x - o.w / 2 > 8 && o.x + o.w / 2 < vw - 8);
     const colPx = vis.length ? Math.min(...vis.map((o) => o.w)) : 0;
+    window.__columns = vis; window.dispatchEvent(new CustomEvent("columns", { detail: vis }));
     // wordmark: left-most full column, both words horizontal, widest word fills ~88% of the column
     const wm = document.querySelector(".wordmark"), words = [...wm.querySelectorAll("span")];
     const wide = vw >= 900 && colPx >= 100;
@@ -194,119 +196,221 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
   if (document.fonts) document.fonts.ready.then(layout);
 })();
 
-/* Aether Radio: a cross-section of the Listening Shrines terrain travels from
-   the fjäll to the open sea. Its profile is the wavetable of a quiet drone;
-   where the line crosses water, surf comes in. Drawn only while playing. */
+/* Aether Radio — a generative transmission from somewhere else.
+   Brown-noise carrier, standing waves from a just-intonation overtone row
+   (detuned pairs beating left/right), overtones whistling out of the noise,
+   and rare artefacts: glitches, distant pings with echo, static, drop-outs,
+   and the whole carrier drifting as if the receiver were searching.
+   Nothing repeats: every element is scheduled at random on the audio clock. */
 (() => {
   const cv = document.getElementById("wave"), cx = cv.getContext("2d");
   const radio = document.getElementById("radio"), btn = document.getElementById("listen");
-  const R = { n: document.getElementById("r-n"), zone: document.getElementById("r-zone"), water: document.getElementById("r-water") };
-  const PERIOD = 150, SEA_TAIL = 0.1, S = 240;
-  let NX = 0, NZ = 0, H, Wt, ready = false, t0 = performance.now();
-  const prof = new Float32Array(S), wat = new Uint8Array(S);
+  const label = document.getElementById("listen-label");
 
-  const img = new Image();
-  img.onload = () => {
-    NX = img.width; NZ = img.height;
-    const c = document.createElement("canvas"); c.width = NX; c.height = NZ;
-    const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0);
-    const px = g.getImageData(0, 0, NX, NZ).data;
-    H = new Float32Array(NX * NZ); Wt = new Uint8Array(NX * NZ);
-    for (let i = 0; i < NX * NZ; i++) { H[i] = (px[i*4+1] * 256 + px[i*4+2]) / 65535; Wt[i] = px[i*4] === 0 ? 1 : 0; }
-    ready = true;
-  };
-  img.src = "assets/profile.png";
+  function createTransmission(ctx, destination) {
+    const sr = ctx.sampleRate, rnd = Math.random, F0 = 54;   // carrier fundamental, Hz
+    const LEVEL = 0.42;                                      // master level
+    const G = (v = 1) => { const g = ctx.createGain(); g.gain.value = v; return g; };
+    const pan = (p) => { const n = ctx.createStereoPanner(); n.pan.value = p; return n; };
 
-  function profile(f) {
-    const land = 1 - SEA_TAIL;
-    if (f >= land) { prof.fill(0); wat.fill(1); return; }
-    const z = (f / land) * (NZ - 1), j0 = Math.floor(z), j1 = Math.min(j0 + 1, NZ - 1), fz = z - j0;
-    for (let i = 0; i < S; i++) {
-      const x = (i / (S - 1)) * (NX - 1), i0 = Math.floor(x), i1 = Math.min(i0 + 1, NX - 1), fx = x - i0;
-      const a = H[j0*NX+i0]*(1-fx) + H[j0*NX+i1]*fx, b = H[j1*NX+i0]*(1-fx) + H[j1*NX+i1]*fx;
-      prof[i] = a * (1 - fz) + b * fz;
-      wat[i] = (Wt[j0*NX+Math.round(x)] + Wt[j1*NX+Math.round(x)]) > 0 ? 1 : 0;
+    const master = G(0), comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.ratio.value = 3; comp.attack.value = 0.08; comp.release.value = 0.6;
+    const analyser = ctx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.85;
+    master.connect(comp).connect(analyser).connect(destination);
+
+    // a large, dark synthetic space
+    const ir = ctx.createBuffer(2, Math.floor(sr * 7), sr);
+    for (let c = 0; c < 2; c++) {
+      const d = ir.getChannelData(c); let lp = 0;
+      for (let i = 0; i < d.length; i++) { const t = i / sr; lp += 0.18 * ((rnd() * 2 - 1) - lp); d[i] = lp * Math.exp(-t / 1.9) * (t < 0.03 ? t / 0.03 : 1); }
     }
-  }
+    const verb = ctx.createConvolver(); verb.buffer = ir;
+    const dry = G(0.8), wet = G(0.75);
+    dry.connect(master); verb.connect(wet).connect(master);
+    const send = (node, d = 0.6, w = 0.4) => { node.connect(G(d)).connect(dry); node.connect(G(w)).connect(verb); };
 
-  function frame(now) {
-    if (sound.on && ready) {
-      const t = (now - t0) / 1000, f = (t / PERIOD) % 1;
-      profile(f);
-      const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth, Hc = cv.clientHeight;
-      if (cv.width !== Math.round(W * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hc * dpr); }
-      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, Hc);
-      const base = Hc - 6, amp = Hc - 12;
-      cx.fillStyle = "rgba(226,230,232,0.15)"; cx.fillRect(0, base + 0.5, W, 1);
-      cx.beginPath();
-      for (let i = 0; i < S; i++) { const x = W * i / (S - 1), y = base - prof[i] * amp; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
-      cx.strokeStyle = "rgba(226,230,232,0.7)"; cx.lineWidth = 1; cx.stroke();
-      let ws = 0;
-      for (let i = 0; i < S; i++) if (wat[i]) {
-        ws++; const glint = Math.pow(0.5 + 0.5 * Math.sin(t * 1.1 + i * 2.7), 6);
-        cx.fillStyle = `rgba(169,219,232,${0.3 + glint * 0.6})`; cx.fillRect(W * i / (S - 1), base - 1 + Math.sin(t + i * .3), 1.4, 1.4);
+    // shared noise buffers
+    const brown = ctx.createBuffer(2, sr * 8, sr), white = ctx.createBuffer(1, sr * 2, sr);
+    for (let c = 0; c < 2; c++) { const d = brown.getChannelData(c); let l = 0; for (let i = 0; i < d.length; i++) { l = (l + 0.02 * (rnd() * 2 - 1)) / 1.02; d[i] = l * 3.5; } }
+    { const d = white.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; }
+    const lfo = (rate, depth, target, type = "sine") => {
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = rate;
+      const g = G(depth); o.connect(g).connect(target); o.start(); return o;
+    };
+    const live = [];
+
+    // 1 · carrier: brown noise that breathes
+    const bed = ctx.createBufferSource(); bed.buffer = brown; bed.loop = true;
+    const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = 340; bedLp.Q.value = 0.4;
+    const bedG = G(0.36);
+    bed.connect(bedLp).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
+    live.push(bed, lfo(0.008, 150, bedLp.frequency), lfo(0.005, 0.16, bedG.gain));
+
+    // 2 · standing waves: overtone row, each partial a slowly beating L/R pair
+    const ROW = [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11];
+    const drones = [];
+    ROW.forEach((n, i) => {
+      const base = 0.075 / Math.pow(n, 0.8) * (n > 6 ? 0.55 : 1);
+      const amp = G(base * 0.5);
+      lfo(1 / (60 + rnd() * 140), base * 0.5, amp.gain);         // bloom and recede, 60–200 s
+      const beat = 0.015 + rnd() * 0.09;                           // Hz between the pair: slow beating
+      [-1, 1].forEach((side) => {
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = F0 * n + side * beat / 2;
+        o.connect(pan(side * (0.25 + 0.5 * (i / ROW.length)))).connect(amp);
+        o.start(); drones.push(o); live.push(o);
+      });
+      send(amp, 0.55, 0.5);
+    });
+
+    // 2b · sub bass: a slow sine an octave below the carrier, a fifth above it, and a rumble
+    const sub = G(0.0);
+    [[F0 / 2, 0.075], [F0 * 0.75, 0.025]].forEach(([f, a]) => {
+      const o = ctx.createOscillator(); o.frequency.value = f; const g = G(a); o.connect(g).connect(sub); o.start(); live.push(o);
+    });
+    const rum = ctx.createBufferSource(); rum.buffer = brown; rum.loop = true; rum.loopStart = 5;
+    const rumLp = ctx.createBiquadFilter(); rumLp.type = "lowpass"; rumLp.frequency.value = 70; rumLp.Q.value = 0.7;
+    rum.connect(rumLp).connect(G(0.35)).connect(sub); rum.start(); live.push(rum);
+    sub.gain.value = 0.75; lfo(1 / 140, 0.25, sub.gain);                  // swells over ~2½ min
+    sub.connect(dry);
+
+    // 3 · overtones singing out of the noise (very narrow band-passes that wander)
+    const singers = [0, 1].map((k) => {
+      const s = ctx.createBufferSource(); s.buffer = brown; s.loop = true; s.loopStart = k * 3;
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 60; bp.frequency.value = F0 * (7 + k * 2);
+      const g = G(0.75); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
+      return bp;
+    });
+
+    // 3b · a faint, high ether hiss that comes and goes
+    const air = ctx.createBufferSource(); air.buffer = white; air.loop = true;
+    const airBp = ctx.createBiquadFilter(); airBp.type = "bandpass"; airBp.frequency.value = 7200; airBp.Q.value = 0.9;
+    const airG = G(0.006); air.connect(airBp).connect(airG); send(airG, 0.3, 0.7); air.start();
+    live.push(air, lfo(0.007, 0.005, airG.gain), lfo(0.012, 1800, airBp.frequency));
+
+    // state for the readout
+    const state = { drift: 0, event: "" };
+    let nextAt = 0, timer = 0;
+
+    // 4 · artefacts, scheduled on the audio clock
+    const ARTEFACTS = {
+      glitch(t) {
+        const s = ctx.createBufferSource(); s.buffer = white;
+        const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.frequency.value = 900 + rnd() * 2600; hp.Q.value = 2 + rnd() * 6;
+        const g = G(0), d = 0.02 + rnd() * 0.07;
+        s.connect(hp).connect(pan(rnd() * 2 - 1)).connect(g); send(g, 0.4, 0.6);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.004); g.gain.setValueAtTime(0.05, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.01);
+        s.start(t, rnd(), d + 0.05);
+        if (rnd() < 0.5) ARTEFACTS.glitchEcho(t + d + 0.04 + rnd() * 0.1);
+      },
+      glitchEcho(t) {
+        const s = ctx.createBufferSource(); s.buffer = white; const g = G(0);
+        const bp = ctx.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = 4000;
+        s.connect(bp).connect(g); send(g, 0.2, 0.8);
+        g.gain.setValueAtTime(0.018, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); s.start(t, rnd(), 0.05);
+      },
+      ping(t) {
+        const n = [12, 14, 15, 16, 18, 20, 21, 24][Math.floor(rnd() * 8)];
+        const o = ctx.createOscillator(); o.frequency.value = F0 * n;
+        const g = G(0), dl = ctx.createDelay(2), fb = G(0.45), lp = ctx.createBiquadFilter();
+        lp.type = "lowpass"; lp.frequency.value = 1400; dl.delayTime.value = 0.6 + rnd() * 0.7;
+        o.connect(g); g.connect(dl); dl.connect(lp).connect(fb).connect(dl);
+        const out = G(1), p = pan(rnd() * 1.6 - 0.8); g.connect(out); lp.connect(out); out.connect(p); send(p, 0.3, 0.7);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.009, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+        o.start(t); o.stop(t + 2);
+      },
+      static(t) {
+        const n = 6 + Math.floor(rnd() * 22), span = 0.3 + rnd() * 0.9;
+        for (let i = 0; i < n; i++) {
+          const tt = t + rnd() * span, s = ctx.createBufferSource(); s.buffer = white; const g = G(0);
+          s.connect(pan(rnd() * 2 - 1)).connect(g); send(g, 0.5, 0.5);
+          g.gain.setValueAtTime(0.05 + rnd() * 0.08, tt); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.002 + rnd() * 0.006);
+          s.start(tt, rnd(), 0.012);
+        }
+      },
+      dropout(t) {
+        const g = master.gain, v = LEVEL, depth = 0.25 + rnd() * 0.3;
+        g.setValueAtTime(v, t); g.linearRampToValueAtTime(v * depth, t + 0.05); g.setValueAtTime(v * depth, t + 0.3 + rnd() * 0.9); g.linearRampToValueAtTime(v, t + 2.5 + rnd() * 2);
+      },
+      drift(t) {
+        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 45 + rnd() * 60;
+        drones.forEach((o) => { o.detune.cancelScheduledValues(t); o.detune.setValueAtTime(o.detune.value, t); o.detune.linearRampToValueAtTime(cents, t + dur); });
+        state.drift = cents;
+      },
+      wander(t) {
+        singers.forEach((bp) => {
+          const n = 6 + Math.floor(rnd() * 7); bp.frequency.cancelScheduledValues(t);
+          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 45 + rnd() * 45);
+        });
+      },
+    };
+    const WEIGHTS = [["glitch", 3], ["ping", 2], ["static", 2], ["wander", 1], ["drift", 1], ["dropout", 1]];
+    const pick = () => { let r = rnd() * WEIGHTS.reduce((a, w) => a + w[1], 0); for (const [k, w] of WEIGHTS) { if ((r -= w) <= 0) return k; } return "glitch"; };
+    function schedule(until) {
+      while (nextAt < until) {
+        const k = pick(); ARTEFACTS[k](nextAt);
+        const at = nextAt; setTimeout(() => (state.event = k), Math.max(0, (at - ctx.currentTime) * 1000));
+        nextAt += 8 + rnd() * 18;
       }
-      R.n.textContent = String(Math.round((1 - f) * 3920) + 2000).padStart(4, "0");
-      R.zone.textContent = f > 1 - SEA_TAIL ? "open sea" : f < 0.27 ? "fjäll" : f < 0.45 ? "forest hills" : f < 0.72 ? "moor & flats" : "coast";
-      R.water.textContent = String(Math.round(ws / S * 100)).padStart(2, "0");
-      sound.update(prof, ws / S);
+    }
+
+    return {
+      analyser, state, F0,
+      start() {
+        const t = ctx.currentTime;
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
+        nextAt = t + 12 + rnd() * 6;
+        schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
+      },
+      stop() {
+        clearInterval(timer);
+        const t = ctx.currentTime;
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 5);
+        setTimeout(() => { live.forEach((n) => { try { n.stop(); } catch (_) {} }); master.disconnect(); }, 5300);
+      },
+      // for offline rendering/tests
+      scheduleOffline(until) { nextAt = 4; master.gain.setValueAtTime(0, 0); master.gain.linearRampToValueAtTime(LEVEL, 12); schedule(until); },
+    };
+  }
+  window.createTransmission = createTransmission;
+
+  let ctx = null, tx = null;
+  const buf = new Uint8Array(2048);
+  function frame() {
+    if (tx) {
+      const dpr = Math.min(devicePixelRatio || 1, 2), W = cv.clientWidth, Hc = cv.clientHeight;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(Hc * dpr)) { cv.width = Math.round(W * dpr); cv.height = Math.round(Hc * dpr); }
+      cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, Hc);
+      cx.fillStyle = "rgba(226,230,232,0.12)"; cx.fillRect(W / 2, 0, 1, Hc);
+      tx.analyser.getByteTimeDomainData(buf);
+      cx.beginPath();
+      for (let i = 0; i < buf.length; i += 4) { const y = Hc - Hc * i / buf.length, x = W / 2 + ((buf[i] - 128) / 128) * W * 2.2; i ? cx.lineTo(x, y) : cx.moveTo(x, y); }
+      cx.strokeStyle = "rgba(226,230,232,0.7)"; cx.lineWidth = 1; cx.stroke();
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
-  const sound = (() => {
-    let ctx, master, srcs = [], surf, last = 0, on = false;
-    function wave(p) {
-      const N = 48, M = p.length, re = new Float32Array(N + 1), im = new Float32Array(N + 1);
-      let mean = 0; for (let i = 0; i < M; i++) mean += p[i]; mean /= M;
-      for (let k = 1; k <= N; k++) {
-        let a = 0, b = 0;
-        for (let i = 0; i < M; i++) { const ph = 2 * Math.PI * k * i / M, v = p[i] - mean; a += v * Math.cos(ph); b += v * Math.sin(ph); }
-        re[k] = a / M; im[k] = b / M;
-      }
-      return ctx.createPeriodicWave(re, im);
-    }
-    function start() {
-      const AC = window.AudioContext || window.webkitAudioContext; ctx = ctx || new AC(); ctx.resume();
-      if (ready) profile(((performance.now() - t0) / 1000 / PERIOD) % 1);
-      master = ctx.createGain(); master.gain.value = 0;
-      const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 2200; lp.Q.value = 0.3;
-      lp.connect(master).connect(ctx.destination);
-      [[55, -0.6, 0.5], [82.6, 0.6, 0.32], [110.3, 0, 0.18]].forEach(([fr, pn, gn]) => {
-        const o = ctx.createOscillator(); o.frequency.value = fr; o.setPeriodicWave(wave(prof));
-        const g = ctx.createGain(); g.gain.value = gn; const p = ctx.createStereoPanner(); p.pan.value = pn;
-        o.connect(g).connect(p).connect(lp); o.start(); srcs.push(o);
-      });
-      const len = ctx.sampleRate * 3, buf = ctx.createBuffer(2, len, ctx.sampleRate);
-      for (let c = 0; c < 2; c++) { const d = buf.getChannelData(c); let l = 0; for (let i = 0; i < len; i++) { l = (l + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = l * 3.5; } }
-      const n = ctx.createBufferSource(); n.buffer = buf; n.loop = true;
-      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 700; bp.Q.value = 0.6;
-      surf = ctx.createGain(); surf.gain.value = 0; n.connect(bp).connect(surf).connect(master); n.start(); srcs.push(n);
-      master.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 2.5);
-      on = true;
-    }
-    function stop() {
-      if (!on) return; on = false;
-      const t = ctx.currentTime, old = srcs; srcs = [];
-      master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 1.5);
-      setTimeout(() => old.forEach((o) => { try { o.stop(); } catch (_) {} }), 1700);
-    }
-    function update(p, water) {
-      const now = performance.now(); if (!on || now - last < 350) return; last = now;
-      const w = wave(p); srcs.slice(0, 3).forEach((o) => o.setPeriodicWave(w));
-      surf.gain.setTargetAtTime(water * 0.5, ctx.currentTime, 0.8);
-    }
-    return { start, stop, update, get on() { return on; } };
-  })();
+  // sit in the dark gap between the first two full columns of light
+  function place(vis) {
+    if (!vis || vis.length < 2) { radio.style.left = ""; return; }
+    const a = vis[0], b = vis[1];
+    radio.style.left = (((a.x + a.w / 2) + (b.x - b.w / 2)) / 2).toFixed(1) + "px";
+  }
+  addEventListener("columns", (e) => place(e.detail));
+  place(window.__columns);
 
   btn.addEventListener("click", () => {
-    const now = !sound.on;
-    now ? sound.start() : sound.stop();
-    btn.setAttribute("aria-pressed", String(now));
-    radio.classList.toggle("on", now);
+    if (tx) {
+      tx.stop(); tx = null;
+      btn.setAttribute("aria-pressed", "false"); radio.classList.remove("on"); label.textContent = "START TRANSMISSION"; btn.setAttribute("aria-label", "Start transmission");
+      return;
+    }
+    const AC = window.AudioContext || window.webkitAudioContext; ctx = ctx || new AC(); ctx.resume();
+    tx = createTransmission(ctx, ctx.destination); tx.start();
+    btn.setAttribute("aria-pressed", "true"); radio.classList.add("on"); label.textContent = "END TRANSMISSION"; btn.setAttribute("aria-label", "End transmission");
   });
 })();
+
 </script>
 </body>
 </html>
