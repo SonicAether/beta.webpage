@@ -264,11 +264,22 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
       send(amp, 0.55, 0.5);
     });
 
+    // 2b · sub bass: a slow sine an octave below the carrier, a fifth above it, and a rumble
+    const sub = G(0.0);
+    [[F0 / 2, 0.075], [F0 * 0.75, 0.025]].forEach(([f, a]) => {
+      const o = ctx.createOscillator(); o.frequency.value = f; const g = G(a); o.connect(g).connect(sub); o.start(); live.push(o);
+    });
+    const rum = ctx.createBufferSource(); rum.buffer = brown; rum.loop = true; rum.loopStart = 5;
+    const rumLp = ctx.createBiquadFilter(); rumLp.type = "lowpass"; rumLp.frequency.value = 70; rumLp.Q.value = 0.7;
+    rum.connect(rumLp).connect(G(0.35)).connect(sub); rum.start(); live.push(rum);
+    sub.gain.value = 0.75; lfo(1 / 140, 0.25, sub.gain);                  // swells over ~2½ min
+    sub.connect(dry);
+
     // 3 · overtones singing out of the noise (very narrow band-passes that wander)
     const singers = [0, 1].map((k) => {
       const s = ctx.createBufferSource(); s.buffer = brown; s.loop = true; s.loopStart = k * 3;
-      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 60; bp.frequency.value = F0 * (10 + k * 3);
-      const g = G(1.2); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 60; bp.frequency.value = F0 * (7 + k * 2);
+      const g = G(0.75); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
       return bp;
     });
 
@@ -286,10 +297,10 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
     const ARTEFACTS = {
       glitch(t) {
         const s = ctx.createBufferSource(); s.buffer = white;
-        const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.frequency.value = 1800 + rnd() * 5000; hp.Q.value = 2 + rnd() * 6;
+        const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.frequency.value = 900 + rnd() * 2600; hp.Q.value = 2 + rnd() * 6;
         const g = G(0), d = 0.02 + rnd() * 0.07;
         s.connect(hp).connect(pan(rnd() * 2 - 1)).connect(g); send(g, 0.4, 0.6);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09, t + 0.004); g.gain.setValueAtTime(0.09, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.01);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.004); g.gain.setValueAtTime(0.05, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.01);
         s.start(t, rnd(), d + 0.05);
         if (rnd() < 0.5) ARTEFACTS.glitchEcho(t + d + 0.04 + rnd() * 0.1);
       },
@@ -297,16 +308,16 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
         const s = ctx.createBufferSource(); s.buffer = white; const g = G(0);
         const bp = ctx.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = 4000;
         s.connect(bp).connect(g); send(g, 0.2, 0.8);
-        g.gain.setValueAtTime(0.04, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); s.start(t, rnd(), 0.05);
+        g.gain.setValueAtTime(0.018, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); s.start(t, rnd(), 0.05);
       },
       ping(t) {
-        const n = [16, 18, 20, 21, 24, 27, 28, 32, 36][Math.floor(rnd() * 9)];
+        const n = [12, 14, 15, 16, 18, 20, 21, 24][Math.floor(rnd() * 8)];
         const o = ctx.createOscillator(); o.frequency.value = F0 * n;
-        const g = G(0), dl = ctx.createDelay(2), fb = G(0.58), lp = ctx.createBiquadFilter();
-        lp.type = "lowpass"; lp.frequency.value = 2200; dl.delayTime.value = 0.6 + rnd() * 0.7;
+        const g = G(0), dl = ctx.createDelay(2), fb = G(0.45), lp = ctx.createBiquadFilter();
+        lp.type = "lowpass"; lp.frequency.value = 1400; dl.delayTime.value = 0.6 + rnd() * 0.7;
         o.connect(g); g.connect(dl); dl.connect(lp).connect(fb).connect(dl);
         const out = G(1), p = pan(rnd() * 1.6 - 0.8); g.connect(out); lp.connect(out); out.connect(p); send(p, 0.3, 0.7);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.028, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.009, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
         o.start(t); o.stop(t + 2);
       },
       static(t) {
@@ -323,18 +334,18 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
         g.setValueAtTime(v, t); g.linearRampToValueAtTime(v * depth, t + 0.05); g.setValueAtTime(v * depth, t + 0.3 + rnd() * 0.9); g.linearRampToValueAtTime(v, t + 2.5 + rnd() * 2);
       },
       drift(t) {
-        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 18 + rnd() * 30;
+        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 45 + rnd() * 60;
         drones.forEach((o) => { o.detune.cancelScheduledValues(t); o.detune.setValueAtTime(o.detune.value, t); o.detune.linearRampToValueAtTime(cents, t + dur); });
         state.drift = cents;
       },
       wander(t) {
         singers.forEach((bp) => {
-          const n = 8 + Math.floor(rnd() * 11); bp.frequency.cancelScheduledValues(t);
-          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 14 + rnd() * 16);
+          const n = 6 + Math.floor(rnd() * 7); bp.frequency.cancelScheduledValues(t);
+          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 45 + rnd() * 45);
         });
       },
     };
-    const WEIGHTS = [["glitch", 3], ["ping", 2], ["static", 2], ["wander", 2], ["drift", 1], ["dropout", 1]];
+    const WEIGHTS = [["glitch", 3], ["ping", 2], ["static", 2], ["wander", 1], ["drift", 1], ["dropout", 1]];
     const pick = () => { let r = rnd() * WEIGHTS.reduce((a, w) => a + w[1], 0); for (const [k, w] of WEIGHTS) { if ((r -= w) <= 0) return k; } return "glitch"; };
     function schedule(until) {
       while (nextAt < until) {
