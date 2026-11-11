@@ -1,6 +1,6 @@
 // Shrine catalogue. One entry per recording.
 // pos: [u, v] on the imaginary terrain (0..1, origin top-left = north-west).
-// Zones north→south: fjäll (v<0.3), forest hills (0.3–0.5), moor & flats (0.5–0.8), coast (>0.8).
+// Zones north→south: fjäll and highland lakes (v<0.4), forest hills (0.4–0.55), moor & flats (0.55–0.75), coast and skerries beyond.
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
 // prayer: placeholder texts — replace with the final prayers.
 export const SHRINES = [
@@ -16,7 +16,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · AB 55 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1757937528/250801_002_Skedbrosj%C3%B6n_edit_o9juns.mp3",
-    pos: [0.215, 0.152]   /* fjäll lake shore */,
+    pos: [0.396, 0.155]   /* fjäll lake shore */,
     synth: { wind: 0.15, water: 0.9, birds: 0.05, tone: 180 },
     prayer: [
       "Let the lake keep its small voice.",
@@ -36,7 +36,7 @@ export const SHRINES = [
     wind: "light breeze",
     rig: "Nevaton MC59 omni · baffled AB 33 cm · 45°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1761931151/250831_005_Stapeler_Moor_sehr_lebendig_Schwalben_Spatzen_Schafe_etc._qzmhnk.mp3",
-    pos: [0.81, 0.69]    /* moor flats, east */,
+    pos: [0.80, 0.66]    /* moor flats, east */,
     synth: { wind: 0.5, water: 0.0, birds: 0.8, tone: 900 },
     prayer: [
       "For the tits that circle the microphones and do not know they are being heard.",
@@ -56,7 +56,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · baffled AB 35 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748357450/250518_001_Maik%C3%A4fer_Abend_Reh_am_Teich_bearbeitet_wrnred.mp3",
-    pos: [0.25, 0.72]    /* rural flats, pond */,
+    pos: [0.33, 0.70]    /* rural flats, pond */,
     synth: { wind: 0.1, water: 0.2, birds: 0.1, tone: 140, drone: 0.7 },
     prayer: [
       "Blessed be the thousand wings in the oak crowns.",
@@ -76,7 +76,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · AB 50 cm",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748213115/250501_003_Stapeler_Moor_Kuckuck_V%C3%B6gel_M%C3%BCckenschwarm_grcfkf.mp3",
-    pos: [0.69, 0.75]    /* moor flats, near the first */,
+    pos: [0.74, 0.745]    /* moor flats, near the first */,
     synth: { wind: 0.2, water: 0.0, birds: 0.6, tone: 2400 },
     prayer: [
       "Cuckoo, tree pipit, redshank, willow warbler.",
@@ -96,7 +96,7 @@ export const SHRINES = [
     wind: "3–4 Bft W",
     rig: "Nevaton MC59 wide cardioid · NOS 35 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748211069/250329_002_Hopelser_Wald_lmbkap.mp3",
-    pos: [0.50, 0.40]     /* hummocky forest hills */,
+    pos: [0.33, 0.52]     /* hummocky forest hills */,
     synth: { wind: 0.7, water: 0.0, birds: 0.5, tone: 1200, bells: 0.6 },
     prayer: [
       "At six the bells came through the spruces and did not stop.",
