@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
+const TERRAIN = new URL("./terrain/", import.meta.url).href;   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -56,6 +57,11 @@ const uniforms = {
   uLogMin: { value: 0 },
   uJit: { value: 0 },
   uHoleA: { value: 0 },
+  uHoleR: { value: 0 },
+  uCovOn: { value: 0 },
+  uCov: { value: null },
+  uCovN: { value: new THREE.Vector2(1, 1) },
+  uEuSize: { value: new THREE.Vector2(1, 1) },
   uHole: { value: new THREE.Vector4(0, 0, 1, 1) },
   uHalf: { value: new THREE.Vector2(1, 1) },
   uSize: { value: isSmall ? 1.6 : 1.35 },
@@ -77,8 +83,10 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aWater;
     uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit;
     uniform vec2 uHalf;
-    uniform float uHoleA;
+    uniform float uHoleA, uHoleR, uCovOn;
     uniform vec4 uHole;
+    uniform vec2 uCovN, uEuSize;
+    uniform sampler2D uCov;
     uniform vec3 uFocus;
     varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
@@ -126,8 +134,11 @@ const pointMat = new THREE.ShaderMaterial({
         float sc = pow(uSoft, 0.6);            // stay coarse for most of the way, sharpen at the end
         float keep = exp(uLogMin * sc);
         float few = step(fract(aRand * 13.7), keep);
-        float band = 0.85 * sc * min(uHalf.x, uHalf.y) + 1e-4;
-        float e = min(uHalf.x - abs(position.x), uHalf.y - abs(position.z)) / band;
+        float band = 0.8 * sc * min(uHalf.x, uHalf.y) + 1e-4;
+        // round and blurred at first, the rectangle of the scan appears only at the end
+        float eRect = min(uHalf.x - abs(position.x), uHalf.y - abs(position.z));
+        float eRound = (1.0 - length(position.xz / uHalf)) * min(uHalf.x, uHalf.y);
+        float e = mix(eRect, eRound, smoothstep(0.0, 0.7, sc)) / band;
         float edge = smoothstep(0.0, 1.0, e + (fract(aRand * 5.31) - 0.5) * 1.1 * sc);
         soft = few * edge;
         depthS = exp(mix(log(depth), log(-mv.z), sc));   // point size of the overview at this distance
@@ -137,8 +148,14 @@ const pointMat = new THREE.ShaderMaterial({
       // the overview makes room for a detail terrain where it lies, as that terrain fills in
       if (uHoleA > 0.0) {
         vec2 q = abs(position.xz - uHole.xy) / uHole.zw;
-        float inside = 1.0 - smoothstep(0.6, 1.25, max(q.x, q.y) + (fract(aRand * 3.7) - 0.5) * 0.3);
+        float metric = mix(max(q.x, q.y), length(q), uHoleR);
+        float inside = 1.0 - smoothstep(0.55, 1.25, metric + (fract(aRand * 3.7) - 0.5) * 0.3);
         soft *= 1.0 - uHoleA * inside;
+      }
+      // where a finer chunk of the overview has been loaded, the coarse points step aside
+      if (uCovOn > 0.0) {
+        vec2 cu = (position.xz / uEuSize + 0.5) / uCovN;
+        soft *= 1.0 - texture2D(uCov, cu).r;
       }
       vFog = smoothstep(uFar, 220.0, depth) * life * form * soft;
       // scan dropout flicker
@@ -170,7 +187,7 @@ const pointMat = new THREE.ShaderMaterial({
 /* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, hard } */
 function makeCloud(img, opt) {
   const NX = img.width, NZ = img.height;
-  const W_ = opt.world, D_ = opt.world * NZ / NX;
+  const W_ = opt.world, D_ = opt.depth ?? opt.world * NZ / NX;
   const cv = document.createElement("canvas");
   cv.width = NX; cv.height = NZ;
   const cx = cv.getContext("2d", { willReadFrequently: true });
@@ -271,6 +288,83 @@ const worldToLonLat = (x, z) => {
   const tx = EU.x0 + (x / eu.W + 0.5) * (EU.x1 - EU.x0), ty = EU.y0 + (z / eu.D + 0.5) * (EU.y1 - EU.y0);
   return [tx / EU.n * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / EU.n))) * 180 / Math.PI];
 };
+
+/* ───────────── finer overview near the camera ─────────────
+   Close to the ground the overview's points (one every ~600 m) are replaced, chunk by chunk, by
+   chunks with three times the resolution. They fade in where the camera looks, and the coarse
+   points under them step aside (coverage texture). Off on phones and on machines that are slow. */
+// ?debug in the address exposes the camera for testing
+const DEBUG = /[?&]debug\b/.test(location.search) ? (window.__shrines = { lod: true, get camera() { return camera; }, get controls() { return controls; }, get LOD() { return LOD; } }) : null;
+const LOD = { index: null, chunks: new Map(), cov: null, off: isSmall, slow: { n: 0, sum: 0 } };
+fetch(TERRAIN + "eu/index.json").then((r) => r.json()).then((j) => {
+  LOD.index = j; LOD.have = new Set(j.chunks.map((c) => c[0] + "_" + c[1]));
+  LOD.gx = Math.ceil((j.nx - 1) / j.C); LOD.gz = Math.ceil((j.nz - 1) / j.C);
+  LOD.cov = new THREE.DataTexture(new Uint8Array(LOD.gx * LOD.gz * 4), LOD.gx, LOD.gz, THREE.RGBAFormat);
+  LOD.cov.magFilter = LOD.cov.minFilter = THREE.NearestFilter;
+  LOD.cov.needsUpdate = true;
+  uniforms.uCov.value = LOD.cov;
+  uniforms.uCovN.value.set(LOD.gx * j.C / (j.nx - 1), LOD.gz * j.C / (j.nz - 1));
+}).catch(() => { LOD.off = true; });
+
+function chunkBox(ci, cj) {                     // world rectangle of a chunk, from the overview's grid
+  const j = LOD.index, cx = eu.W / (j.nx - 1), cz = eu.D / (j.nz - 1);
+  const i0 = ci * j.C, i1 = Math.min(i0 + j.C, j.nx - 1), k0 = cj * j.C, k1 = Math.min(k0 + j.C, j.nz - 1);
+  return { x: ((i0 + i1) / 2) * cx - eu.W / 2, z: ((k0 + k1) / 2) * cz - eu.D / 2, w: (i1 - i0) * cx, d: (k1 - k0) * cz };
+}
+function loadChunk(key) {
+  const c = { fade: 0, want: true, points: null };
+  LOD.chunks.set(key, c);
+  const img = new Image();
+  img.onload = () => {
+    if (LOD.chunks.get(key) !== c) return;
+    const [ci, cj] = key.split("_").map(Number), b = chunkBox(ci, cj);
+    const mat = pointMat.clone();
+    mat.uniforms = { ...uniforms, uForm: { value: 0 }, uSize: { value: uniforms.uSize.value * 0.62 }, uCovOn: { value: 0 } };
+    const cl = makeCloud(img, { world: b.w, depth: b.d, relief: EU.relief, keepLand: 0.86, keepSea: 0.075 / 9, hard: true, mat });
+    cl.points.position.set(b.x, 0, b.z);
+    c.points = cl.points; c.mat = mat;
+    euGroup.add(cl.points);
+  };
+  img.src = TERRAIN + "eu/" + key + ".png";
+}
+function stepLOD(dt) {
+  if (!LOD.index || !eu) return;
+  const force = DEBUG && DEBUG.lod;
+  const active = (force || (!LOD.off && eu.thinned !== true)) && mode === "europe" && euGroup.visible;
+  // which chunks: the one under the point the camera looks at and its three nearest neighbours
+  const want = new Set();
+  if (active && camera.position.distanceTo(controls.target) < 170) {
+    const j = LOD.index, t = controls.target;
+    const u = ((t.x / eu.W + 0.5) * (j.nx - 1)) / j.C, v = ((t.z / eu.D + 0.5) * (j.nz - 1)) / j.C;
+    const ci = Math.floor(u), cj = Math.floor(v), di = u - ci < 0.5 ? -1 : 1, dj = v - cj < 0.5 ? -1 : 1;
+    for (const [a, b] of [[ci, cj], [ci + di, cj], [ci, cj + dj], [ci + di, cj + dj]]) if (LOD.have.has(a + "_" + b)) want.add(a + "_" + b);
+  }
+  for (const k of want) if (!LOD.chunks.has(k)) loadChunk(k);
+  let dirty = false;
+  for (const [k, c] of LOD.chunks) {
+    c.want = want.has(k);
+    const goal = c.want && c.points ? 1 : 0, f = c.fade;
+    c.fade = goal > f ? Math.min(1, f + dt / 1.2) : Math.max(0, f - dt / 0.9);
+    if (c.mat) c.mat.uniforms.uForm.value = c.fade * uniforms.uForm.value;
+    if (c.fade !== f) dirty = true;
+    if (!c.want && c.fade === 0) {
+      if (c.points) { euGroup.remove(c.points); c.points.geometry.dispose(); c.mat.dispose(); }
+      LOD.chunks.delete(k); dirty = true;
+      const [ci, cj] = k.split("_").map(Number);
+      LOD.cov.image.data[(cj * LOD.gx + ci) * 4] = 0;
+    }
+  }
+  if (dirty) {
+    for (const [k, c] of LOD.chunks) { const [ci, cj] = k.split("_").map(Number); LOD.cov.image.data[(cj * LOD.gx + ci) * 4] = Math.round(c.fade * 255); }
+    LOD.cov.needsUpdate = true;
+  }
+  uniforms.uCovOn.value = LOD.chunks.size ? 1 : 0;
+  // a machine that struggles with the extra points gets the plain overview back
+  if (LOD.chunks.size && active) {
+    const sl = LOD.slow; sl.n++; sl.sum += dt;
+    if (sl.n === 60) { if (sl.sum / sl.n > 0.06) LOD.off = true; sl.n = 0; sl.sum = 0; }
+  }
+}
 
 /* ───────────── shrines ───────────── */
 const shrineLayer = $("#shrine-layer");
@@ -397,7 +491,7 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const K = 0.016;                       // size of a detail terrain inside the overview (about 4 units wide)
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 8 }, uFar: { value: 6000 }, uForm: { value: 0 },
-  uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
+  uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHoleR: { value: 0 }, uCovOn: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
@@ -461,6 +555,7 @@ function stepLink() {
   const sf = Math.min(1, Math.max(0, Math.log(d / n0) / Math.log(60 / n0)));
   detUniforms.uSoft.value = sf;
   uniforms.uHoleA.value = det ? 1 - Math.pow(sf, 0.6) : 0;
+  uniforms.uHoleR.value = Math.pow(sf, 0.6);
 }
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
@@ -558,7 +653,7 @@ function openShrine(idx) {
   // the detail terrain loads while the camera descends over Europe
   const img = new Image();
   const ready = new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); });
-  img.src = new URL(`./terrain/${s.terrain || s.id.toLowerCase() + ".png"}`, import.meta.url).href;
+  img.src = TERRAIN + (s.terrain || s.id.toLowerCase() + ".png");
   (mode === "europe" ? descend(idx, img, ready) : exchange(idx, img, ready)).then(() => { busy = false; });
 
   $("#p-id").textContent = s.id;
@@ -1034,6 +1129,7 @@ function loop() {
     if (k >= 1) flight = null;
   }
   stepLink();
+  stepLOD(dt);
   // slow orbit around the shrine while listening
   const playing = player.isPlaying();
   controls.autoRotate = !reduceMotion && mode === "detail" && !flight;
@@ -1078,6 +1174,7 @@ const img = new Image();
 img.onload = () => {
   eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86, keepSea: 0.075 });
   euGroup.add(eu.points);
+  uniforms.uEuSize.value.set(eu.W, eu.D);
   useView(eu);
   controls.target.set(0, 0, 51);
   buildShrines();
@@ -1087,12 +1184,12 @@ img.onload = () => {
   loop();
 };
 img.onerror = () => { $("#boot-status").textContent = "terrain data could not be loaded"; };
-img.src = new URL("./terrain/europe.png", import.meta.url).href;
+img.src = TERRAIN + "europe.png";
 
 $("#enter-btn").addEventListener("click", () => {
   entered = true;
   // the scans of all shrines are fetched quietly in the background, so a descent never waits for one
-  SHRINES.forEach((s, i) => setTimeout(() => { new Image().src = new URL(`./terrain/${s.terrain || s.id.toLowerCase() + ".png"}`, import.meta.url).href; }, 1500 + i * 700));
+  SHRINES.forEach((s, i) => setTimeout(() => { new Image().src = TERRAIN + (s.terrain || s.id.toLowerCase() + ".png"); }, 1500 + i * 700));
   enter.classList.add("gone");
   setTimeout(() => (enter.hidden = true), 900);
 });
