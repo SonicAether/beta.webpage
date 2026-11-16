@@ -749,8 +749,9 @@ function buildIsobars(d) {
   let lo = Infinity, hi = -Infinity;
   for (const v of F) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
   const thin = [], bold = [], labelAt = new Map();
-  for (let L = Math.ceil(lo / 4) * 4; L <= hi; L += 4) {
-    const out = L % 20 === 0 ? bold : thin;
+  const step = hi - lo < 28 ? 2 : 4;                 // calm weather: draw every 2 hPa so the field stays readable
+  for (let L = Math.ceil(lo / step) * step; L <= hi; L += step) {
+    const out = L % (step * 5) === 0 ? bold : thin;
     for (let j = 0; j < NY - 1; j++) for (let i = 0; i < NX - 1; i++) {
       const a = F[j * NX + i], b = F[j * NX + i + 1], c = F[(j + 1) * NX + i + 1], e = F[(j + 1) * NX + i];
       const idx = (a > L) | ((b > L) << 1) | ((c > L) << 2) | ((e > L) << 3);
@@ -808,16 +809,19 @@ function initWeather() {
     WX.shrines = SHRINES.map((_, i) => ({ p: d.p[n + i], t: d.t[n + i], time: d.time }));
     buildIsobars(d);
     $("#wx-label").hidden = $("#wx-cell").hidden = src.hidden = false;
-    btn.textContent = WX.sample ? "sample" : "on";
+    btn.textContent = WX.sample ? "sample" : (WX.stamp || "on");
     if (current >= 0) fillNow(current);
   };
   btn.addEventListener("click", () => {
     WX.on = !WX.on;
     WX.group.visible = WX.on;
-    btn.textContent = WX.on ? (WX.sample ? "sample" : "on") : "off";
+    btn.textContent = WX.on ? (WX.sample ? "sample" : (WX.stamp || "on")) : "off";
     btn.setAttribute("aria-pressed", WX.on);
   });
   loadWeather().then(show).catch(() => {
+    // previews that cannot reach the service may carry a dated snapshot of real data
+    const snap = window.SA_WEATHER_SNAPSHOT;
+    if (snap) { WX.stamp = snap.time.slice(11, 16) + " utc"; return show(snap); }
     const live = /(^|\.)sonicaether\.com$/.test(location.hostname);
     if (!live) { WX.sample = true; show(sampleWeather()); }
   });
