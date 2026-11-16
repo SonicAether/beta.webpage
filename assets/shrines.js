@@ -338,17 +338,20 @@ function showDetail(idx, img) {
   flight = null;
   clearDetail();
   det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, disc: true });
-  const y = det.heightAt(0, 0);
-  const base = new THREE.Vector3(0, y, 0);
-  detTop = new THREE.Vector3(0, y + 16, 0);
-  detGroup.add(det.points, new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, detTop]), lineMat), ringLine(0, 0, 3, det.heightAt));
+  // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
+  const [su, sv] = s.spot || [0.5, 0.5];
+  const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
+  const y = det.heightAt(sx, sz);
+  const base = new THREE.Vector3(sx, y, sz);
+  detTop = new THREE.Vector3(sx, y + 16, sz);
+  detGroup.add(det.points, new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, detTop]), lineMat), ringLine(sx, sz, 3, det.heightAt));
   euGroup.visible = false; detGroup.visible = true;
   mode = "detail"; detIdx = idx;
   useView(det);
   uniforms.uFocus.value.copy(base);
   controls.minDistance = 14; controls.maxDistance = 420;
   controls.target.copy(base);
-  camera.position.set(-64, y + 78, 150);
+  camera.position.set(sx - 64, y + 78, sz + 150);
   document.body.classList.add("detail");
   backBtn.hidden = false;
 }
