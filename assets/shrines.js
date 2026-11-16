@@ -457,7 +457,7 @@ const tmp = new THREE.Vector3();
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
 const VMIN = 0.06;
-const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(95), Math.log(700), Math.log(Math.max(d, 1)));
+const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(76), Math.log(700), Math.log(Math.max(d, 1)));
 const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
@@ -503,9 +503,9 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
    as close as the overview's finest data carries; the recording can be heard from there. A link
    then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
    scan forms. No attempt is made to blend the two, their scales are too far apart. */
-// camera at a stop: about 70° above the ground, far enough to see roughly 100 km around the shrine
-const STEEP = new THREE.Vector3(0, 0.94, 0.342).normalize()   // north up;
-const STOP = STEEP.clone().multiplyScalar(105);
+// camera at a stop: 60° above the ground, far enough to see roughly 80 km around the shrine
+const STEEP = new THREE.Vector3(0, 0.866, 0.5).normalize()   // north up;
+const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
   uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
@@ -1201,11 +1201,12 @@ function loop() {
 
   if (flight && flight.zoom) {
     const f = flight, k = Math.min(1, (performance.now() - f.t0) / f.dur), e = 0.5 - 0.5 * Math.cos(Math.PI * k);
-    // the target is found early on the way in, and left late on the way out
-    const et = f.late ? ease(Math.max(0, (k - 0.45) / 0.55)) : ease(Math.min(1, k / 0.4));
-    controls.target.lerpVectors(f.c0, f.c1, et);
+    // a straight zoom: the point looked at shifts in step with the distance, so the destination
+    // travels in a straight line to the middle of the picture, without a detour
+    const d0 = Math.exp(f.l0), d1 = Math.exp(f.l1), d = Math.exp(f.l0 + (f.l1 - f.l0) * e);
+    controls.target.lerpVectors(f.c0, f.c1, Math.abs(d1 - d0) > 1e-3 ? (d - d0) / (d1 - d0) : e);
     tmp.copy(f.n0).lerp(f.n1, e).normalize();
-    camera.position.copy(controls.target).addScaledVector(tmp, Math.exp(f.l0 + (f.l1 - f.l0) * e));
+    camera.position.copy(controls.target).addScaledVector(tmp, d);
     if (k >= 1) { flight = null; f.res(); }
   } else if (flight) {
     const k = Math.min(1, (performance.now() - flight.t0) / flight.dur), e = ease(k);
