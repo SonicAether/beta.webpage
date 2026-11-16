@@ -25,7 +25,10 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 6000);
-camera.position.set(0, innerWidth < 720 ? 1890 : 632, innerWidth < 720 ? 1640 : 843);
+// start view: the whole map, seen from 70° above the ground
+const START = { angle: 70, dist: innerWidth < 720 ? 2470 : 1080, target: new THREE.Vector3(0, 0, 51) };
+const startPos = () => { const a = START.angle * Math.PI / 180; return START.target.clone().add(new THREE.Vector3(0, Math.sin(a) * START.dist, Math.cos(a) * START.dist)); };
+camera.position.copy(startPos());
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -692,7 +695,7 @@ async function leaveScan(up) {
   busy = false; showLinks();
 }
 async function riseFromStop() {
-  const home = euCam || { p: new THREE.Vector3(0, 632, 843), t: new THREE.Vector3(0, 0, 51) };
+  const home = euCam || { p: startPos(), t: START.target.clone() };
   stopIdx = -1; euCam = null; showLinks();
   await zoomTo(home.p, home.t, 7500, true);
 }
