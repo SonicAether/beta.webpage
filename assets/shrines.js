@@ -204,7 +204,7 @@ function makeCloud(img, opt) {
   for (let i = 0; i < NX * NZ; i++) {
     const r = px[i * 4];
     H[i] = (px[i * 4 + 1] * 16 + (px[i * 4 + 2] >> 4)) / 4095;
-    W[i] = r < 3 ? r + 1 : 0;
+    W[i] = r < 3 ? (opt.asSea && r === 1 ? 1 : r + 1) : 0;
   }
 
   const hAt = (x, z) => {
@@ -457,7 +457,7 @@ const tmp = new THREE.Vector3();
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
 const VMIN = 0.06;
-const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(30), Math.log(520), Math.log(Math.max(d, 1)));
+const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(95), Math.log(700), Math.log(Math.max(d, 1)));
 const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
@@ -478,7 +478,7 @@ function placeLabels() {
     return;
   }
   detMark.classList.add("off");
-  if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].base, false); if (camera.position.distanceTo(controls.target) > 90) scanLink.classList.add("off"); }
+  if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].base, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
   else scanLink.classList.add("off");
   for (const m of markers) place(m.el, m.top, false);
   for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
@@ -503,9 +503,11 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
    as close as the overview's finest data carries; the recording can be heard from there. A link
    then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
    scan forms. No attempt is made to blend the two, their scales are too far apart. */
-const STOP = new THREE.Vector3(-6, 13, 14).normalize().multiplyScalar(34);   // camera at a stop, relative to the shrine
+// camera at a stop: about 78° above the ground, far enough to see roughly 100 km around the shrine
+const STEEP = new THREE.Vector3(0, 0.978, 0.208).normalize()   // north stays up;
+const STOP = STEEP.clone().multiplyScalar(105);
 const detUniforms = {
-  uSpan: { value: DETAIL.world }, uDrift: { value: 8 }, uFar: { value: 6000 }, uForm: { value: 0 },
+  uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
   uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
   uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
@@ -521,79 +523,77 @@ function clearDetail() {
   det = null; detTop = null; detBase = null; detSpin = [];
 }
 
-// The shrine inside its scan: rings laid on the ground, a compass of ticks, a mast,
-// and a slowly turning double figure at its head.
+// The shrine inside its scan: a beam of light rising from the place of the recording.
+const beamUniforms = { uA: { value: 0 }, uTime: uniforms.uTime, uLevel: uniforms.uLevel, uListen: uniforms.uListen };
+const beamMat = new THREE.ShaderMaterial({
+  uniforms: beamUniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+  vertexShader: /* glsl */ `
+    attribute float aGain;
+    varying float vH, vGain, vEdge;
+    void main(){
+      vH = uv.y; vGain = aGain;
+      vec3 n = normalize(normalMatrix * normal);
+      vec4 mv = modelViewMatrix * vec4(position, 1.0);
+      vEdge = abs(dot(n, normalize(-mv.xyz)));        // brightest where the shaft is seen through its middle
+      gl_Position = projectionMatrix * mv;
+    }`,
+  fragmentShader: /* glsl */ `
+    uniform float uA, uTime, uLevel, uListen;
+    varying float vH, vGain, vEdge;
+    void main(){
+      float fall = pow(1.0 - vH, 1.7);
+      float breathe = 0.86 + 0.14 * sin(uTime * 0.7 - vH * 5.0) + uLevel * uListen * 1.6;
+      float a = vGain * fall * pow(vEdge, 1.4) * breathe * uA;
+      gl_FragColor = vec4(vec3(0.66, 0.86, 0.91) * a, a);
+    }`,
+});
+const BEAM_H = 120;
 function shrineGlyph(b, hAt) {
   const out = [];
-  const seg = (pts, mat) => out.push(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mat));
-  const onGround = (x, z, lift = 0.35) => new THREE.Vector3(x, hAt(x, z) + lift, z);
-  const ring = (r, n, mat, dash = 1) => {
-    const pts = [];
-    for (let a = 0; a < n; a++) {
-      if (dash > 1 && a % dash) continue;
-      const t0 = (a / n) * Math.PI * 2, t1 = ((a + 1) / n) * Math.PI * 2;
-      pts.push(onGround(b.x + Math.cos(t0) * r, b.z + Math.sin(t0) * r), onGround(b.x + Math.cos(t1) * r, b.z + Math.sin(t1) * r));
-    }
-    seg(pts, mat);
-  };
-  ring(2.4, 48, detLineMat);
-  ring(5.2, 72, detLineMat);
-  ring(9.5, 96, detFaintMat, 2);
-  ring(15, 120, detFaintMat, 4);
-  const ticks = [];
-  for (let a = 0; a < 16; a++) {
-    const t = (a / 16) * Math.PI * 2, r0 = a % 4 === 0 ? 5.2 : 10.4, r1 = a % 4 === 0 ? 12.6 : 11.6;
-    ticks.push(onGround(b.x + Math.cos(t) * r0, b.z + Math.sin(t) * r0), onGround(b.x + Math.cos(t) * r1, b.z + Math.sin(t) * r1));
+  // three nested shafts: a bright core, a body, a wide faint halo
+  for (const [r0, r1, gain] of [[0.5, 0.9, 1.3], [1.4, 3.4, 0.55], [3.2, 10, 0.2]]) {
+    const g = new THREE.CylinderGeometry(r1, r0, BEAM_H, 40, 1, true);
+    g.translate(0, BEAM_H / 2, 0);
+    g.setAttribute("aGain", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count).fill(gain), 1));
+    const m = new THREE.Mesh(g, beamMat);
+    m.position.copy(b); m.renderOrder = 5;
+    out.push(m);
   }
-  seg(ticks, detFaintMat);
-  // a square set on its corner, between the rings
-  const sq = [];
-  for (let a = 0; a < 4; a++) {
-    const t0 = (a / 4) * Math.PI * 2, t1 = ((a + 1) / 4) * Math.PI * 2;
-    for (let k = 0; k < 10; k++) {
-      const p = (f) => onGround(b.x + (Math.cos(t0) * (1 - f) + Math.cos(t1) * f) * 7.4, b.z + (Math.sin(t0) * (1 - f) + Math.sin(t1) * f) * 7.4);
-      sq.push(p(k / 10), p((k + 1) / 10));
-    }
-  }
-  seg(sq, detFaintMat);
-  // mast with three collars
-  const mast = [new THREE.Vector3(b.x, b.y, b.z), new THREE.Vector3(b.x, b.y + 13.2, b.z)];
-  for (const [h, r] of [[4, 0.5], [7, 0.8], [10, 1.15]]) for (let a = 0; a < 24; a++) {
-    const t0 = (a / 24) * Math.PI * 2, t1 = ((a + 1) / 24) * Math.PI * 2;
-    mast.push(new THREE.Vector3(b.x + Math.cos(t0) * r, b.y + h, b.z + Math.sin(t0) * r), new THREE.Vector3(b.x + Math.cos(t1) * r, b.y + h, b.z + Math.sin(t1) * r));
-  }
-  seg(mast, detLineMat);
-  // head: an octahedron inside a larger, counter-turning one
-  for (const [r, mat, dir] of [[1.5, detLineMat, 1], [2.5, detFaintMat, -0.6]]) {
-    const g = new THREE.EdgesGeometry(new THREE.OctahedronGeometry(r));
-    const m = new THREE.LineSegments(g, mat);
-    m.position.set(b.x, b.y + 15.8, b.z);
-    m.userData.spin = dir;
-    detSpin.push(m); out.push(m);
-  }
+  // where it stands: one firm ring and a pool of light on the ground
+  const ring = [];
+  for (let a = 0; a <= 64; a++) { const t = (a / 64) * Math.PI * 2, x = b.x + Math.cos(t) * 3.4, z = b.z + Math.sin(t) * 3.4; ring.push(new THREE.Vector3(x, hAt(x, z) + 0.35, z)); }
+  out.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring), detLineMat));
+  const pool = new THREE.CircleGeometry(6.5, 48);
+  pool.rotateX(-Math.PI / 2);
+  const uvp = pool.attributes.uv, gp = new Float32Array(uvp.count), np = pool.attributes.normal;
+  for (let i = 0; i < uvp.count; i++) { const d = Math.hypot(uvp.getX(i) - 0.5, uvp.getY(i) - 0.5) * 2; gp[i] = 0.5 * (1 - d) * (1 - d); uvp.setY(i, 0); }
+  pool.setAttribute("aGain", new THREE.BufferAttribute(gp, 1));
+  const pm = new THREE.Mesh(pool, beamMat);
+  pm.position.set(b.x, b.y + 0.5, b.z); pm.renderOrder = 4;
+  out.push(pm);
   return out;
 }
 
 function buildDetail(idx, img) {
   const s = SHRINES[idx];
   clearDetail();
-  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, hard: true, mat: detMat });
+  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, keepSea: 0.085, asSea: true, hard: true, mat: detMat });
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
   const y = det.heightAt(sx, sz);
   detBase = new THREE.Vector3(sx, y, sz);
-  detTop = new THREE.Vector3(sx, y + 20.5, sz);
+  detTop = new THREE.Vector3(sx, y + 9, sz);
   detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
   detUniforms.uFocus.value.copy(detBase);
 }
-const homeCam = (b) => new THREE.Vector3(b.x - 64, b.y + 78, b.z + 150);   // where the camera rests in a scan
+const homeCam = (b) => b.clone().addScaledVector(STEEP, 235);   // where the camera rests in a scan: the same steep view
 function setEuForm(v) {
   uniforms.uForm.value = v;
   lineMat.opacity = 0.55 * v; isoMat.opacity = 0.34 * v; isoMatBold.opacity = 0.62 * v;
   shrineLayer.style.opacity = mode === "europe" ? (v < 0.6 ? 0 : (v - 0.6) / 0.4) : 1;
 }
-function setDetForm(v) { detUniforms.uForm.value = v; detLineMat.opacity = 0.6 * v; detFaintMat.opacity = 0.26 * v; }
+function setDetForm(v) { detUniforms.uForm.value = v; detLineMat.opacity = 0.8 * v; beamUniforms.uA.value = v; }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
@@ -651,23 +651,15 @@ async function enterScan() {
   if (busy || mode !== "europe" || stopIdx < 0) return;
   busy = true; showLinks();
   const idx = stopIdx, sc = scanOf(idx);
-  await tween(1000, (k) => setEuForm(1 - k));
   if (await sc.ready) {
     buildDetail(idx, sc.img);
     euGroup.visible = false; detGroup.visible = true;
     mode = "detail"; detIdx = idx;
     useView(det);
-    controls.minDistance = 7; controls.maxDistance = 420;
-    controls.target.copy(detBase);
-    // arrive from a little further up while the ground forms
-    const p1 = homeCam(detBase), p0 = detBase.clone().add(p1.clone().sub(detBase).multiplyScalar(1.45));
-    camera.position.copy(p0);
-    flight = { t0: performance.now(), dur: reduceMotion ? 1 : 3200, p0, p1, c0: detBase.clone(), c1: detBase.clone() };
+    controls.minDistance = 7; controls.maxDistance = 520;
+    controls.target.copy(detBase); camera.position.copy(homeCam(detBase));
     document.body.classList.add("detail");
-    setDetForm(0);
-    await tween(2200, (k) => setDetForm(k));
-  } else {
-    await tween(600, (k) => setEuForm(k));
+    setEuForm(0); setDetForm(1);
   }
   busy = false; showLinks();
 }
@@ -677,7 +669,6 @@ async function leaveScan(up) {
   if (busy || mode !== "detail") return;
   busy = true;
   const idx = detIdx, g = groundOf(shrineObjs[idx]);
-  await tween(900, (k) => setDetForm(1 - k));
   clearDetail();
   detGroup.visible = false; euGroup.visible = true;
   mode = "europe"; detIdx = -1; stopIdx = idx;
@@ -685,9 +676,9 @@ async function leaveScan(up) {
   controls.minDistance = 10; controls.maxDistance = 3500;
   controls.target.copy(g); camera.position.copy(g).add(STOP);
   document.body.classList.remove("detail");
+  setEuForm(1);
   showLinks();
-  const forming = tween(1500, (k) => setEuForm(k));
-  if (up) await Promise.all([forming, riseFromStop()]); else await forming;
+  if (up) await riseFromStop();
   busy = false; showLinks();
 }
 async function riseFromStop() {
@@ -699,14 +690,13 @@ async function riseFromStop() {
 // from one scan straight to another: the ground dissolves and forms again
 async function exchange(idx) {
   const sc = scanOf(idx);
-  await tween(900, (k) => setDetForm(1 - k));
   if (await sc.ready) {
     buildDetail(idx, sc.img);
     detIdx = idx;
     useView(det);
     controls.target.copy(detBase); camera.position.copy(homeCam(detBase));
+    setDetForm(1);
   }
-  await tween(1600, (k) => setDetForm(k));
 }
 
 /* ───────────── panel + player ───────────── */
