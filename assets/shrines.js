@@ -232,6 +232,7 @@ detMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span c
 
 function buildShrines() {
   const list = $("#index-list");
+  $("#shrine-count").textContent = SHRINES.length;
   const bases = SHRINES.map((s) => {
     const [x, z] = geoToWorld(s.geo[0], s.geo[1]);
     return new THREE.Vector3(x, eu.heightAt(x, z), z);
@@ -416,6 +417,7 @@ function openShrine(idx) {
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
   $("#p-prayer").innerHTML = s.prayer.map((l) => `<p>${l}</p>`).join("");
+  $(".prayer").hidden = !s.prayer.length;
 
   player.load(s);
   const wasHidden = panel.hidden;

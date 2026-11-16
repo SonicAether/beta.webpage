@@ -110,4 +110,21 @@ export const SHRINES = [
       "Teach me to ring like that: long, unhurried, until even the birds begin to answer.",
     ],
   },
+  {
+    id: "S-06",
+    name: "Shingle beach, shallow waves",
+    region: "South Beach, Arklow, County Wicklow, IE",
+    coords: "52.7817° N, 6.1457° W",
+    date: "2025-08-22",
+    time: "17:20",
+    temp: "8 °C",
+    weather: "partly cloudy",
+    wind: "—",
+    rig: "Nevaton MC59 omni · baffled AB · Zoom F3",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834149/250822WellenschmatzenKiesstrandArklowIrlandSHORT_g0puec.mp3",
+    area: "Arklow",
+    geo: [52.7817, -6.1457],
+    synth: { wind: 0.2, water: 1.0, birds: 0.05, tone: 240 },
+    prayer: [],   // text to follow
+  },
 ];
