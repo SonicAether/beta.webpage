@@ -40,13 +40,15 @@
   <ul id="index-list"></ul>
 </section>
 
-<dl class="hud hud-readout" aria-hidden="true">
+<dl class="hud hud-readout">
   <dt>E</dt><dd id="hud-x">0000</dd>
   <dt>N</dt><dd id="hud-y">0000</dd>
   <dt>ELEV m</dt><dd id="hud-z">000.0</dd>
   <dt>AZ °</dt><dd id="hud-az">000</dd>
   <dt>POINTS</dt><dd id="hud-pts">—</dd>
+  <dt id="wx-label" hidden>ISOBARS hPa</dt><dd id="wx-cell" hidden><button id="wx-toggle" type="button" class="u" aria-pressed="true" aria-label="Isobars">on</button></dd>
   <dt class="hint">drag · orbit &nbsp; right-drag · pan &nbsp; scroll · descend</dt>
+  <dt class="hint" id="wx-source" hidden>pressure now · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a></dt>
 </dl>
 
 <aside id="panel" hidden aria-labelledby="p-name">
@@ -85,6 +87,7 @@
       <dt>Date</dt><dd id="d-date">—</dd>
       <dt>Local time</dt><dd id="d-time">—</dd>
       <dt>Air temp.</dt><dd id="d-temp">—</dd>
+      <dt id="d-now-label" hidden>There now</dt><dd id="d-now" hidden>—</dd>
       <dt>Sky</dt><dd id="d-weather">—</dd>
       <dt>Wind</dt><dd id="d-wind">—</dd>
       <dt>Position</dt><dd id="d-coords">—</dd>

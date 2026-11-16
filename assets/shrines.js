@@ -303,11 +303,13 @@ function place(el, p, far) {
 function placeLabels() {
   if (mode === "detail") {
     for (const m of markers) m.el.classList.add("off");
+    for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
     return;
   }
   detMark.classList.add("off");
   for (const m of markers) place(m.el, m.top, false);
+  for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
 }
 
 /* ───────────── camera flights ───────────── */
@@ -411,6 +413,7 @@ function openShrine(idx) {
   $("#d-weather").textContent = s.weather;
   $("#d-wind").textContent = s.wind;
   $("#d-coords").textContent = s.coords;
+  fillNow(idx);
   $("#d-rig").textContent = s.rig;
   $("#p-prayer").innerHTML = s.prayer.map((l) => `<p>${l}</p>`).join("");
 
@@ -680,6 +683,153 @@ function drawSpectro() {
   }
 }
 
+/* ───────────── current weather: isobars over the overview, "now" at each shrine ─────────────
+   Data: Open-Meteo (open-meteo.com, CC BY 4.0), fetched by the visitor's browser and kept for an hour.
+   If the service can't be reached the layer is simply absent. */
+const WX = { lons: [], lats: [], P: null, shrines: [], sample: false, group: new THREE.Group(), labels: [], on: true };
+for (let lon = -12; lon <= 21; lon += 2) WX.lons.push(lon);
+for (let lat = 49.5; lat <= 67; lat += 1.5) WX.lats.push(lat);
+const isoMat = new THREE.LineBasicMaterial({ color: 0xa9dbe8, transparent: true, opacity: 0.34, depthWrite: false });
+const isoMatBold = new THREE.LineBasicMaterial({ color: 0xa9dbe8, transparent: true, opacity: 0.62, depthWrite: false });
+
+async function loadWeather() {
+  const KEY = "sa-weather-v1";
+  try {
+    const c = JSON.parse(localStorage.getItem(KEY) || "null");
+    if (c && Date.now() - c.t < 55 * 60 * 1000) return c.d;
+  } catch (_) {}
+  const pts = [];
+  for (const lat of WX.lats) for (const lon of WX.lons) pts.push([lat, lon]);
+  for (const s of SHRINES) pts.push(s.geo);
+  const url = "https://api.open-meteo.com/v1/forecast?latitude=" + pts.map((p) => p[0].toFixed(2)).join(",") +
+    "&longitude=" + pts.map((p) => p[1].toFixed(2)).join(",") + "&current=pressure_msl,temperature_2m";
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("weather " + r.status);
+  const j = await r.json();
+  const d = { time: j[0].current.time, p: j.map((x) => x.current.pressure_msl), t: j.map((x) => x.current.temperature_2m) };
+  try { localStorage.setItem(KEY, JSON.stringify({ t: Date.now(), d })); } catch (_) {}
+  return d;
+}
+
+// only where the real service is out of reach in a preview: an invented pressure field, marked as sample
+function sampleWeather() {
+  const p = [], t = [];
+  const f = (lat, lon) => 1012 + 17 * Math.exp(-(((lon - 14) / 11) ** 2 + ((lat - 54) / 6) ** 2)) - 24 * Math.exp(-(((lon + 9) / 9) ** 2 + ((lat - 62) / 5) ** 2));
+  for (const lat of WX.lats) for (const lon of WX.lons) { p.push(f(lat, lon)); t.push(0); }
+  for (const s of SHRINES) { p.push(f(s.geo[0], s.geo[1])); t.push(6); }
+  return { time: null, p, t };
+}
+
+function buildIsobars(d) {
+  const nx = WX.lons.length, ny = WX.lats.length, U = 6;
+  const NX = (nx - 1) * U + 1, NY = (ny - 1) * U + 1;
+  let F = new Float32Array(NX * NY);
+  for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+    const gx = i / U, gy = j / U, i0 = Math.min(nx - 2, Math.floor(gx)), j0 = Math.min(ny - 2, Math.floor(gy)), fx = gx - i0, fy = gy - j0;
+    const v = (a, b) => d.p[b * nx + a];
+    F[j * NX + i] = v(i0, j0) * (1 - fx) * (1 - fy) + v(i0 + 1, j0) * fx * (1 - fy) + v(i0, j0 + 1) * (1 - fx) * fy + v(i0 + 1, j0 + 1) * fx * fy;
+  }
+  for (let pass = 0; pass < 4; pass++) {             // soften the grid's corners
+    const G = new Float32Array(F);
+    for (let j = 1; j < NY - 1; j++) for (let i = 1; i < NX - 1; i++) {
+      const k = j * NX + i;
+      G[k] = (F[k] * 4 + F[k - 1] + F[k + 1] + F[k - NX] + F[k + NX]) / 8;
+    }
+    F = G;
+  }
+  const lonAt = (i) => WX.lons[0] + (i / U) * 2, latAt = (j) => WX.lats[0] + (j / U) * 1.5;
+  const half = eu.W / 2 - 4, halfD = eu.D / 2 - 4;
+  const world = (i, j) => {
+    const [x, z] = geoToWorld(latAt(j), lonAt(i));
+    return new THREE.Vector3(x, 0, z);
+  };
+  const inside = (v) => Math.abs(v.x) < half && Math.abs(v.z) < halfD;
+  const lift = (v) => { v.y = Math.max(eu.heightAt(v.x, v.z) + 2.2, 4.5); return v; };
+
+  let lo = Infinity, hi = -Infinity;
+  for (const v of F) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const thin = [], bold = [], labelAt = new Map();
+  for (let L = Math.ceil(lo / 4) * 4; L <= hi; L += 4) {
+    const out = L % 20 === 0 ? bold : thin;
+    for (let j = 0; j < NY - 1; j++) for (let i = 0; i < NX - 1; i++) {
+      const a = F[j * NX + i], b = F[j * NX + i + 1], c = F[(j + 1) * NX + i + 1], e = F[(j + 1) * NX + i];
+      const idx = (a > L) | ((b > L) << 1) | ((c > L) << 2) | ((e > L) << 3);
+      if (idx === 0 || idx === 15) continue;
+      const P = [
+        () => world(i + (L - a) / (b - a), j), () => world(i + 1, j + (L - b) / (c - b)),
+        () => world(i + (L - e) / (c - e), j + 1), () => world(i, j + (L - a) / (e - a)),
+      ];
+      const segs = { 1: [[3, 0]], 2: [[0, 1]], 3: [[3, 1]], 4: [[1, 2]], 5: [[3, 0], [1, 2]], 6: [[0, 2]], 7: [[3, 2]], 8: [[2, 3]], 9: [[0, 2]], 10: [[0, 1], [2, 3]], 11: [[1, 2]], 12: [[1, 3]], 13: [[0, 1]], 14: [[3, 0]] }[idx];
+      for (const [m, n] of segs) {
+        const p = P[m](), q = P[n]();
+        if (!inside(p) || !inside(q)) continue;
+        out.push(lift(p), lift(q));
+        // one number per line, where it crosses the North Sea meridian
+        const lon = lonAt(i);
+        if (Math.abs(lon - 3) < 0.4 && !labelAt.has(L + ":" + Math.round(latAt(j) / 5))) labelAt.set(L + ":" + Math.round(latAt(j) / 5), { p: p.clone().lerp(q, 0.5), text: String(L) });
+      }
+    }
+  }
+  // pressure centres
+  const centres = [];
+  for (let j = U; j < NY - U; j++) for (let i = U; i < NX - U; i++) {
+    const v = F[j * NX + i];
+    let mx = true, mn = true;
+    for (let dj = -U; dj <= U && (mx || mn); dj += 2) for (let di = -U; di <= U; di += 2) {
+      const w = F[(j + dj) * NX + i + di];
+      if (w > v) mx = false;
+      if (w < v) mn = false;
+    }
+    if (!(mx || mn) || hi - lo < 6) continue;
+    const p = world(i, j);
+    if (!inside(p) || centres.some((c) => c.distanceTo(p) < 45)) continue;
+    centres.push(p);
+    labelAt.set((mx ? "H" : "L") + i + ":" + j, { p: lift(p), text: (mx ? "H " : "L ") + Math.round(v), centre: true });
+  }
+
+  for (const c of [...WX.group.children]) { WX.group.remove(c); c.geometry.dispose(); }
+  WX.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(thin), isoMat));
+  WX.group.add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(bold), isoMatBold));
+  for (const l of WX.labels) l.el.remove();
+  WX.labels = [...labelAt.values()].map((l) => {
+    const el = document.createElement("span");
+    el.className = "iso-label" + (l.centre ? " centre" : "");
+    el.textContent = l.text;
+    shrineLayer.appendChild(el);
+    return { el, p: l.p.setY(l.p.y + 0.6) };
+  });
+}
+
+function initWeather() {
+  euGroup.add(WX.group);
+  const btn = $("#wx-toggle"), src = $("#wx-source");
+  const show = (d) => {
+    const n = WX.lons.length * WX.lats.length;
+    WX.shrines = SHRINES.map((_, i) => ({ p: d.p[n + i], t: d.t[n + i], time: d.time }));
+    buildIsobars(d);
+    $("#wx-label").hidden = $("#wx-cell").hidden = src.hidden = false;
+    btn.textContent = WX.sample ? "sample" : "on";
+    if (current >= 0) fillNow(current);
+  };
+  btn.addEventListener("click", () => {
+    WX.on = !WX.on;
+    WX.group.visible = WX.on;
+    btn.textContent = WX.on ? (WX.sample ? "sample" : "on") : "off";
+    btn.setAttribute("aria-pressed", WX.on);
+  });
+  loadWeather().then(show).catch(() => {
+    const live = /(^|\.)sonicaether\.com$/.test(location.hostname);
+    if (!live) { WX.sample = true; show(sampleWeather()); }
+  });
+}
+
+function fillNow(idx) {
+  const w = WX.shrines[idx], row = $("#d-now"), label = $("#d-now-label");
+  const ok = w && !WX.sample && w.t != null;
+  row.hidden = label.hidden = !ok;
+  if (ok) row.textContent = `${Math.round(w.t)} °C · ${Math.round(w.p)} hPa`;
+}
+
 /* ───────────── HUD + loop ───────────── */
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
@@ -749,6 +899,7 @@ img.onload = () => {
   useView(eu);
   controls.target.set(0, 0, 24);
   buildShrines();
+  initWeather();
   resize();
   document.body.classList.add("ready");
   loop();

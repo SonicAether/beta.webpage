@@ -236,3 +236,17 @@ body.ready #boot-status { visibility: hidden; }
 .cluster-list button:hover, .cluster-list button:focus-visible { color: var(--ice); }
 .cluster-list button:hover span { color: var(--ice); }
 #fade { transition-duration: 1.1s; }
+
+/* ── weather layer ───────────────── */
+.iso-label {
+  position: absolute; left: 0; top: 0; margin: -6px 0 0 -10px; pointer-events: none; white-space: nowrap;
+  font-size: 9px; letter-spacing: 0.12em; color: var(--ice); opacity: 0.6; transition: opacity .5s;
+  text-shadow: 0 0 6px var(--void), 0 0 2px var(--void); font-variant-numeric: tabular-nums;
+}
+.iso-label.centre { font-size: 11px; opacity: 0.95; letter-spacing: 0.16em; }
+.iso-label.off { opacity: 0; }
+body.has-panel .iso-label, body.listening .iso-label { opacity: 0.25; }
+#wx-toggle { color: var(--ink); letter-spacing: 0.16em; border-bottom: 1px solid var(--faint); pointer-events: auto; padding: 0; font-size: inherit; }
+#wx-toggle:hover { color: var(--ice); border-color: var(--ice); }
+#wx-source a { color: inherit; pointer-events: auto; }
+#wx-source a:hover { color: var(--ink); }
