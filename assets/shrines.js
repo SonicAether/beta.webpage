@@ -503,8 +503,8 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
    as close as the overview's finest data carries; the recording can be heard from there. A link
    then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
    scan forms. No attempt is made to blend the two, their scales are too far apart. */
-// camera at a stop: about 78° above the ground, far enough to see roughly 100 km around the shrine
-const STEEP = new THREE.Vector3(0, 0.978, 0.208).normalize()   // north stays up;
+// camera at a stop: about 70° above the ground, far enough to see roughly 100 km around the shrine
+const STEEP = new THREE.Vector3(0, 0.94, 0.342).normalize()   // north up;
 const STOP = STEEP.clone().multiplyScalar(105);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
@@ -587,7 +587,12 @@ function buildDetail(idx, img) {
   detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
   detUniforms.uFocus.value.copy(detBase);
 }
-const homeCam = (b) => b.clone().addScaledVector(STEEP, 235);   // where the camera rests in a scan: the same steep view
+// where the camera rests in a scan: the same steep view, looking toward `heading`
+// (degrees, 0 = north, 270 = west), so that for example a coast can lie at the bottom of the picture
+const homeCam = (b, heading = 0) => {
+  const h = heading * Math.PI / 180;
+  return new THREE.Vector3(b.x - Math.sin(h) * STEEP.z * 290, b.y + STEEP.y * 290, b.z + Math.cos(h) * STEEP.z * 290);
+};
 function setEuForm(v) {
   uniforms.uForm.value = v;
   lineMat.opacity = 0.55 * v; isoMat.opacity = 0.34 * v; isoMatBold.opacity = 0.62 * v;
@@ -657,7 +662,9 @@ async function enterScan() {
     mode = "detail"; detIdx = idx;
     useView(det);
     controls.minDistance = 7; controls.maxDistance = 520;
-    controls.target.copy(detBase); camera.position.copy(homeCam(detBase));
+    // look at a point between the shrine and the middle of the scan, so the land fills the picture
+    const vt = detBase.clone().lerp(new THREE.Vector3(0, detBase.y, 0), 0.55);
+    controls.target.copy(vt); camera.position.copy(homeCam(vt, SHRINES[idx].view));
     document.body.classList.add("detail");
     setEuForm(0); setDetForm(1);
   }
@@ -694,7 +701,9 @@ async function exchange(idx) {
     buildDetail(idx, sc.img);
     detIdx = idx;
     useView(det);
-    controls.target.copy(detBase); camera.position.copy(homeCam(detBase));
+    // look at a point between the shrine and the middle of the scan, so the land fills the picture
+    const vt = detBase.clone().lerp(new THREE.Vector3(0, detBase.y, 0), 0.55);
+    controls.target.copy(vt); camera.position.copy(homeCam(vt, SHRINES[idx].view));
     setDetForm(1);
   }
 }
@@ -1152,6 +1161,17 @@ function fillNow(idx) {
   if (ok) row.textContent = `${Math.round(w.t)} °C · ${Math.round(w.p)} hPa`;
 }
 
+/* ───────────── north ───────────── */
+const compass = document.createElement("div");
+compass.id = "compass"; compass.setAttribute("aria-hidden", "true");
+compass.innerHTML = `<svg viewBox="-24 -24 48 48"><circle r="15.5"/><g id="needle"><path d="M0 -15.5 L3.2 -6 L-3.2 -6 Z"/><line y1="-6" y2="10"/><text y="-18.5">N</text></g></svg>`;
+document.body.appendChild(compass);
+const needle = compass.querySelector("#needle");
+function stepCompass() {
+  const dx = controls.target.x - camera.position.x, dz = controls.target.z - camera.position.z;
+  needle.setAttribute("transform", `rotate(${(-Math.atan2(dx, -dz) * 180 / Math.PI).toFixed(1)})`);
+}
+
 /* ───────────── HUD + loop ───────────── */
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
@@ -1195,6 +1215,7 @@ function loop() {
   }
   if (mode === "europe") euGroup.scale.y = vertAt(camera.position.distanceTo(controls.target));
   stepLOD(dt);
+  stepCompass();
   for (const m of detSpin) m.rotation.y += dt * 0.22 * m.userData.spin;
   // slow orbit around the shrine while listening
   const playing = player.isPlaying();

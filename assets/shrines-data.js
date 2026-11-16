@@ -1,6 +1,7 @@
 // Shrine catalogue. One entry per recording.
 // area: recordings with the same area share one marker on the overview.
 // geo: [latitude, longitude] of the recording; places the shrine on the overview of Europe.
+// view: compass heading (degrees) the camera looks toward when the scan opens (default 0 = north).
 // spot: [u, v] position of the recording inside its scan, from the north-west corner (default: the centre).
 // The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan.
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
@@ -125,6 +126,7 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834149/250822WellenschmatzenKiesstrandArklowIrlandSHORT_g0puec.mp3",
     area: "Arklow",
     geo: [52.7817, -6.1457],
+    view: 270,            // the scan is first seen looking west, the coast at the bottom
     spot: [0.835, 0.555],   // estimated position of the beach inside the scan
     synth: { wind: 0.2, water: 1.0, birds: 0.05, tone: 240 },
     prayer: [],   // text to follow
