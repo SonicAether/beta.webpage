@@ -25,8 +25,8 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 6000);
-// start view: the whole map, seen from 70° above the ground
-const START = { angle: 70, dist: innerWidth < 720 ? 2470 : 1080, target: new THREE.Vector3(0, 0, 51) };
+// start view: the whole map, seen from 45° above the ground
+const START = { angle: 45, dist: innerWidth < 720 ? 2500 : 1040, target: new THREE.Vector3(0, 0, 51) };
 const startPos = () => { const a = START.angle * Math.PI / 180; return START.target.clone().add(new THREE.Vector3(0, Math.sin(a) * START.dist, Math.cos(a) * START.dist)); };
 camera.position.copy(startPos());
 
@@ -507,8 +507,8 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
    as close as the overview's finest data carries; the recording can be heard from there. A link
    then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
    scan forms. No attempt is made to blend the two, their scales are too far apart. */
-// camera at a stop: 50° above the ground, far enough to see roughly 80 km around the shrine
-const STEEP = new THREE.Vector3(0, 0.766, 0.643).normalize()   // north up;
+// camera at a stop: 45° above the ground, far enough to see roughly 80 km around the shrine
+const STEEP = new THREE.Vector3(0, 0.7071, 0.7071).normalize()   // north up;
 const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
@@ -1228,8 +1228,9 @@ function loop() {
   for (const m of detSpin) m.rotation.y += dt * 0.22 * m.userData.spin;
   // slow orbit around the shrine while listening
   const playing = player.isPlaying();
-  controls.autoRotate = !reduceMotion && mode === "detail" && !flight;
-  controls.autoRotateSpeed = playing ? 0.35 : 0.18;
+  // both maps turn slowly while nothing else moves; the overview more slowly
+  controls.autoRotate = !reduceMotion && !flight && !busy && entered;
+  controls.autoRotateSpeed = (playing ? 0.35 : 0.18) * (mode === "detail" ? 1 : 0.45);
   controls.update();
 
   listen += ((uniforms._listenTarget || 0) - listen) * Math.min(1, dt * 2);
