@@ -126,7 +126,7 @@ const pointMat = new THREE.ShaderMaterial({
     }`,
 });
 
-/* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, hard } */
+/* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, hard, depth } */
 function makeCloud(img, opt) {
   const NX = img.width, NZ = img.height;
   const W_ = opt.world, D_ = opt.world * NZ / NX;
@@ -177,6 +177,25 @@ function makeCloud(img, opt) {
       shade.push(isW ? rand() : px[k * 4] / 255);
       rnd.push(rand()); wat.push(WAT[isW]);
     }
+  }
+  // a block cut out of the earth: the four cut faces below the surface, with faint strata
+  if (opt.depth) {
+    const dy = cell * stride * 1.15;
+    const face = (i, j, nx, nz) => {
+      const k = j * NX + i, top = H[k] * opt.relief;
+      const x = (i / (NX - 1) - 0.5) * W_, z = (j / (NZ - 1) - 0.5) * D_;
+      for (let y = top - dy * rand(); y > -opt.depth; y -= dy) {
+        const d = (top - y) / (top + opt.depth);                       // 0 at the surface, 1 at the base
+        if (rand() > 0.78 - 0.3 * d) continue;
+        const along = (rand() - 0.5) * cell * stride;
+        pos.push(x + (nx ? 0 : along), y, z + (nz ? 0 : along));
+        const strata = 0.5 + 0.5 * Math.sin((y + 1.6 * Math.sin((x + z) * 0.045)) * 1.25) * Math.sin(y * 0.37 + 2.0);
+        shade.push(Math.max(0.05, (0.34 + 0.2 * strata) * (1 - 0.55 * d) + (rand() - 0.5) * 0.08));
+        rnd.push(rand()); wat.push(0);
+      }
+    };
+    for (let i = 0; i < NX; i += stride) { face(i, 0, 0, 1); face(i, NZ - 1, 0, 1); }
+    for (let j = 0; j < NZ; j += stride) { face(0, j, 1, 0); face(NX - 1, j, 1, 0); }
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
@@ -348,7 +367,7 @@ function showDetail(idx, img) {
   const s = SHRINES[idx];
   flight = null;
   clearDetail();
-  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, hard: true });
+  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, hard: true, depth: 26 });
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
