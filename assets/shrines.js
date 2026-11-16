@@ -503,8 +503,8 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
    as close as the overview's finest data carries; the recording can be heard from there. A link
    then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
    scan forms. No attempt is made to blend the two, their scales are too far apart. */
-// camera at a stop: 60° above the ground, far enough to see roughly 80 km around the shrine
-const STEEP = new THREE.Vector3(0, 0.866, 0.5).normalize()   // north up;
+// camera at a stop: 50° above the ground, far enough to see roughly 80 km around the shrine
+const STEEP = new THREE.Vector3(0, 0.766, 0.643).normalize()   // north up;
 const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
@@ -589,7 +589,7 @@ function buildDetail(idx, img) {
 }
 // where the camera rests in a scan: the same steep view, looking toward `heading`
 // (degrees, 0 = north, 270 = west), so that for example a coast can lie at the bottom of the picture
-const SCAN_VIEW = { angle: 50, dist: 210 };   // camera in a scan: degrees above the ground, distance
+const SCAN_VIEW = { angle: 45, dist: 210 };   // camera in a scan: degrees above the ground, distance
 const homeCam = (b, heading = 0) => {
   const h = heading * Math.PI / 180, a = SCAN_VIEW.angle * Math.PI / 180, r = SCAN_VIEW.dist;
   return new THREE.Vector3(b.x - Math.sin(h) * Math.cos(a) * r, b.y + Math.sin(a) * r, b.z + Math.cos(h) * Math.cos(a) * r);
