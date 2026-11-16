@@ -508,7 +508,7 @@ const STEEP = new THREE.Vector3(0, 0.866, 0.5).normalize()   // north up;
 const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
-  uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
+  uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 0 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
   uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
 const detMat = pointMat.clone();
@@ -666,7 +666,9 @@ async function enterScan() {
     const vt = detBase.clone().lerp(new THREE.Vector3(0, detBase.y, 0), 0.55);
     controls.target.copy(vt); camera.position.copy(homeCam(vt, SHRINES[idx].view));
     document.body.classList.add("detail");
-    setEuForm(0); setDetForm(1);
+    // the scan assembles point by point where it lies; the camera does not move
+    setEuForm(0); setDetForm(0);
+    await tween(1500, (k) => setDetForm(k));
   }
   busy = false; showLinks();
 }
@@ -704,7 +706,8 @@ async function exchange(idx) {
     // look at a point between the shrine and the middle of the scan, so the land fills the picture
     const vt = detBase.clone().lerp(new THREE.Vector3(0, detBase.y, 0), 0.55);
     controls.target.copy(vt); camera.position.copy(homeCam(vt, SHRINES[idx].view));
-    setDetForm(1);
+    setDetForm(0);
+    await tween(1500, (k) => setDetForm(k));
   }
 }
 
