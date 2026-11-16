@@ -70,6 +70,7 @@ const uniforms = {
   uLevel: { value: 0 },
   uListen: { value: 0 },
   uInk: { value: new THREE.Color(0xdfe6ea) },
+  uDim: { value: 0.74 },
   uIce: { value: new THREE.Color(0xa9dbe8) },
   uBg: { value: BG },
 };
@@ -121,7 +122,7 @@ const pointMat = new THREE.ShaderMaterial({
       vRing += smoothstep(14.0, 0.0, d) * uLevel * 1.4 * uListen;
       p.y += vRing * 0.9;
       // while coarse, points leave the scan's grid, like the scattered returns of the overview
-      if (uSoft > 0.0) p.xz += (vec2(fract(aRand * 91.7), fract(aRand * 57.3)) - 0.5) * uJit * pow(uSoft, 0.6);
+      if (uSoft > 0.0) p.xz += (vec2(fract(aRand * 91.7), fract(aRand * 57.3)) - 0.5) * uJit * pow(uSoft, 1.25);
       vec4 mv = modelViewMatrix * vec4(p, 1.0);
       gl_Position = projectionMatrix * mv;
       float depth = -mv.z / uScale;   // a terrain docked small into the overview keeps its own point size and haze
@@ -131,15 +132,16 @@ const pointMat = new THREE.ShaderMaterial({
       float soft = 1.0;
       float depthS = depth;
       if (uSoft > 0.0) {
-        float sc = pow(uSoft, 0.6);            // stay coarse for most of the way, sharpen at the end
+        float sc = pow(uSoft, 1.25);           // coarse while far, filling in steadily on the way down
         float keep = exp(uLogMin * sc);
         float few = step(fract(aRand * 13.7), keep);
-        float band = 0.8 * sc * min(uHalf.x, uHalf.y) + 1e-4;
+        float se = pow(uSoft, 0.5);            // the margin stays round and blurred longer than the points stay sparse
+        float band = 0.8 * se * min(uHalf.x, uHalf.y) + 1e-4;
         // round and blurred at first, the rectangle of the scan appears only at the end
         float eRect = min(uHalf.x - abs(position.x), uHalf.y - abs(position.z));
         float eRound = (1.0 - length(position.xz / uHalf)) * min(uHalf.x, uHalf.y);
-        float e = mix(eRect, eRound, smoothstep(0.0, 0.7, sc)) / band;
-        float edge = smoothstep(0.0, 1.0, e + (fract(aRand * 5.31) - 0.5) * 1.1 * sc);
+        float e = mix(eRect, eRound, smoothstep(0.0, 0.6, se)) / band;
+        float edge = smoothstep(0.0, 1.0, e + (fract(aRand * 5.31) - 0.5) * 1.1 * se);
         soft = few * edge;
         depthS = exp(mix(log(depth), log(-mv.z), sc));   // point size of the overview at this distance
       }
@@ -164,6 +166,7 @@ const pointMat = new THREE.ShaderMaterial({
     }`,
   fragmentShader: /* glsl */ `
     uniform vec3 uInk, uIce, uBg;
+    uniform float uDim;
     uniform float uListen;
     uniform float uTime;
     varying float vShade, vFog, vSweep, vRing, vWater;
@@ -180,7 +183,7 @@ const pointMat = new THREE.ShaderMaterial({
       col *= mix(1.0, 0.72, uListen);
       col += uInk * vSweep * 0.35;
       col = mix(col, uIce, clamp(vRing, 0.0, 1.0) * 0.8);
-      gl_FragColor = vec4(mix(uBg, col, vFog), 1.0);
+      gl_FragColor = vec4(mix(uBg, col * uDim, vFog), 1.0);
     }`,
 });
 
@@ -449,9 +452,16 @@ function markActive(idx) {
 }
 
 const tmp = new THREE.Vector3();
+// The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
+// spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
+const VMIN = 0.12;
+const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(14), Math.log(300), Math.log(Math.max(d, 1)));
+const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  tmp.copy(p).project(camera);
+  tmp.copy(p);
+  if (mode === "europe" && el !== detMark) tmp.y *= euGroup.scale.y;
+  tmp.project(camera);
   const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
   el.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px)`;
   el.classList.toggle("off", !vis);
@@ -491,7 +501,7 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const K = 0.016;                       // size of a detail terrain inside the overview (about 4 units wide)
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 8 }, uFar: { value: 6000 }, uForm: { value: 0 },
-  uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHoleR: { value: 0 }, uCovOn: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
+  uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHoleR: { value: 0 }, uCovOn: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
@@ -549,13 +559,13 @@ function stepLink() {
   // the two overlap generously, so the picture never goes dark in between
   // around the detail terrain the overview stays until the very end
   setEuForm(sstep(link.near * 1.05, link.near * 2.6, d));
-  setDetForm(det ? 1 - sstep(60, 160, d) : 0);
+  setDetForm(det ? 1 - sstep(110, 260, d) : 0);
   // coarse and borderless while small, sharpening into the full scan on the last stretch
   const n0 = Math.max(link.near, 0.5) * 1.02;
-  const sf = Math.min(1, Math.max(0, Math.log(d / n0) / Math.log(60 / n0)));
+  const sf = Math.min(1, Math.max(0, Math.log(d / n0) / Math.log(120 / n0)));
   detUniforms.uSoft.value = sf;
-  uniforms.uHoleA.value = det ? 1 - Math.pow(sf, 0.6) : 0;
-  uniforms.uHoleR.value = Math.pow(sf, 0.6);
+  uniforms.uHoleA.value = det ? 1 - Math.pow(sf, 1.25) : 0;
+  uniforms.uHoleR.value = Math.pow(sf, 0.5);
 }
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
@@ -588,16 +598,17 @@ function arrive(idx) {                  // exchange the coordinate systems: now 
 async function descend(idx, img, ready) {
   const o = shrineObjs[idx];
   euCam = { p: camera.position.clone(), t: controls.target.clone() };
-  link = { c: o.base.clone(), near: homeCam(new THREE.Vector3()).length() * K };
+  const g = groundOf(o);
+  link = { c: g.clone(), near: homeCam(new THREE.Vector3()).length() * K };
   controls.minDistance = 0.01;
   setDetForm(0);
   // the flight starts at once; the ground of the recording is built as soon as its scan has arrived
   const built = ready.then((ok) => new Promise((res) => requestAnimationFrame(() => {
-    if (ok) { buildDetail(idx, img); dock(o.base); detGroup.visible = true; }
+    if (ok) { buildDetail(idx, img); dock(g); detGroup.visible = true; }
     res(ok);
   })));
   const rest = homeCam(new THREE.Vector3()).multiplyScalar(K);
-  await zoomTo(o.base.clone().add(rest), o.base, 13000);
+  await zoomTo(g.clone().add(rest), g, 13000);
   if (await built) arrive(idx);
   else { link = null; setEuForm(1); controls.minDistance = 10; camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
 }
@@ -605,12 +616,13 @@ async function descend(idx, img, ready) {
 async function ascend() {
   const o = shrineObjs[detIdx];
   // back into the overview's coordinates, the camera exactly where it is
-  dock(o.base);
+  const g = groundOf(o);
+  dock(g);
   const toEu = (v) => v.clone().multiplyScalar(K).add(detGroup.position);
   camera.position.copy(toEu(camera.position)); controls.target.copy(toEu(controls.target));
   euGroup.visible = true;
   // start exactly as sharp as the detail view is now, wherever the visitor has moved to
-  mode = "europe"; detIdx = -1; link = { c: o.base.clone(), near: camera.position.distanceTo(o.base) / 1.1 };
+  mode = "europe"; detIdx = -1; link = { c: g.clone(), near: camera.position.distanceTo(g) / 1.1 };
   useView(eu);
   controls.minDistance = 0.01; controls.maxDistance = 3500;
   document.body.classList.remove("detail");
@@ -1128,6 +1140,7 @@ function loop() {
     controls.target.lerpVectors(flight.c0, flight.c1, e);
     if (k >= 1) flight = null;
   }
+  if (mode === "europe") euGroup.scale.y = vertAt(camera.position.distanceTo(controls.target));
   stepLink();
   stepLOD(dt);
   // slow orbit around the shrine while listening
