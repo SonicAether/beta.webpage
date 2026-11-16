@@ -4,7 +4,7 @@ import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
-const EU = { world: 640, relief: 22, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
+const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
 const DETAIL = { world: 240, relief: 16 };
 let WORLD = EU.world, DEPTH = EU.world;   // extent of the terrain currently shown
@@ -23,15 +23,15 @@ renderer.setClearColor(BG);
 stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
-camera.position.set(0, innerWidth < 720 ? 1300 : 435, innerWidth < 720 ? 1130 : 580);
+const camera = new THREE.PerspectiveCamera(48, 1, 1, 6000);
+camera.position.set(0, innerWidth < 720 ? 1890 : 632, innerWidth < 720 ? 1640 : 843);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.screenSpacePanning = false;
 controls.minDistance = 10;
-controls.maxDistance = 2400;
+controls.maxDistance = 3500;
 controls.maxPolarAngle = Math.PI * 0.46;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
@@ -48,6 +48,8 @@ const uniforms = {
   uTime: { value: 0 },
   uSpan: { value: EU.world },
   uDrift: { value: 5 },
+  uFar: { value: 2600 },
+  uForm: { value: 1 },
   uSize: { value: isSmall ? 1.6 : 1.35 },
   uPx: { value: renderer.getPixelRatio() },
   uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
@@ -65,12 +67,16 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm;
     uniform vec3 uFocus;
     varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
       vec3 p = position;
       vWater = aWater;
+      // a view forms and dissolves point by point: each point settles from a little above, in its own time
+      float form = clamp(uForm * 1.6 - aRand * 0.6, 0.0, 1.0);
+      form = form * form * (3.0 - 2.0 * form);
+      p.y += (1.0 - form) * (3.0 + 22.0 * aRand) * (uSpan / 240.0);
       // water: a slow swell, no lidar returns, so only a sparse shimmer
       // (aWater: 1 = sea, 0.75 = lake, 0.6 = river; inland water barely moves)
       float life = 1.0;
@@ -100,7 +106,7 @@ const pointMat = new THREE.ShaderMaterial({
       float depth = -mv.z;
       gl_PointSize = clamp(uSize * uPx * (230.0 / depth), 0.9, 5.0 * uPx);
       vShade = aShade;
-      vFog = smoothstep(1700.0, 220.0, depth) * life;
+      vFog = smoothstep(uFar, 220.0, depth) * life * form;
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
     }`,
@@ -159,13 +165,21 @@ function makeCloud(img, opt) {
   const stride = isSmall ? 2 : 1;
   const keepLand = opt.keepLand;
   const keepWater = 0.11;
-  const KEEP = [keepLand, keepWater, 0.3, 0.5], WAT = [0, 1, 0.75, 0.6];
-  const pos = [], shade = [], rnd = [], wat = [];
+  const KEEP = [keepLand, opt.keepSea ?? keepWater, 0.3, 0.5], WAT = [0, 1, 0.75, 0.6];
+  const cap = Math.ceil((NX * NZ) / (stride * stride) * 0.56) + 1000;   // room for the points that will be kept
+  const pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
+  let n = 0;
   const cell = W_ / NX;
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (let j = 0; j < NZ; j += stride) {
+  // two passes in a checkerboard: the first half alone is an even, thinner cloud,
+  // which slow machines draw instead of the whole
+  let half = 0;
+  for (let pass = 0; pass < 2; pass++) {
+   if (pass === 1) half = n;
+   for (let j = 0; j < NZ; j += stride) {
     for (let i = 0; i < NX; i += stride) {
+      if ((((i + j) / stride) & 1) !== pass) continue;
       const k = j * NX + i, isW = W[k];
       // the scan thins out toward its limits instead of ending in a wall
       const edge = opt.hard ? 1 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;   // detail maps end in a clean cut
@@ -173,17 +187,21 @@ function makeCloud(img, opt) {
       if (rand() > KEEP[isW] * (edge >= 1 ? 1 : edge * edge * (3 - 2 * edge))) continue;
       const x = (i / (NX - 1) - 0.5) * W_ + (rand() - 0.5) * cell * stride;
       const z = (j / (NZ - 1) - 0.5) * D_ + (rand() - 0.5) * cell * stride;
-      pos.push(x, H[k] * opt.relief, z);
-      shade.push(isW ? rand() : px[k * 4] / 255);
-      rnd.push(rand()); wat.push(WAT[isW]);
+      if (n >= cap) continue;
+      pos[n * 3] = x; pos[n * 3 + 1] = H[k] * opt.relief; pos[n * 3 + 2] = z;
+      shade[n] = isW ? rand() : px[k * 4] / 255;
+      rnd[n] = rand(); wat[n] = WAT[isW]; n++;
     }
+   }
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute("aShade", new THREE.Float32BufferAttribute(shade, 1));
-  geo.setAttribute("aRand", new THREE.Float32BufferAttribute(rnd, 1));
-  geo.setAttribute("aWater", new THREE.Float32BufferAttribute(wat, 1));
-  return { points: new THREE.Points(geo, pointMat), W: W_, D: D_, heightAt: hAt, count: pos.length / 3 };
+  geo.setAttribute("position", new THREE.BufferAttribute(pos.slice(0, n * 3), 3));
+  geo.setAttribute("aShade", new THREE.BufferAttribute(shade.slice(0, n), 1));
+  geo.setAttribute("aRand", new THREE.BufferAttribute(rnd.slice(0, n), 1));
+  geo.setAttribute("aWater", new THREE.BufferAttribute(wat.slice(0, n), 1));
+  const points = new THREE.Points(geo, pointMat);
+  points.frustumCulled = false;
+  return { points, W: W_, D: D_, heightAt: hAt, count: n, half };
 }
 
 /* ───────────── two views: Europe overview · one detail terrain ───────────── */
@@ -206,7 +224,8 @@ document.body.appendChild(backBtn);
 function useView(c) {
   WORLD = c.W; DEPTH = c.D; heightAt = c.heightAt;
   uniforms.uSpan.value = c.W;
-  uniforms.uDrift.value = c === eu ? 5 : 8;
+  uniforms.uDrift.value = c === eu ? 6 : 8;
+  uniforms.uFar.value = c === eu ? 3600 : 1700;
   hud.pts.textContent = c.count.toLocaleString("en-US");
 }
 
@@ -264,9 +283,9 @@ function buildShrines() {
     members.forEach((i) => base.add(bases[i]));
     base.divideScalar(members.length);
     base.y = eu.heightAt(base.x, base.z);
-    const top = base.clone().setY(base.y + 22);
+    const top = base.clone().setY(base.y + 32);
     euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
-    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 3.6 : 2.2, eu.heightAt));
+    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 5.2 : 3.2, eu.heightAt));
 
     const el = document.createElement("div");
     el.className = "shrine";
@@ -374,20 +393,33 @@ function showEurope() {
   mode = "europe"; detIdx = -1;
   useView(eu);
   uniforms.uFocus.value.set(9999, 0, 9999);
-  controls.minDistance = 10; controls.maxDistance = 2400;
+  controls.minDistance = 10; controls.maxDistance = 3500;
   if (euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
   document.body.classList.remove("detail");
   backBtn.hidden = true;
 }
 
-// fade the stage out, run fn while it is dark, fade back in
-function throughDark(fn, delay = 0) {
-  const T = reduceMotion ? 0 : 1150;
-  setTimeout(() => {
-    fadeEl.classList.add("on");
-    setTimeout(() => fn(() => requestAnimationFrame(() => requestAnimationFrame(() => { fadeEl.classList.remove("on"); busy = false; }))), T);
-  }, reduceMotion ? 0 : delay);
+// a view dissolves and forms point by point (uForm 1 = fully there)
+let formAnim = null;
+function formTo(v, dur) {
+  return new Promise((res) => {
+    if (reduceMotion) { setForm(v); return res(); }
+    formAnim = { a: uniforms.uForm.value, b: v, t0: performance.now(), dur, res };
+  });
 }
+function setForm(v) {
+  uniforms.uForm.value = v;
+  lineMat.opacity = 0.55 * v; isoMat.opacity = 0.34 * v; isoMatBold.opacity = 0.62 * v;
+  shrineLayer.style.opacity = v < 0.6 ? 0 : (v - 0.6) / 0.4;
+}
+function stepForm(now) {
+  if (!formAnim) return;
+  const k = Math.min(1, (now - formAnim.t0) / formAnim.dur);
+  setForm(formAnim.a + (formAnim.b - formAnim.a) * (k * k * (3 - 2 * k)));
+  if (k >= 1) { const r = formAnim.res; formAnim = null; r(); }
+}
+const wait = (ms) => new Promise((r) => setTimeout(r, reduceMotion ? 0 : ms));
+const glide = (p0, p1, c0, c1, dur) => { flight = { t0: performance.now(), dur: reduceMotion ? 1 : dur, p0, p1, c0, c1 }; };
 
 /* ───────────── panel + player ───────────── */
 const panel = $("#panel");
@@ -407,17 +439,27 @@ function openShrine(idx) {
   const img = new Image();
   const ready = new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); });
   img.src = new URL(`./terrain/${s.terrain || s.id.toLowerCase() + ".png"}`, import.meta.url).href;
-  let delay = 0;
-  if (mode === "europe") {
-    euCam = { p: camera.position.clone(), t: controls.target.clone() };
-    flyTo(o.base, 40, 0.85, 3400);
-    delay = 2100;
-  }
-  throughDark((done) => ready.then((ok) => {
-    if (ok) showDetail(idx, img);
-    else { flight = null; if (mode === "europe" && euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); } }
-    done();
-  }), delay);
+  (async () => {
+    if (mode === "europe") {
+      euCam = { p: camera.position.clone(), t: controls.target.clone() };
+      flyTo(o.base, 40, 0.85, 3800);
+      await wait(2300);                       // well into the descent, the overview starts to come apart
+    }
+    await formTo(0, 1500);
+    if (await ready) {
+      showDetail(idx, img);
+      // arrive from above: the ground forms while the camera settles
+      const p1 = camera.position.clone(), c1 = controls.target.clone();
+      const p0 = c1.clone().add(p1.clone().sub(c1).multiplyScalar(2.3)).add(new THREE.Vector3(0, 70, 0));
+      camera.position.copy(p0);
+      glide(p0, p1, c1.clone(), c1, 4200);
+    } else {
+      flight = null;
+      if (mode === "europe" && euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
+    }
+    await formTo(1, 2600);
+    busy = false;
+  })();
 
   $("#p-id").textContent = s.id;
   $("#p-name").textContent = s.name;
@@ -451,7 +493,22 @@ function closePanel() {
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
   markActive(-1);
   current = -1;
-  if (mode === "detail") { busy = true; throughDark((done) => { showEurope(); done(); }); }
+  if (mode === "detail") {
+    busy = true;
+    (async () => {
+      const from = shrineObjs[detIdx].base.clone();
+      await formTo(0, 1200);
+      showEurope();
+      if (euCam) {
+        // rise from the place of the recording back to where the overview was left
+        const p0 = from.clone().add(new THREE.Vector3(0, 55, 60));
+        camera.position.copy(p0); controls.target.copy(from);
+        glide(p0, euCam.p.clone(), from.clone(), euCam.t.clone(), 3800);
+      }
+      await formTo(1, 2200);
+      busy = false;
+    })();
+  }
 }
 $("#close").addEventListener("click", closePanel);
 backBtn.addEventListener("click", closePanel);
@@ -760,7 +817,7 @@ function buildIsobars(d) {
     return new THREE.Vector3(x, 0, z);
   };
   const inside = (v) => Math.abs(v.x) < half && Math.abs(v.z) < halfD;
-  const lift = (v) => { v.y = Math.max(eu.heightAt(v.x, v.z) + 3.2, 6.5); return v; };
+  const lift = (v) => { v.y = Math.max(eu.heightAt(v.x, v.z) + 4.6, 9.4); return v; };
 
   let lo = Infinity, hi = -Infinity;
   for (const v of F) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
@@ -799,7 +856,7 @@ function buildIsobars(d) {
     }
     if (!(mx || mn) || hi - lo < 6) continue;
     const p = world(i, j);
-    if (!inside(p) || centres.some((c) => c.distanceTo(p) < 65)) continue;
+    if (!inside(p) || centres.some((c) => c.distanceTo(p) < 95)) continue;
     centres.push(p);
     labelAt.set((mx ? "H" : "L") + i + ":" + j, { p: lift(p), text: (mx ? "H " : "L ") + Math.round(v), centre: true });
   }
@@ -862,9 +919,21 @@ addEventListener("resize", resize);
 
 const clock = new THREE.Clock();
 let listen = 0, lvl = 0;
+const perf = { n: 0, sum: 0, rounds: 0 };
+let entered = false;
 function loop() {
   const dt = Math.min(clock.getDelta(), 0.1);
   uniforms.uTime.value += reduceMotion ? 0 : dt;
+  stepForm(performance.now());
+  // if the full overview is too much for this machine, fall back to the thinner half once
+  if (eu && !eu.thinned && mode === "europe" && entered) {
+    perf.n++; perf.sum += dt;
+    if (perf.n === 50) {
+      if (perf.sum / perf.n > 0.05) { eu.thinned = true; eu.count = eu.half; eu.points.geometry.setDrawRange(0, eu.half); hud.pts.textContent = eu.half.toLocaleString("en-US"); }
+      else if (++perf.rounds >= 3) eu.thinned = "no";
+      perf.n = 0; perf.sum = 0;
+    }
+  }
 
   if (flight) {
     const k = Math.min(1, (performance.now() - flight.t0) / flight.dur), e = ease(k);
@@ -914,10 +983,10 @@ addEventListener("keydown", (e) => {
 const enter = $("#enter");
 const img = new Image();
 img.onload = () => {
-  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86 });
+  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86, keepSea: 0.075 });
   euGroup.add(eu.points);
   useView(eu);
-  controls.target.set(0, 0, 35);
+  controls.target.set(0, 0, 51);
   buildShrines();
   initWeather();
   resize();
@@ -928,6 +997,7 @@ img.onerror = () => { $("#boot-status").textContent = "terrain data could not be
 img.src = new URL("./terrain/europe.png", import.meta.url).href;
 
 $("#enter-btn").addEventListener("click", () => {
+  entered = true;
   enter.classList.add("gone");
   setTimeout(() => (enter.hidden = true), 900);
 });
