@@ -3,10 +3,11 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
-const WORLD = 300;          // terrain width (x) in world units (1 unit ≈ 10 m on the imaginary map)
-let DEPTH = 392;            // terrain depth (z); set from the image aspect on load
-const RELIEF = 46;          // height of the highest fjäll above sea level
-const SEA_EXT = 170;        // open sea beyond the southern coast
+// Overview: Europe in Web Mercator (zoom-6 tile coordinates of the image corners).
+const EU = { world: 440, relief: 20, x0: 29.866666666666667, x1: 38.4, y0: 13.457790841581378, y1: 25.565983223523137 };
+// Detail: the ground around one recording, built from one LIDAR scan.
+const DETAIL = { world: 240, relief: 16 };
+let WORLD = EU.world, DEPTH = EU.world;   // extent of the terrain currently shown
 const BG = new THREE.Color(0x06080a);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isSmall = matchMedia("(max-width: 720px)").matches;
@@ -23,14 +24,14 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
-camera.position.set(-50, 190, 330);
+camera.position.set(0, innerWidth < 720 ? 1000 : 430, innerWidth < 720 ? 1150 : 520);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.screenSpacePanning = false;
 controls.minDistance = 22;
-controls.maxDistance = 560;
+controls.maxDistance = 1700;
 controls.maxPolarAngle = Math.PI * 0.46;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
@@ -45,6 +46,7 @@ let heightAt = () => 0;
 
 const uniforms = {
   uTime: { value: 0 },
+  uSpan: { value: EU.world },
   uSize: { value: isSmall ? 1.6 : 1.35 },
   uPx: { value: renderer.getPixelRatio() },
   uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
@@ -62,19 +64,21 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan;
     uniform vec3 uFocus;
     varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
       vec3 p = position;
       vWater = aWater;
       // water: a slow swell, no lidar returns, so only a sparse shimmer
+      // (aWater: 1 = sea, 0.75 = lake, 0.6 = river; inland water barely moves)
       if (aWater > 0.5) {
-        p.y += sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22;
+        float swell = aWater > 0.9 ? 1.0 : (aWater > 0.7 ? 0.3 : 0.12);
+        p.y += (sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22) * swell;
       }
       // LIDAR sweep: a slow band travelling across the terrain
-      float sweepX = mod(uTime * 12.0, ${WORLD.toFixed(1)} * 2.0) - ${WORLD.toFixed(1)};
-      vSweep = exp(-pow((p.x + p.z * 0.25 - sweepX) / 2.6, 2.0));
+      float sweepX = mod(uTime * uSpan * 0.03, uSpan * 2.0) - uSpan;
+      vSweep = exp(-pow((p.x + p.z * 0.25 - sweepX) / (uSpan * 0.006), 2.0));
       // listening rings around the active shrine, driven by audio level
       float d = distance(p.xz, uFocus.xz);
       float r = mod(uTime * 11.0, 60.0);
@@ -86,7 +90,7 @@ const pointMat = new THREE.ShaderMaterial({
       float depth = -mv.z;
       gl_PointSize = clamp(uSize * uPx * (230.0 / depth), 0.9, 5.0 * uPx);
       vShade = aShade;
-      vFog = smoothstep(950.0, 140.0, depth);
+      vFog = smoothstep(1700.0, 220.0, depth);
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
     }`,
@@ -112,62 +116,56 @@ const pointMat = new THREE.ShaderMaterial({
     }`,
 });
 
-function buildTerrain(img) {
+/* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, disc } */
+function makeCloud(img, opt) {
   const NX = img.width, NZ = img.height;
-  DEPTH = WORLD * NZ / NX;
+  const W_ = opt.world, D_ = opt.world * NZ / NX;
   const cv = document.createElement("canvas");
   cv.width = NX; cv.height = NZ;
   const cx = cv.getContext("2d", { willReadFrequently: true });
   cx.drawImage(img, 0, 0);
   const px = cx.getImageData(0, 0, NX, NZ).data;
 
-  // R = shade (0 marks water), G/B = 16-bit height above sea level
+  // R = shade; 0 marks sea, 1 lake, 2 river. G + high nibble of B = 12-bit height above sea level.
+  // (Only the top bits are used so that browser colour handling cannot disturb the heights.)
   const H = new Float32Array(NX * NZ);
-  const W = new Uint8Array(NX * NZ);
+  const W = new Uint8Array(NX * NZ);   // 0 land, 1 sea, 2 lake, 3 river
   for (let i = 0; i < NX * NZ; i++) {
-    H[i] = (px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 65535;
-    W[i] = px[i * 4] === 0 ? 1 : 0;
+    const r = px[i * 4];
+    H[i] = (px[i * 4 + 1] * 16 + (px[i * 4 + 2] >> 4)) / 4095;
+    W[i] = r < 3 ? r + 1 : 0;
   }
 
-  heightAt = (x, z) => {
-    if (z > DEPTH / 2) return 0; // open sea
-    const u = THREE.MathUtils.clamp((x / WORLD + 0.5) * (NX - 1), 0, NX - 1);
-    const v = THREE.MathUtils.clamp((z / DEPTH + 0.5) * (NZ - 1), 0, NZ - 1);
+  const hAt = (x, z) => {
+    const u = THREE.MathUtils.clamp((x / W_ + 0.5) * (NX - 1), 0, NX - 1);
+    const v = THREE.MathUtils.clamp((z / D_ + 0.5) * (NZ - 1), 0, NZ - 1);
     const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(i0 + 1, NX - 1), j1 = Math.min(j0 + 1, NZ - 1);
     const fu = u - i0, fv = v - j0;
     const h = H[j0 * NX + i0] * (1 - fu) * (1 - fv) + H[j0 * NX + i1] * fu * (1 - fv) +
               H[j1 * NX + i0] * (1 - fu) * fv + H[j1 * NX + i1] * fu * fv;
-    return h * RELIEF;
+    return h * opt.relief;
   };
 
   const stride = isSmall ? 2 : 1;
-  const keepLand = isSmall ? 0.78 : 0.72;
+  const keepLand = opt.keepLand;
   const keepWater = 0.11;
+  const KEEP = [keepLand, keepWater, 0.3, 0.5], WAT = [0, 1, 0.75, 0.6];
   const pos = [], shade = [], rnd = [], wat = [];
-  const cell = WORLD / NX;
+  const cell = W_ / NX;
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   for (let j = 0; j < NZ; j += stride) {
     for (let i = 0; i < NX; i += stride) {
       const k = j * NX + i, isW = W[k];
-      if (rand() > (isW ? keepWater : keepLand)) continue;
-      const x = (i / (NX - 1) - 0.5) * WORLD + (rand() - 0.5) * cell * stride;
-      const z = (j / (NZ - 1) - 0.5) * DEPTH + (rand() - 0.5) * cell * stride;
-      pos.push(x, H[k] * RELIEF, z);
+      // the scan thins out toward its limits instead of ending in a wall
+      const edge = opt.disc ? (1 - Math.hypot(i / NX - 0.5, j / NZ - 0.5) * 2) / 0.2 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;
+      if (edge <= 0) continue;
+      if (rand() > KEEP[isW] * (edge >= 1 ? 1 : edge * edge * (3 - 2 * edge))) continue;
+      const x = (i / (NX - 1) - 0.5) * W_ + (rand() - 0.5) * cell * stride;
+      const z = (j / (NZ - 1) - 0.5) * D_ + (rand() - 0.5) * cell * stride;
+      pos.push(x, H[k] * opt.relief, z);
       shade.push(isW ? rand() : px[k * 4] / 255);
-      rnd.push(rand()); wat.push(isW);
-    }
-  }
-  // open sea to the south: same jittered grid and density as the scanned water,
-  // thinning only far out toward the horizon so there is no seam at the coast
-  const step = cell * stride;
-  for (let z = DEPTH / 2 + step * 0.5; z < DEPTH / 2 + SEA_EXT; z += step) {
-    const far = (z - DEPTH / 2) / SEA_EXT;
-    const keep = keepWater * (1 - Math.pow(Math.max(0, far - 0.35) / 0.65, 1.5) * 0.85);
-    for (let x = -WORLD / 2; x < WORLD / 2; x += step) {
-      if (rand() > keep) continue;
-      pos.push(x + (rand() - 0.5) * step, 0, z + (rand() - 0.5) * step);
-      shade.push(rand()); rnd.push(rand()); wat.push(1);
+      rnd.push(rand()); wat.push(WAT[isW]);
     }
   }
   const geo = new THREE.BufferGeometry();
@@ -175,35 +173,81 @@ function buildTerrain(img) {
   geo.setAttribute("aShade", new THREE.Float32BufferAttribute(shade, 1));
   geo.setAttribute("aRand", new THREE.Float32BufferAttribute(rnd, 1));
   geo.setAttribute("aWater", new THREE.Float32BufferAttribute(wat, 1));
-  scene.add(new THREE.Points(geo, pointMat));
-  hud.pts.textContent = (pos.length / 3).toLocaleString("en-US");
-  controls.target.set(0, 8, DEPTH * 0.05);
+  return { points: new THREE.Points(geo, pointMat), W: W_, D: D_, heightAt: hAt, count: pos.length / 3 };
 }
+
+/* ───────────── two views: Europe overview · one detail terrain ───────────── */
+const euGroup = new THREE.Group(), detGroup = new THREE.Group();
+scene.add(euGroup, detGroup);
+detGroup.visible = false;
+let mode = "europe";            // "europe" | "detail"
+let eu = null, det = null;      // { points, W, D, heightAt, count }
+let detIdx = -1, detTop = null; // the shrine whose ground is shown
+let busy = false, euCam = null;
+
+const fadeEl = document.createElement("div");
+fadeEl.id = "fade";
+stage.after(fadeEl);
+const backBtn = document.createElement("button");
+backBtn.id = "back"; backBtn.type = "button"; backBtn.className = "u"; backBtn.hidden = true;
+backBtn.textContent = "← Europe";
+document.body.appendChild(backBtn);
+
+function useView(c) {
+  WORLD = c.W; DEPTH = c.D; heightAt = c.heightAt;
+  uniforms.uSpan.value = c.W;
+  hud.pts.textContent = c.count.toLocaleString("en-US");
+}
+
+// latitude / longitude ↔ position on the overview
+const geoToWorld = (lat, lon) => {
+  const tx = (lon + 180) / 360 * 64;
+  const ty = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 64;
+  return [((tx - EU.x0) / (EU.x1 - EU.x0) - 0.5) * eu.W, ((ty - EU.y0) / (EU.y1 - EU.y0) - 0.5) * eu.D];
+};
+const worldToLonLat = (x, z) => {
+  const tx = EU.x0 + (x / eu.W + 0.5) * (EU.x1 - EU.x0), ty = EU.y0 + (z / eu.D + 0.5) * (EU.y1 - EU.y0);
+  return [tx / 64 * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / 64))) * 180 / Math.PI];
+};
 
 /* ───────────── shrines ───────────── */
 const shrineLayer = $("#shrine-layer");
 const shrineObjs = [];
 const lineMat = new THREE.LineBasicMaterial({ color: 0xa9dbe8, transparent: true, opacity: 0.55 });
 
+function ringLine(x, z, r, hAt) {
+  const pts = [];
+  for (let a = 0; a <= 64; a++) {
+    const t = (a / 64) * Math.PI * 2, rx = x + Math.cos(t) * r, rz = z + Math.sin(t) * r;
+    pts.push(new THREE.Vector3(rx, hAt(rx, rz) + 0.3, rz));
+  }
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
+}
+
 function buildShrines() {
   const list = $("#index-list");
-  SHRINES.forEach((s, idx) => {
-    const x = (s.pos[0] - 0.5) * WORLD;
-    const z = (s.pos[1] - 0.5) * DEPTH;
-    const y = heightAt(x, z);
-    const top = new THREE.Vector3(x, y + 18, z);
-    const base = new THREE.Vector3(x, y, z);
+  const bases = SHRINES.map((s) => {
+    const [x, z] = geoToWorld(s.geo[0], s.geo[1]);
+    return new THREE.Vector3(x, eu.heightAt(x, z), z);
+  });
+  const tops = bases.map((b) => b.clone().setY(b.y + 16));
+  // recordings that lie close together on the scale of Europe: fan their markers out
+  const done = new Set();
+  bases.forEach((b, i) => {
+    if (done.has(i)) return;
+    const g = [i];
+    bases.forEach((c, j) => { if (j > i && !done.has(j) && b.distanceTo(c) < 14) g.push(j); });
+    if (g.length < 2) return;
+    const c = new THREE.Vector3();
+    g.forEach((k) => c.add(bases[k]));
+    c.divideScalar(g.length);
+    g.forEach((k, n) => { done.add(k); tops[k].set(c.x + (n - (g.length - 1) / 2) * 12, c.y + 15 + (n % 2) * 9, c.z); });
+  });
 
-    const g = new THREE.BufferGeometry().setFromPoints([base, top]);
-    scene.add(new THREE.Line(g, lineMat));
-    // ground ring
-    const ringPts = [];
-    for (let a = 0; a <= 64; a++) {
-      const t = (a / 64) * Math.PI * 2;
-      const rx = x + Math.cos(t) * 3, rz = z + Math.sin(t) * 3;
-      ringPts.push(new THREE.Vector3(rx, heightAt(rx, rz) + 0.3, rz));
-    }
-    scene.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ringPts), lineMat));
+  SHRINES.forEach((s, idx) => {
+    const base = bases[idx], top = tops[idx];
+    euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
+    euGroup.add(ringLine(base.x, base.z, 1.6, eu.heightAt));
 
     const btn = document.createElement("button");
     btn.className = "shrine";
@@ -225,29 +269,78 @@ function buildShrines() {
 const tmp = new THREE.Vector3();
 function placeLabels() {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  for (const o of shrineObjs) {
-    tmp.copy(o.top).project(camera);
+  shrineObjs.forEach((o, i) => {
+    const p = mode === "detail" ? (i === detIdx ? detTop : null) : o.top;
+    if (!p) { o.btn.classList.add("off"); return; }
+    tmp.copy(p).project(camera);
     const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
     o.btn.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px)`;
     o.btn.classList.toggle("off", !vis);
-    const dist = camera.position.distanceTo(o.top);
-    o.btn.classList.toggle("far", dist > 330);
-  }
+    o.btn.classList.toggle("far", mode === "europe" && camera.position.distanceTo(p) > 330);
+  });
 }
 
 /* ───────────── camera flights ───────────── */
 let flight = null;
-function flyTo(target, distance = 74, elev = 0.6) {
+function flyTo(target, distance = 86, elev = 0.6, dur = 2200) {
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target).setY(0).normalize();
-  if (!isFinite(dir.x)) dir.set(0, 0, 1);
+  if (!isFinite(dir.x) || dir.lengthSq() < 0.5) dir.set(0, 0, 1);
   const endPos = target.clone().add(dir.multiplyScalar(distance * Math.cos(elev))).setY(target.y + distance * Math.sin(elev));
   flight = {
-    t0: performance.now(), dur: reduceMotion ? 1 : 2200,
+    t0: performance.now(), dur: reduceMotion ? 1 : dur,
     p0: camera.position.clone(), p1: endPos,
     c0: controls.target.clone(), c1: target.clone(),
   };
 }
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+
+/* ───────────── descending into a shrine, and back ───────────── */
+function clearDetail() {
+  for (const c of [...detGroup.children]) { detGroup.remove(c); c.geometry.dispose(); }
+  det = null; detTop = null;
+}
+
+function showDetail(idx, img) {
+  const s = SHRINES[idx];
+  flight = null;
+  clearDetail();
+  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, disc: true });
+  const y = det.heightAt(0, 0);
+  const base = new THREE.Vector3(0, y, 0);
+  detTop = new THREE.Vector3(0, y + 16, 0);
+  detGroup.add(det.points, new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, detTop]), lineMat), ringLine(0, 0, 3, det.heightAt));
+  euGroup.visible = false; detGroup.visible = true;
+  mode = "detail"; detIdx = idx;
+  useView(det);
+  uniforms.uFocus.value.copy(base);
+  controls.minDistance = 14; controls.maxDistance = 420;
+  controls.target.copy(base);
+  camera.position.set(-64, y + 78, 150);
+  document.body.classList.add("detail");
+  backBtn.hidden = false;
+}
+
+function showEurope() {
+  flight = null;
+  clearDetail();
+  detGroup.visible = false; euGroup.visible = true;
+  mode = "europe"; detIdx = -1;
+  useView(eu);
+  uniforms.uFocus.value.set(9999, 0, 9999);
+  controls.minDistance = 22; controls.maxDistance = 1700;
+  if (euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
+  document.body.classList.remove("detail");
+  backBtn.hidden = true;
+}
+
+// fade the stage out, run fn while it is dark, fade back in
+function throughDark(fn, delay = 0) {
+  const T = reduceMotion ? 0 : 720;
+  setTimeout(() => {
+    fadeEl.classList.add("on");
+    setTimeout(() => fn(() => requestAnimationFrame(() => requestAnimationFrame(() => { fadeEl.classList.remove("on"); busy = false; }))), T);
+  }, reduceMotion ? 0 : delay);
+}
 
 /* ───────────── panel + player ───────────── */
 const panel = $("#panel");
@@ -255,13 +348,27 @@ const audio = $("#audio");
 let current = -1;
 
 function openShrine(idx) {
+  if (busy || (mode === "detail" && idx === detIdx)) return;
   const o = shrineObjs[idx];
   const s = o.s;
-  current = idx;
+  current = idx; busy = true;
   shrineObjs.forEach((x, i) => { x.btn.classList.toggle("active", i === idx); x.li.classList.toggle("active", i === idx); });
-  uniforms.uFocus.value.copy(o.base);
-  flyTo(o.base);
-  controls.autoRotate = false;
+
+  // the detail terrain loads while the camera descends over Europe
+  const img = new Image();
+  const ready = new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); });
+  img.src = new URL(`./terrain/${s.terrain || s.id.toLowerCase() + ".png"}`, import.meta.url).href;
+  let delay = 0;
+  if (mode === "europe") {
+    euCam = { p: camera.position.clone(), t: controls.target.clone() };
+    flyTo(o.base, 46, 0.85, 2400);
+    delay = 1500;
+  }
+  throughDark((done) => ready.then((ok) => {
+    if (ok) showDetail(idx, img);
+    else { flight = null; if (mode === "europe" && euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); } }
+    done();
+  }), delay);
 
   $("#p-id").textContent = s.id;
   $("#p-name").textContent = s.name;
@@ -284,17 +391,19 @@ function openShrine(idx) {
   $("#play").focus({ preventScroll: true });
 }
 
+// closing a shrine leads back up to Europe
 function closePanel() {
+  if (busy) return;
   player.pause();
   panel.classList.remove("open");
   document.body.classList.remove("has-panel", "listening");
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
   shrineObjs.forEach((x) => { x.btn.classList.remove("active"); x.li.classList.remove("active"); });
-  uniforms.uFocus.value.set(9999, 0, 9999);
   current = -1;
-  if (!reduceMotion) controls.autoRotate = true;
+  if (mode === "detail") { busy = true; throughDark((done) => { showEurope(); done(); }); }
 }
 $("#close").addEventListener("click", closePanel);
+backBtn.addEventListener("click", closePanel);
 
 /* Audio engine. Real recordings first; if the file can't be reached
    (offline, blocked host) a quiet generated placeholder takes over so the
@@ -563,7 +672,7 @@ function loop() {
   }
   // slow orbit around the shrine while listening
   const playing = player.isPlaying();
-  controls.autoRotate = !reduceMotion && (current < 0 || playing) && !flight;
+  controls.autoRotate = !reduceMotion && mode === "detail" && !flight;
   controls.autoRotateSpeed = playing ? 0.35 : 0.18;
   controls.update();
 
@@ -577,9 +686,16 @@ function loop() {
   if (!panel.hidden) { player.render(); drawSpectro(); }
 
   const t = controls.target;
-  hud.x.textContent = ((t.x + WORLD / 2) * 10).toFixed(0).padStart(4, "0");
-  hud.y.textContent = ((DEPTH / 2 - t.z) * 10 + 2000).toFixed(0).padStart(4, "0");
-  hud.z.textContent = (heightAt(t.x, t.z) * 12).toFixed(1);
+  if (mode === "europe") {
+    const [lon, lat] = worldToLonLat(t.x, t.z);
+    hud.x.textContent = lon.toFixed(2) + "°";
+    hud.y.textContent = lat.toFixed(2) + "°";
+    hud.z.textContent = (Math.pow(heightAt(t.x, t.z) / EU.relief, 1 / 0.72) * 4300).toFixed(0);
+  } else {
+    hud.x.textContent = ((t.x + WORLD / 2) * 10).toFixed(0).padStart(4, "0");
+    hud.y.textContent = ((DEPTH / 2 - t.z) * 10).toFixed(0).padStart(4, "0");
+    hud.z.textContent = (heightAt(t.x, t.z) * 6).toFixed(1);
+  }
   hud.az.textContent = ((THREE.MathUtils.radToDeg(controls.getAzimuthalAngle()) + 360) % 360).toFixed(0).padStart(3, "0");
   requestAnimationFrame(loop);
 }
@@ -596,14 +712,17 @@ addEventListener("keydown", (e) => {
 const enter = $("#enter");
 const img = new Image();
 img.onload = () => {
-  buildTerrain(img);
+  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.8 : 0.62 });
+  euGroup.add(eu.points);
+  useView(eu);
+  controls.target.set(0, 0, 30);
   buildShrines();
   resize();
   document.body.classList.add("ready");
   loop();
 };
 img.onerror = () => { $("#boot-status").textContent = "terrain data could not be loaded"; };
-img.src = new URL("./terrain.png", import.meta.url).href;
+img.src = new URL("./terrain/europe.png", import.meta.url).href;
 
 $("#enter-btn").addEventListener("click", () => {
   enter.classList.add("gone");

@@ -208,3 +208,14 @@ body.ready #boot-status { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; animation: none !important; }
 }
+
+/* ── overview ⇄ detail ─────────────── */
+#fade { position: fixed; inset: 0; z-index: 3; background: var(--void); opacity: 0; pointer-events: none; transition: opacity .7s ease; }
+#fade.on { opacity: 1; }
+#back {
+  position: fixed; z-index: 6; left: max(22px, env(safe-area-inset-left, 0px)); top: calc(84px + env(safe-area-inset-top, 0px));
+  color: var(--dim); font-size: var(--s-0); letter-spacing: 0.2em; border: 1px solid var(--line); padding: 8px 12px;
+  background: rgba(6, 8, 10, 0.5); transition: color .3s, border-color .3s;
+}
+#back:hover, #back:focus-visible { color: var(--ink); border-color: var(--dim); }
+@media (prefers-reduced-motion: reduce) { #fade { transition: none; } }
