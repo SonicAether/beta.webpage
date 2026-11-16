@@ -301,7 +301,8 @@ const worldToLonLat = (x, z) => {
    points under them step aside (coverage texture). Off on phones and on machines that are slow. */
 // ?debug in the address exposes the camera for testing
 const DEBUG = /[?&]debug\b/.test(location.search) ? (window.__shrines = { lod: true, get camera() { return camera; }, get controls() { return controls; }, get LOD() { return LOD; } }) : null;
-const CH = { size: 0.5, dim: 0.92 };   // point size and brightness of fine chunks relative to the coarse overview
+const CH = { size: 0.5, dim: 0.92 };
+const EU_SEA = 0.02;    // share of sea cells drawn on the overview: a sparse, dark sea   // point size and brightness of fine chunks relative to the coarse overview
 const LOD = { index: null, chunks: new Map(), cov: null, off: isSmall, slow: { n: 0, sum: 0 } };
 fetch(TERRAIN + "eu/index.json").then((r) => r.json()).then((j) => {
   LOD.index = j; LOD.have = new Set(j.chunks.map((c) => c[0] + "_" + c[1]));
@@ -327,7 +328,7 @@ function loadChunk(key) {
     const [ci, cj] = key.split("_").map(Number), b = chunkBox(ci, cj);
     const mat = pointMat.clone();
     mat.uniforms = { ...uniforms, uForm: { value: 0 }, uSize: { value: uniforms.uSize.value * CH.size }, uDim: { value: uniforms.uDim.value * CH.dim }, uCovOn: { value: 0 } };
-    const cl = makeCloud(img, { world: b.w, depth: b.d, relief: EU.relief, keepLand: 0.86, keepSea: 0.075 / 9, hard: true, mat });
+    const cl = makeCloud(img, { world: b.w, depth: b.d, relief: EU.relief, keepLand: 0.86, keepSea: EU_SEA / 9, hard: true, mat });
     cl.points.position.set(b.x, 0, b.z);
     c.points = cl.points; c.mat = mat;
     euGroup.add(cl.points);
@@ -1267,7 +1268,7 @@ addEventListener("keydown", (e) => {
 const enter = $("#enter");
 const img = new Image();
 img.onload = () => {
-  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86, keepSea: 0.075 });
+  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86, keepSea: EU_SEA });
   euGroup.add(eu.points);
   uniforms.uEuSize.value.set(eu.W, eu.D);
   useView(eu);
