@@ -1,4 +1,5 @@
 // Shrine catalogue. One entry per recording.
+// area: recordings with the same area share one marker on the overview.
 // geo: [latitude, longitude] of the recording; places the shrine on the overview of Europe.
 // The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan.
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
@@ -16,6 +17,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · AB 55 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1757937528/250801_002_Skedbrosj%C3%B6n_edit_o9juns.mp3",
+    area: "Härjedalen",
     geo: [62.31, 12.38],
     synth: { wind: 0.15, water: 0.9, birds: 0.05, tone: 180 },
     prayer: [
@@ -36,6 +38,7 @@ export const SHRINES = [
     wind: "light breeze",
     rig: "Nevaton MC59 omni · baffled AB 33 cm · 45°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1761931151/250831_005_Stapeler_Moor_sehr_lebendig_Schwalben_Spatzen_Schafe_etc._qzmhnk.mp3",
+    area: "Ostfriesland",
     geo: [53.30, 7.77],
     synth: { wind: 0.5, water: 0.0, birds: 0.8, tone: 900 },
     prayer: [
@@ -56,6 +59,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · baffled AB 35 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748357450/250518_001_Maik%C3%A4fer_Abend_Reh_am_Teich_bearbeitet_wrnred.mp3",
+    area: "Ostfriesland",
     geo: [53.39, 7.99],
     synth: { wind: 0.1, water: 0.2, birds: 0.1, tone: 140, drone: 0.7 },
     prayer: [
@@ -76,6 +80,7 @@ export const SHRINES = [
     wind: "calm",
     rig: "Nevaton MC59 omni · AB 50 cm",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748213115/250501_003_Stapeler_Moor_Kuckuck_V%C3%B6gel_M%C3%BCckenschwarm_grcfkf.mp3",
+    area: "Ostfriesland",
     geo: [53.30, 7.76],
     synth: { wind: 0.2, water: 0.0, birds: 0.6, tone: 2400 },
     prayer: [
@@ -96,6 +101,7 @@ export const SHRINES = [
     wind: "3–4 Bft W",
     rig: "Nevaton MC59 wide cardioid · NOS 35 cm · 90°",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748211069/250329_002_Hopelser_Wald_lmbkap.mp3",
+    area: "Ostfriesland",
     geo: [53.42, 7.70],
     synth: { wind: 0.7, water: 0.0, birds: 0.5, tone: 1200, bells: 0.6 },
     prayer: [

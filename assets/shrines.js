@@ -3,8 +3,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
-// Overview: Europe in Web Mercator (zoom-6 tile coordinates of the image corners).
-const EU = { world: 440, relief: 20, x0: 29.866666666666667, x1: 38.4, y0: 13.457790841581378, y1: 25.565983223523137 };
+// Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
+const EU = { world: 440, relief: 15, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
 const DETAIL = { world: 240, relief: 16 };
 let WORLD = EU.world, DEPTH = EU.world;   // extent of the terrain currently shown
@@ -24,7 +24,7 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
-camera.position.set(0, innerWidth < 720 ? 1000 : 430, innerWidth < 720 ? 1150 : 520);
+camera.position.set(0, innerWidth < 720 ? 900 : 300, innerWidth < 720 ? 780 : 400);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -201,13 +201,13 @@ function useView(c) {
 
 // latitude / longitude ↔ position on the overview
 const geoToWorld = (lat, lon) => {
-  const tx = (lon + 180) / 360 * 64;
-  const ty = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * 64;
+  const tx = (lon + 180) / 360 * EU.n;
+  const ty = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * EU.n;
   return [((tx - EU.x0) / (EU.x1 - EU.x0) - 0.5) * eu.W, ((ty - EU.y0) / (EU.y1 - EU.y0) - 0.5) * eu.D];
 };
 const worldToLonLat = (x, z) => {
   const tx = EU.x0 + (x / eu.W + 0.5) * (EU.x1 - EU.x0), ty = EU.y0 + (z / eu.D + 0.5) * (EU.y1 - EU.y0);
-  return [tx / 64 * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / 64))) * 180 / Math.PI];
+  return [tx / EU.n * 360 - 180, Math.atan(Math.sinh(Math.PI * (1 - 2 * ty / EU.n))) * 180 / Math.PI];
 };
 
 /* ───────────── shrines ───────────── */
@@ -224,60 +224,90 @@ function ringLine(x, z, r, hAt) {
   return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat);
 }
 
+// Recordings of one area share a marker on the overview; it opens a short list.
+const markers = [];   // { el, top }
+const detMark = document.createElement("div");
+detMark.className = "shrine active off";
+detMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"></span>`;
+
 function buildShrines() {
   const list = $("#index-list");
   const bases = SHRINES.map((s) => {
     const [x, z] = geoToWorld(s.geo[0], s.geo[1]);
     return new THREE.Vector3(x, eu.heightAt(x, z), z);
   });
-  const tops = bases.map((b) => b.clone().setY(b.y + 16));
-  // recordings that lie close together on the scale of Europe: fan their markers out
-  const done = new Set();
-  bases.forEach((b, i) => {
-    if (done.has(i)) return;
-    const g = [i];
-    bases.forEach((c, j) => { if (j > i && !done.has(j) && b.distanceTo(c) < 14) g.push(j); });
-    if (g.length < 2) return;
-    const c = new THREE.Vector3();
-    g.forEach((k) => c.add(bases[k]));
-    c.divideScalar(g.length);
-    g.forEach((k, n) => { done.add(k); tops[k].set(c.x + (n - (g.length - 1) / 2) * 12, c.y + 15 + (n % 2) * 9, c.z); });
-  });
+  const areas = new Map();
+  SHRINES.forEach((s, i) => { const k = s.area || s.id; areas.set(k, [...(areas.get(k) || []), i]); });
 
   SHRINES.forEach((s, idx) => {
-    const base = bases[idx], top = tops[idx];
-    euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
-    euGroup.add(ringLine(base.x, base.z, 1.6, eu.heightAt));
-
-    const btn = document.createElement("button");
-    btn.className = "shrine";
-    btn.type = "button";
-    btn.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span>`;
-    btn.setAttribute("aria-label", `${s.id} ${s.name}, open shrine`);
-    btn.addEventListener("click", () => openShrine(idx));
-    shrineLayer.appendChild(btn);
-
     const li = document.createElement("li");
     li.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
     li.querySelector("button").addEventListener("click", () => openShrine(idx));
     list.appendChild(li);
-
-    shrineObjs.push({ s, top, base, btn, li });
+    shrineObjs.push({ s, base: bases[idx], li, el: null });
   });
+
+  for (const [area, members] of areas) {
+    const base = new THREE.Vector3();
+    members.forEach((i) => base.add(bases[i]));
+    base.divideScalar(members.length);
+    base.y = eu.heightAt(base.x, base.z);
+    const top = base.clone().setY(base.y + 16);
+    euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
+    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 2.6 : 1.6, eu.heightAt));
+
+    const el = document.createElement("div");
+    el.className = "shrine";
+    if (members.length === 1) {
+      const s = SHRINES[members[0]];
+      el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span></button>`;
+      el.querySelector("button").addEventListener("click", () => openShrine(members[0]));
+    } else {
+      el.classList.add("cluster");
+      el.innerHTML = `<button type="button" class="shrine-btn" aria-expanded="false" aria-label="${area}, ${members.length} shrines"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${area}</b> · ${members.length}</span></button><ul class="cluster-list"></ul>`;
+      const head = el.querySelector(".shrine-btn"), ul = el.querySelector("ul");
+      head.addEventListener("click", () => { const open = el.classList.toggle("open"); head.setAttribute("aria-expanded", open); });
+      members.forEach((i) => {
+        const s = SHRINES[i], item = document.createElement("li");
+        item.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
+        item.querySelector("button").addEventListener("click", () => openShrine(i));
+        ul.appendChild(item);
+      });
+    }
+    shrineLayer.appendChild(el);
+    markers.push({ el, top });
+    members.forEach((i) => { shrineObjs[i].el = el; shrineObjs[i].base = base; });
+  }
+  shrineLayer.appendChild(detMark);
+  addEventListener("pointerdown", (e) => { for (const m of markers) if (!m.el.contains(e.target)) closeCluster(m.el); });
+}
+function closeCluster(el) {
+  if (!el.classList.contains("open")) return;
+  el.classList.remove("open");
+  el.querySelector(".shrine-btn").setAttribute("aria-expanded", "false");
+}
+function markActive(idx) {
+  for (const m of markers) m.el.classList.toggle("active", idx >= 0 && shrineObjs[idx].el === m.el);
+  shrineObjs.forEach((x, i) => x.li.classList.toggle("active", i === idx));
 }
 
 const tmp = new THREE.Vector3();
-function placeLabels() {
+function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
-  shrineObjs.forEach((o, i) => {
-    const p = mode === "detail" ? (i === detIdx ? detTop : null) : o.top;
-    if (!p) { o.btn.classList.add("off"); return; }
-    tmp.copy(p).project(camera);
-    const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
-    o.btn.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px)`;
-    o.btn.classList.toggle("off", !vis);
-    o.btn.classList.toggle("far", mode === "europe" && camera.position.distanceTo(p) > 330);
-  });
+  tmp.copy(p).project(camera);
+  const vis = tmp.z < 1 && Math.abs(tmp.x) < 1.1 && Math.abs(tmp.y) < 1.1;
+  el.style.transform = `translate(${((tmp.x + 1) / 2) * w}px, ${((1 - tmp.y) / 2) * h}px)`;
+  el.classList.toggle("off", !vis);
+  el.classList.toggle("far", far);
+}
+function placeLabels() {
+  if (mode === "detail") {
+    for (const m of markers) m.el.classList.add("off");
+    if (detTop) place(detMark, detTop, false);
+    return;
+  }
+  detMark.classList.add("off");
+  for (const m of markers) place(m.el, m.top, false);
 }
 
 /* ───────────── camera flights ───────────── */
@@ -335,7 +365,7 @@ function showEurope() {
 
 // fade the stage out, run fn while it is dark, fade back in
 function throughDark(fn, delay = 0) {
-  const T = reduceMotion ? 0 : 720;
+  const T = reduceMotion ? 0 : 1150;
   setTimeout(() => {
     fadeEl.classList.add("on");
     setTimeout(() => fn(() => requestAnimationFrame(() => requestAnimationFrame(() => { fadeEl.classList.remove("on"); busy = false; }))), T);
@@ -352,7 +382,9 @@ function openShrine(idx) {
   const o = shrineObjs[idx];
   const s = o.s;
   current = idx; busy = true;
-  shrineObjs.forEach((x, i) => { x.btn.classList.toggle("active", i === idx); x.li.classList.toggle("active", i === idx); });
+  markActive(idx);
+  for (const m of markers) closeCluster(m.el);
+  detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b> ${s.name}`;
 
   // the detail terrain loads while the camera descends over Europe
   const img = new Image();
@@ -361,8 +393,8 @@ function openShrine(idx) {
   let delay = 0;
   if (mode === "europe") {
     euCam = { p: camera.position.clone(), t: controls.target.clone() };
-    flyTo(o.base, 46, 0.85, 2400);
-    delay = 1500;
+    flyTo(o.base, 46, 0.85, 3400);
+    delay = 2100;
   }
   throughDark((done) => ready.then((ok) => {
     if (ok) showDetail(idx, img);
@@ -398,7 +430,7 @@ function closePanel() {
   panel.classList.remove("open");
   document.body.classList.remove("has-panel", "listening");
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
-  shrineObjs.forEach((x) => { x.btn.classList.remove("active"); x.li.classList.remove("active"); });
+  markActive(-1);
   current = -1;
   if (mode === "detail") { busy = true; throughDark((done) => { showEurope(); done(); }); }
 }
@@ -690,7 +722,7 @@ function loop() {
     const [lon, lat] = worldToLonLat(t.x, t.z);
     hud.x.textContent = lon.toFixed(2) + "°";
     hud.y.textContent = lat.toFixed(2) + "°";
-    hud.z.textContent = (Math.pow(heightAt(t.x, t.z) / EU.relief, 1 / 0.72) * 4300).toFixed(0);
+    hud.z.textContent = (Math.pow(heightAt(t.x, t.z) / EU.relief, 1 / EU.gamma) * EU.hmax).toFixed(0);
   } else {
     hud.x.textContent = ((t.x + WORLD / 2) * 10).toFixed(0).padStart(4, "0");
     hud.y.textContent = ((DEPTH / 2 - t.z) * 10).toFixed(0).padStart(4, "0");
@@ -712,10 +744,10 @@ addEventListener("keydown", (e) => {
 const enter = $("#enter");
 const img = new Image();
 img.onload = () => {
-  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.8 : 0.62 });
+  eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86 });
   euGroup.add(eu.points);
   useView(eu);
-  controls.target.set(0, 0, 30);
+  controls.target.set(0, 0, 24);
   buildShrines();
   resize();
   document.body.classList.add("ready");
