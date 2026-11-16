@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Privacy · Sonic Aether</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap">
+<link rel="stylesheet" href="assets/site.css">
+<style>
+/* Privacy: plain reading page. */
+main { display: grid; align-content: start; gap: 30px; max-width: 700px; padding-top: 6vh; }
+.prose { display: grid; gap: 1em; font-family: var(--f-text); font-size: 16px; line-height: 1.65; max-width: 64ch; }
+.prose p, .prose ul { margin: 0; text-wrap: pretty; }
+.prose h2 { margin: 1.4em 0 0; font-family: var(--f-mono, inherit); font-size: 10px; font-weight: 400; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); }
+.prose ul { padding-left: 1.1em; display: grid; gap: .5em; }
+.prose a { color: inherit; text-decoration-color: var(--faint); text-underline-offset: 3px; }
+.prose a:hover { color: var(--ice); }
+.prose .todo { color: var(--ice); }
+.stamp { color: var(--faint); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><img src="assets/scans/eac657f2.jpg" alt=""></div>
+<div class="wrap">
+  <header class="top">
+    <div class="brand"><a href="index.html">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="aronstadler.html">ARON STADLER_</a></li>
+        <li><a href="sound.html">SOUND FOR FILM_</a></li>
+        <li><a href="about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <div style="display:grid;gap:20px">
+      <p class="eyebrow">Privacy</p>
+      <h1 class="display">PRIVACY<span>NOTICE</span></h1>
+    </div>
+    <div class="prose">
+      <p>This site is a personal, non-commercial project. It sets no cookies, runs no analytics and no advertising, and has no forms or accounts. Some content is loaded from other services; when that happens, your browser connects to them directly and they receive your IP address and basic browser information, as with any request on the web.</p>
+
+      <h2>Responsible</h2>
+      <p>Daniel Aron de Jong<br><span class="todo">[postal address to be added]</span><br><a href="mailto:contact@sonicaether.com">contact@sonicaether.com</a></p>
+
+      <h2>Hosting</h2>
+      <p>The site is served by GitHub Pages (GitHub, Inc., USA). GitHub processes the IP address of each visitor in its server logs to deliver the pages and keep the service secure.</p>
+
+      <h2>Services your browser connects to</h2>
+      <ul>
+        <li><strong>Google Fonts</strong> (Google Ireland Ltd.) on every page, to load the typefaces.</li>
+        <li><strong>jsDelivr</strong> on Listening Shrines, to load the open-source library that draws the map.</li>
+        <li><strong>Cloudinary</strong> on Listening Shrines, when a recording is played; the audio files are stored there.</li>
+        <li><strong>Open-Meteo</strong> (open-meteo.com) on Listening Shrines, to show the current air pressure as isobars and the current weather at each shrine. Only a fixed list of map coordinates is sent, nothing about you beyond the connection itself. The answer is kept in your browser's local storage for about an hour so the request is not repeated; it contains weather values only.</li>
+        <li><strong>Spotify</strong> on Aron Stadler, where two album players are embedded. Spotify may set its own cookies and can relate the visit to your account if you are logged in.</li>
+        <li><strong>Vimeo</strong> on Sound For Film, when a film is opened. Vimeo may set its own cookies.</li>
+      </ul>
+      <p>Links to other sites, such as Instagram, YouTube, Bandcamp or Apple Music, are ordinary links. Nothing is sent to them until you follow one.</p>
+
+      <h2>Purpose and legal basis</h2>
+      <p>These connections are needed to show the site as intended: its typefaces, the map, the recordings, the weather layer and the embedded music and films. The legal basis is the legitimate interest in presenting this work (Art. 6(1)(f) GDPR). Some of these providers are based in the USA or process data there.</p>
+
+      <h2>E-mail</h2>
+      <p>If you write to me, I use your message and address only to answer you.</p>
+
+      <h2>Your rights</h2>
+      <p>Under the GDPR you may ask what data about you is processed, have it corrected or erased, restrict or object to its processing, and complain to a data protection authority. I do not store personal data about visitors myself; for data held by the services above, their own privacy notices apply.</p>
+
+      <p class="stamp">Last updated November 2026</p>
+    </div>
+  </main>
+
+  <footer class="foot"><div>Daniel Aron de Jong © 2026</div><div><a href="about.html">ABOUT CONTACT_</a></div></footer>
+</div>
+</body>
+</html>
