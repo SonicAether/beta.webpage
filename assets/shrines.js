@@ -53,6 +53,10 @@ const uniforms = {
   uScale: { value: 1 },
   uRise: { value: 0 },
   uSoft: { value: 0 },
+  uLogMin: { value: 0 },
+  uJit: { value: 0 },
+  uHoleA: { value: 0 },
+  uHole: { value: new THREE.Vector4(0, 0, 1, 1) },
   uHalf: { value: new THREE.Vector2(1, 1) },
   uSize: { value: isSmall ? 1.6 : 1.35 },
   uPx: { value: renderer.getPixelRatio() },
@@ -71,8 +75,10 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit;
     uniform vec2 uHalf;
+    uniform float uHoleA;
+    uniform vec4 uHole;
     uniform vec3 uFocus;
     varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
@@ -106,20 +112,34 @@ const pointMat = new THREE.ShaderMaterial({
       vRing = exp(-pow((d - r) / 1.6, 2.0)) * (1.0 - r / 60.0) * (0.25 + uLevel * 2.2) * uListen;
       vRing += smoothstep(14.0, 0.0, d) * uLevel * 1.4 * uListen;
       p.y += vRing * 0.9;
+      // while coarse, points leave the scan's grid, like the scattered returns of the overview
+      if (uSoft > 0.0) p.xz += (vec2(fract(aRand * 91.7), fract(aRand * 57.3)) - 0.5) * uJit * pow(uSoft, 0.6);
       vec4 mv = modelViewMatrix * vec4(p, 1.0);
       gl_Position = projectionMatrix * mv;
       float depth = -mv.z / uScale;   // a terrain docked small into the overview keeps its own point size and haze
-      // a terrain that is just appearing inside the overview is drawn coarsely and without a border:
-      // fewer points, a little larger, thinning out toward its edges
+      // a terrain that is just appearing inside the overview starts as coarse as the overview around it:
+      // only as many points as the overview has on the same ground, just as large, scattered a little,
+      // and fading out over a wide, ragged margin. On the way in it fills up to the whole scan.
       float soft = 1.0;
+      float depthS = depth;
       if (uSoft > 0.0) {
-        float e = min(uHalf.x - abs(position.x), uHalf.y - abs(position.z)) / (0.34 * min(uHalf.x, uHalf.y));
-        float edge = smoothstep(0.0, 1.0, e + (aRand - 0.5) * 0.6);
-        float few = step(fract(aRand * 13.7), mix(1.0, 0.22, uSoft));
-        soft = mix(1.0, edge * few, uSoft);
+        float sc = pow(uSoft, 0.6);            // stay coarse for most of the way, sharpen at the end
+        float keep = exp(uLogMin * sc);
+        float few = step(fract(aRand * 13.7), keep);
+        float band = 0.85 * sc * min(uHalf.x, uHalf.y) + 1e-4;
+        float e = min(uHalf.x - abs(position.x), uHalf.y - abs(position.z)) / band;
+        float edge = smoothstep(0.0, 1.0, e + (fract(aRand * 5.31) - 0.5) * 1.1 * sc);
+        soft = few * edge;
+        depthS = exp(mix(log(depth), log(-mv.z), sc));   // point size of the overview at this distance
       }
-      gl_PointSize = clamp(uSize * uPx * (230.0 / depth) * (1.0 + 0.9 * uSoft), 0.9, 5.0 * uPx);
+      gl_PointSize = clamp(uSize * uPx * (230.0 / depthS), 0.9, 8.0 * uPx);
       vShade = aShade;
+      // the overview makes room for a detail terrain where it lies, as that terrain fills in
+      if (uHoleA > 0.0) {
+        vec2 q = abs(position.xz - uHole.xy) / uHole.zw;
+        float inside = 1.0 - smoothstep(0.6, 1.25, max(q.x, q.y) + (fract(aRand * 3.7) - 0.5) * 0.3);
+        soft *= 1.0 - uHoleA * inside;
+      }
       vFog = smoothstep(uFar, 220.0, depth) * life * form * soft;
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
@@ -216,7 +236,7 @@ function makeCloud(img, opt) {
   geo.setAttribute("aWater", new THREE.BufferAttribute(wat.slice(0, n), 1));
   const points = new THREE.Points(geo, opt.mat || pointMat);
   points.frustumCulled = false;
-  return { points, W: W_, D: D_, heightAt: hAt, count: n, half };
+  return { points, W: W_, D: D_, heightAt: hAt, count: n, half, nx: NX };
 }
 
 /* ───────────── two views: Europe overview · one detail terrain ───────────── */
@@ -377,7 +397,7 @@ const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const K = 0.016;                       // size of a detail terrain inside the overview (about 4 units wide)
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 8 }, uFar: { value: 6000 }, uForm: { value: 0 },
-  uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
+  uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
@@ -403,6 +423,10 @@ function buildDetail(idx, img) {
   detGroup.children[2].material = detLineMat;
   detUniforms.uFocus.value.copy(detBase);
   detUniforms.uHalf.value.set(det.W / 2, det.D / 2);
+  // how much coarser the overview is on the same ground: as a share of points, and as a scatter distance
+  const cEu = eu.W / eu.nx, cDet = det.W / det.nx;
+  detUniforms.uLogMin.value = Math.log(Math.min(1, Math.max(5e-5, ((cDet * K) / cEu) ** 2 * 1.2)));
+  detUniforms.uJit.value = 0.5 * cEu / K;
 }
 const homeCam = (b) => new THREE.Vector3(b.x - 64, b.y + 78, b.z + 150);   // where the camera rests in a detail view
 function dock(place) {                 // detail terrain into the overview, its recording spot on the shrine
@@ -410,6 +434,7 @@ function dock(place) {                 // detail terrain into the overview, its 
   detGroup.position.copy(place).addScaledVector(detBase, -K);
   detGroup.updateMatrixWorld(true);
   detUniforms.uScale.value = K;
+  uniforms.uHole.value.set(detGroup.position.x, detGroup.position.z, det.W / 2 * K, det.D / 2 * K);
 }
 function undock() {
   detGroup.scale.setScalar(1); detGroup.position.set(0, 0, 0);
@@ -428,10 +453,14 @@ function stepLink() {
   if (!link) return;
   const d = camera.position.distanceTo(link.c);
   // the two overlap generously, so the picture never goes dark in between
-  setEuForm(sstep(4, 38, d));
-  setDetForm(det ? 1 - sstep(34, 150, d) : 0);
+  // around the detail terrain the overview stays until the very end
+  setEuForm(sstep(link.near * 1.05, link.near * 2.6, d));
+  setDetForm(det ? 1 - sstep(60, 160, d) : 0);
   // coarse and borderless while small, sharpening into the full scan on the last stretch
-  detUniforms.uSoft.value = sstep(link.near * 1.15, 42, d);
+  const n0 = Math.max(link.near, 0.5) * 1.02;
+  const sf = Math.min(1, Math.max(0, Math.log(d / n0) / Math.log(60 / n0)));
+  detUniforms.uSoft.value = sf;
+  uniforms.uHoleA.value = det ? 1 - Math.pow(sf, 0.6) : 0;
 }
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
@@ -456,7 +485,7 @@ function arrive(idx) {                  // exchange the coordinate systems: now 
   controls.minDistance = 7; controls.maxDistance = 420;
   controls.target.copy(detBase);
   camera.position.copy(homeCam(detBase));
-  setDetForm(1); setEuForm(0); detUniforms.uSoft.value = 0;
+  setDetForm(1); setEuForm(0); detUniforms.uSoft.value = 0; uniforms.uHoleA.value = 0;
   document.body.classList.add("detail");
   backBtn.hidden = false;
 }
@@ -473,7 +502,7 @@ async function descend(idx, img, ready) {
     res(ok);
   })));
   const rest = homeCam(new THREE.Vector3()).multiplyScalar(K);
-  await zoomTo(o.base.clone().add(rest), o.base, 11000);
+  await zoomTo(o.base.clone().add(rest), o.base, 13000);
   if (await built) arrive(idx);
   else { link = null; setEuForm(1); controls.minDistance = 10; camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
 }
@@ -485,15 +514,16 @@ async function ascend() {
   const toEu = (v) => v.clone().multiplyScalar(K).add(detGroup.position);
   camera.position.copy(toEu(camera.position)); controls.target.copy(toEu(controls.target));
   euGroup.visible = true;
-  mode = "europe"; detIdx = -1; link = { c: o.base.clone(), near: 0 };
+  // start exactly as sharp as the detail view is now, wherever the visitor has moved to
+  mode = "europe"; detIdx = -1; link = { c: o.base.clone(), near: camera.position.distanceTo(o.base) / 1.1 };
   useView(eu);
   controls.minDistance = 0.01; controls.maxDistance = 3500;
   document.body.classList.remove("detail");
   backBtn.hidden = true;
   stepLink();
   const home = euCam || { p: new THREE.Vector3(0, 632, 843), t: new THREE.Vector3(0, 0, 51) };
-  await zoomTo(home.p, home.t, 8000, true);
-  link = null;
+  await zoomTo(home.p, home.t, 10000, true);
+  link = null; uniforms.uHoleA.value = 0;
   clearDetail(); detGroup.visible = false; undock();
   controls.minDistance = 10;
   setEuForm(1);
@@ -990,7 +1020,7 @@ function loop() {
   }
 
   if (flight && flight.zoom) {
-    const f = flight, k = Math.min(1, (performance.now() - f.t0) / f.dur), e = ease(k);
+    const f = flight, k = Math.min(1, (performance.now() - f.t0) / f.dur), e = 0.5 - 0.5 * Math.cos(Math.PI * k);
     // the target is found early on the way in, and left late on the way out
     const et = f.late ? ease(Math.max(0, (k - 0.45) / 0.55)) : ease(Math.min(1, k / 0.4));
     controls.target.lerpVectors(f.c0, f.c1, et);
