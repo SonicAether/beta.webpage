@@ -47,6 +47,7 @@ let heightAt = () => 0;
 const uniforms = {
   uTime: { value: 0 },
   uSpan: { value: EU.world },
+  uDrift: { value: 5 },
   uSize: { value: isSmall ? 1.6 : 1.35 },
   uPx: { value: renderer.getPixelRatio() },
   uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
@@ -64,7 +65,7 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift;
     uniform vec3 uFocus;
     varying float vShade, vFog, vSweep, vRing, vWater;
     void main(){
@@ -72,6 +73,15 @@ const pointMat = new THREE.ShaderMaterial({
       vWater = aWater;
       // water: a slow swell, no lidar returns, so only a sparse shimmer
       // (aWater: 1 = sea, 0.75 = lake, 0.6 = river; inland water barely moves)
+      float life = 1.0;
+      if (aWater > 0.5) {
+        // water drifts: each particle travels a short way along a slowly bending current,
+        // fading in at the start of its path and out at the end
+        float ph = fract(aRand * 7.31 + uTime * (0.028 + 0.03 * aShade));
+        float ang = 2.4 + 0.7 * sin(p.x * 0.031 + p.z * 0.023) + 0.4 * sin(uTime * 0.05 + p.z * 0.05);
+        p.xz += vec2(cos(ang), sin(ang)) * (ph - 0.5) * uDrift * (aWater > 0.7 ? 1.0 : 0.5);
+        life = smoothstep(0.0, 0.18, ph) * (1.0 - smoothstep(0.82, 1.0, ph));
+      }
       if (aWater > 0.5) {
         float swell = aWater > 0.9 ? 1.0 : (aWater > 0.7 ? 0.3 : 0.12);
         p.y += (sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22) * swell;
@@ -90,7 +100,7 @@ const pointMat = new THREE.ShaderMaterial({
       float depth = -mv.z;
       gl_PointSize = clamp(uSize * uPx * (230.0 / depth), 0.9, 5.0 * uPx);
       vShade = aShade;
-      vFog = smoothstep(1700.0, 220.0, depth);
+      vFog = smoothstep(1700.0, 220.0, depth) * life;
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
     }`,
@@ -116,7 +126,7 @@ const pointMat = new THREE.ShaderMaterial({
     }`,
 });
 
-/* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, disc } */
+/* Builds a point cloud from a terrain PNG. opt: { world, relief, keepLand, hard } */
 function makeCloud(img, opt) {
   const NX = img.width, NZ = img.height;
   const W_ = opt.world, D_ = opt.world * NZ / NX;
@@ -158,7 +168,7 @@ function makeCloud(img, opt) {
     for (let i = 0; i < NX; i += stride) {
       const k = j * NX + i, isW = W[k];
       // the scan thins out toward its limits instead of ending in a wall
-      const edge = opt.disc ? (1 - Math.hypot(i / NX - 0.5, j / NZ - 0.5) * 2) / 0.2 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;
+      const edge = opt.hard ? 1 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;   // detail maps end in a clean cut
       if (edge <= 0) continue;
       if (rand() > KEEP[isW] * (edge >= 1 ? 1 : edge * edge * (3 - 2 * edge))) continue;
       const x = (i / (NX - 1) - 0.5) * W_ + (rand() - 0.5) * cell * stride;
@@ -196,6 +206,7 @@ document.body.appendChild(backBtn);
 function useView(c) {
   WORLD = c.W; DEPTH = c.D; heightAt = c.heightAt;
   uniforms.uSpan.value = c.W;
+  uniforms.uDrift.value = c === eu ? 5 : 8;
   hud.pts.textContent = c.count.toLocaleString("en-US");
 }
 
@@ -337,7 +348,7 @@ function showDetail(idx, img) {
   const s = SHRINES[idx];
   flight = null;
   clearDetail();
-  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, disc: true });
+  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, hard: true });
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
