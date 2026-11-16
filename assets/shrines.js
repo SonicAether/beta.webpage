@@ -3,10 +3,11 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
-const WORLD = 300;          // terrain width (x) in world units (1 unit ≈ 10 m on the imaginary map)
-let DEPTH = 392;            // terrain depth (z); set from the image aspect on load
-const RELIEF = 46;          // height of the highest fjäll above sea level
-const SEA_EXT = 170;        // open sea beyond the southern coast
+const WORLD = 800;          // terrain width (x) in world units (1 unit ≈ 10 m on the imaginary map)
+let DEPTH = 206;            // terrain depth (z); set from the image aspect on load
+const RELIEF = 54;          // height of the highest fjäll above sea level
+const SEA_EXT = 230;
+const STRETCH = 1.25;       // the strip of scans is widened a little from north to south        // open sea beyond the southern coast
 const BG = new THREE.Color(0x06080a);
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const isSmall = matchMedia("(max-width: 720px)").matches;
@@ -23,14 +24,14 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
-camera.position.set(-50, 190, 330);
+camera.position.set(430, 170, 330);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.screenSpacePanning = false;
 controls.minDistance = 22;
-controls.maxDistance = 560;
+controls.maxDistance = 1100;
 controls.maxPolarAngle = Math.PI * 0.46;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
@@ -69,11 +70,13 @@ const pointMat = new THREE.ShaderMaterial({
       vec3 p = position;
       vWater = aWater;
       // water: a slow swell, no lidar returns, so only a sparse shimmer
+      // (aWater: 1 = sea, 0.75 = lake, 0.6 = river; inland water barely moves)
       if (aWater > 0.5) {
-        p.y += sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22;
+        float swell = aWater > 0.9 ? 1.0 : (aWater > 0.7 ? 0.3 : 0.12);
+        p.y += (sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22) * swell;
       }
       // LIDAR sweep: a slow band travelling across the terrain
-      float sweepX = mod(uTime * 12.0, ${WORLD.toFixed(1)} * 2.0) - ${WORLD.toFixed(1)};
+      float sweepX = mod(uTime * 22.0, ${WORLD.toFixed(1)} * 2.0) - ${WORLD.toFixed(1)};
       vSweep = exp(-pow((p.x + p.z * 0.25 - sweepX) / 2.6, 2.0));
       // listening rings around the active shrine, driven by audio level
       float d = distance(p.xz, uFocus.xz);
@@ -86,7 +89,7 @@ const pointMat = new THREE.ShaderMaterial({
       float depth = -mv.z;
       gl_PointSize = clamp(uSize * uPx * (230.0 / depth), 0.9, 5.0 * uPx);
       vShade = aShade;
-      vFog = smoothstep(950.0, 140.0, depth);
+      vFog = smoothstep(1700.0, 220.0, depth);
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
     }`,
@@ -114,23 +117,25 @@ const pointMat = new THREE.ShaderMaterial({
 
 function buildTerrain(img) {
   const NX = img.width, NZ = img.height;
-  DEPTH = WORLD * NZ / NX;
+  DEPTH = WORLD * NZ / NX * STRETCH;
   const cv = document.createElement("canvas");
   cv.width = NX; cv.height = NZ;
   const cx = cv.getContext("2d", { willReadFrequently: true });
   cx.drawImage(img, 0, 0);
   const px = cx.getImageData(0, 0, NX, NZ).data;
 
-  // R = shade (0 marks water), G/B = 16-bit height above sea level
+  // R = shade; 0 marks sea, 1 lake, 2 river. G + high nibble of B = 12-bit height above sea level.
+  // (Only the top bits are used so that browser colour handling cannot disturb the heights.)
   const H = new Float32Array(NX * NZ);
-  const W = new Uint8Array(NX * NZ);
+  const W = new Uint8Array(NX * NZ);   // 0 land, 1 sea, 2 lake, 3 river
   for (let i = 0; i < NX * NZ; i++) {
-    H[i] = (px[i * 4 + 1] * 256 + px[i * 4 + 2]) / 65535;
-    W[i] = px[i * 4] === 0 ? 1 : 0;
+    const r = px[i * 4];
+    H[i] = (px[i * 4 + 1] * 16 + (px[i * 4 + 2] >> 4)) / 4095;
+    W[i] = r < 3 ? r + 1 : 0;
   }
 
   heightAt = (x, z) => {
-    if (z > DEPTH / 2) return 0; // open sea
+    if (x > WORLD / 2) return 0; // open sea
     const u = THREE.MathUtils.clamp((x / WORLD + 0.5) * (NX - 1), 0, NX - 1);
     const v = THREE.MathUtils.clamp((z / DEPTH + 0.5) * (NZ - 1), 0, NZ - 1);
     const i0 = Math.floor(u), j0 = Math.floor(v), i1 = Math.min(i0 + 1, NX - 1), j1 = Math.min(j0 + 1, NZ - 1);
@@ -141,8 +146,9 @@ function buildTerrain(img) {
   };
 
   const stride = isSmall ? 2 : 1;
-  const keepLand = isSmall ? 0.78 : 0.72;
+  const keepLand = isSmall ? 0.8 : 0.62;
   const keepWater = 0.11;
+  const KEEP = [keepLand, keepWater, 0.3, 0.5], WAT = [0, 1, 0.75, 0.6];
   const pos = [], shade = [], rnd = [], wat = [];
   const cell = WORLD / NX;
   let seed = 7;
@@ -150,22 +156,25 @@ function buildTerrain(img) {
   for (let j = 0; j < NZ; j += stride) {
     for (let i = 0; i < NX; i += stride) {
       const k = j * NX + i, isW = W[k];
-      if (rand() > (isW ? keepWater : keepLand)) continue;
+      // the scan thins out toward its western, northern and southern limits instead of ending in a wall
+      const edge = Math.min(i, j, NZ - 1 - j) / 40;
+      if (rand() > KEEP[isW] * (edge >= 1 ? 1 : edge * edge * (3 - 2 * edge))) continue;
       const x = (i / (NX - 1) - 0.5) * WORLD + (rand() - 0.5) * cell * stride;
       const z = (j / (NZ - 1) - 0.5) * DEPTH + (rand() - 0.5) * cell * stride;
       pos.push(x, H[k] * RELIEF, z);
       shade.push(isW ? rand() : px[k * 4] / 255);
-      rnd.push(rand()); wat.push(isW);
+      rnd.push(rand()); wat.push(WAT[isW]);
     }
   }
-  // open sea to the south: same jittered grid and density as the scanned water,
+  // open sea to the east: same jittered grid and density as the scanned water,
   // thinning only far out toward the horizon so there is no seam at the coast
   const step = cell * stride;
-  for (let z = DEPTH / 2 + step * 0.5; z < DEPTH / 2 + SEA_EXT; z += step) {
-    const far = (z - DEPTH / 2) / SEA_EXT;
+  for (let x = WORLD / 2 + step * 0.5; x < WORLD / 2 + SEA_EXT; x += step) {
+    const far = (x - WORLD / 2) / SEA_EXT;
     const keep = keepWater * (1 - Math.pow(Math.max(0, far - 0.35) / 0.65, 1.5) * 0.85);
-    for (let x = -WORLD / 2; x < WORLD / 2; x += step) {
-      if (rand() > keep) continue;
+    for (let z = -DEPTH / 2; z < DEPTH / 2; z += step) {
+      const ez = Math.min(z / DEPTH + 0.5, 0.5 - z / DEPTH) * NZ / 40;
+      if (rand() > keep * (ez >= 1 ? 1 : ez * ez * (3 - 2 * ez))) continue;
       pos.push(x + (rand() - 0.5) * step, 0, z + (rand() - 0.5) * step);
       shade.push(rand()); rnd.push(rand()); wat.push(1);
     }
@@ -177,7 +186,7 @@ function buildTerrain(img) {
   geo.setAttribute("aWater", new THREE.Float32BufferAttribute(wat, 1));
   scene.add(new THREE.Points(geo, pointMat));
   hud.pts.textContent = (pos.length / 3).toLocaleString("en-US");
-  controls.target.set(0, 8, DEPTH * 0.05);
+  controls.target.set(90, 0, -10);
 }
 
 /* ───────────── shrines ───────────── */
@@ -237,7 +246,7 @@ function placeLabels() {
 
 /* ───────────── camera flights ───────────── */
 let flight = null;
-function flyTo(target, distance = 74, elev = 0.6) {
+function flyTo(target, distance = 86, elev = 0.6) {
   const dir = new THREE.Vector3().subVectors(camera.position, controls.target).setY(0).normalize();
   if (!isFinite(dir.x)) dir.set(0, 0, 1);
   const endPos = target.clone().add(dir.multiplyScalar(distance * Math.cos(elev))).setY(target.y + distance * Math.sin(elev));
