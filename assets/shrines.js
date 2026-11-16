@@ -4,7 +4,7 @@ import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
-const EU = { world: 440, relief: 15, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
+const EU = { world: 640, relief: 22, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
 const DETAIL = { world: 240, relief: 16 };
 let WORLD = EU.world, DEPTH = EU.world;   // extent of the terrain currently shown
@@ -24,14 +24,14 @@ stage.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.5, 2000);
-camera.position.set(0, innerWidth < 720 ? 900 : 300, innerWidth < 720 ? 780 : 400);
+camera.position.set(0, innerWidth < 720 ? 1300 : 435, innerWidth < 720 ? 1130 : 580);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.06;
 controls.screenSpacePanning = false;
-controls.minDistance = 22;
-controls.maxDistance = 1700;
+controls.minDistance = 10;
+controls.maxDistance = 2400;
 controls.maxPolarAngle = Math.PI * 0.46;
 controls.rotateSpeed = 0.45;
 controls.zoomSpeed = 0.7;
@@ -264,9 +264,9 @@ function buildShrines() {
     members.forEach((i) => base.add(bases[i]));
     base.divideScalar(members.length);
     base.y = eu.heightAt(base.x, base.z);
-    const top = base.clone().setY(base.y + 16);
+    const top = base.clone().setY(base.y + 22);
     euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
-    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 2.6 : 1.6, eu.heightAt));
+    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 3.6 : 2.2, eu.heightAt));
 
     const el = document.createElement("div");
     el.className = "shrine";
@@ -374,7 +374,7 @@ function showEurope() {
   mode = "europe"; detIdx = -1;
   useView(eu);
   uniforms.uFocus.value.set(9999, 0, 9999);
-  controls.minDistance = 22; controls.maxDistance = 1700;
+  controls.minDistance = 10; controls.maxDistance = 2400;
   if (euCam) { camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
   document.body.classList.remove("detail");
   backBtn.hidden = true;
@@ -410,7 +410,7 @@ function openShrine(idx) {
   let delay = 0;
   if (mode === "europe") {
     euCam = { p: camera.position.clone(), t: controls.target.clone() };
-    flyTo(o.base, 46, 0.85, 3400);
+    flyTo(o.base, 40, 0.85, 3400);
     delay = 2100;
   }
   throughDark((done) => ready.then((ok) => {
@@ -760,7 +760,7 @@ function buildIsobars(d) {
     return new THREE.Vector3(x, 0, z);
   };
   const inside = (v) => Math.abs(v.x) < half && Math.abs(v.z) < halfD;
-  const lift = (v) => { v.y = Math.max(eu.heightAt(v.x, v.z) + 2.2, 4.5); return v; };
+  const lift = (v) => { v.y = Math.max(eu.heightAt(v.x, v.z) + 3.2, 6.5); return v; };
 
   let lo = Infinity, hi = -Infinity;
   for (const v of F) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
@@ -799,7 +799,7 @@ function buildIsobars(d) {
     }
     if (!(mx || mn) || hi - lo < 6) continue;
     const p = world(i, j);
-    if (!inside(p) || centres.some((c) => c.distanceTo(p) < 45)) continue;
+    if (!inside(p) || centres.some((c) => c.distanceTo(p) < 65)) continue;
     centres.push(p);
     labelAt.set((mx ? "H" : "L") + i + ":" + j, { p: lift(p), text: (mx ? "H " : "L ") + Math.round(v), centre: true });
   }
@@ -917,7 +917,7 @@ img.onload = () => {
   eu = makeCloud(img, { world: EU.world, relief: EU.relief, keepLand: isSmall ? 0.9 : 0.86 });
   euGroup.add(eu.points);
   useView(eu);
-  controls.target.set(0, 0, 24);
+  controls.target.set(0, 0, 35);
   buildShrines();
   initWeather();
   resize();
