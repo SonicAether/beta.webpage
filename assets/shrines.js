@@ -273,7 +273,7 @@ fadeEl.id = "fade";
 stage.after(fadeEl);
 const backBtn = document.createElement("button");
 backBtn.id = "back"; backBtn.type = "button"; backBtn.className = "u"; backBtn.hidden = true;
-backBtn.textContent = "← Europe";
+backBtn.textContent = "← Back to the map";
 document.body.appendChild(backBtn);
 
 function useView(c) {
@@ -298,6 +298,7 @@ const worldToLonLat = (x, z) => {
    points under them step aside (coverage texture). Off on phones and on machines that are slow. */
 // ?debug in the address exposes the camera for testing
 const DEBUG = /[?&]debug\b/.test(location.search) ? (window.__shrines = { lod: true, get camera() { return camera; }, get controls() { return controls; }, get LOD() { return LOD; } }) : null;
+const CH = { size: 0.5, dim: 0.92 };   // point size and brightness of fine chunks relative to the coarse overview
 const LOD = { index: null, chunks: new Map(), cov: null, off: isSmall, slow: { n: 0, sum: 0 } };
 fetch(TERRAIN + "eu/index.json").then((r) => r.json()).then((j) => {
   LOD.index = j; LOD.have = new Set(j.chunks.map((c) => c[0] + "_" + c[1]));
@@ -322,7 +323,7 @@ function loadChunk(key) {
     if (LOD.chunks.get(key) !== c) return;
     const [ci, cj] = key.split("_").map(Number), b = chunkBox(ci, cj);
     const mat = pointMat.clone();
-    mat.uniforms = { ...uniforms, uForm: { value: 0 }, uSize: { value: uniforms.uSize.value * 0.62 }, uCovOn: { value: 0 } };
+    mat.uniforms = { ...uniforms, uForm: { value: 0 }, uSize: { value: uniforms.uSize.value * CH.size }, uDim: { value: uniforms.uDim.value * CH.dim }, uCovOn: { value: 0 } };
     const cl = makeCloud(img, { world: b.w, depth: b.d, relief: EU.relief, keepLand: 0.86, keepSea: 0.075 / 9, hard: true, mat });
     cl.points.position.set(b.x, 0, b.z);
     c.points = cl.points; c.mat = mat;
@@ -333,7 +334,8 @@ function loadChunk(key) {
 function stepLOD(dt) {
   if (!LOD.index || !eu) return;
   const force = DEBUG && DEBUG.lod;
-  const active = (force || (!LOD.off && eu.thinned !== true)) && mode === "europe" && euGroup.visible;
+  if (DEBUG && DEBUG.nolod) LOD.off = true;
+  const active = (force && !LOD.off || (!LOD.off && eu.thinned !== true)) && mode === "europe" && euGroup.visible;
   // which chunks: the one under the point the camera looks at and its three nearest neighbours
   const want = new Set();
   if (active && camera.position.distanceTo(controls.target) < 170) {
@@ -347,7 +349,7 @@ function stepLOD(dt) {
   for (const [k, c] of LOD.chunks) {
     c.want = want.has(k);
     const goal = c.want && c.points ? 1 : 0, f = c.fade;
-    c.fade = goal > f ? Math.min(1, f + dt / 1.2) : Math.max(0, f - dt / 0.9);
+    c.fade = goal > f ? Math.min(1, f + dt / 2.8) : Math.max(0, f - dt / 1.2);
     if (c.mat) c.mat.uniforms.uForm.value = c.fade * uniforms.uForm.value;
     if (c.fade !== f) dirty = true;
     if (!c.want && c.fade === 0) {
@@ -454,8 +456,8 @@ function markActive(idx) {
 const tmp = new THREE.Vector3();
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
-const VMIN = 0.12;
-const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(14), Math.log(300), Math.log(Math.max(d, 1)));
+const VMIN = 0.06;
+const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(30), Math.log(520), Math.log(Math.max(d, 1)));
 const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
@@ -470,11 +472,14 @@ function place(el, p, far) {
 function placeLabels() {
   if (mode === "detail") {
     for (const m of markers) m.el.classList.add("off");
+    scanLink.classList.add("off");
     for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
     return;
   }
   detMark.classList.add("off");
+  if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].base, false); if (camera.position.distanceTo(controls.target) > 90) scanLink.classList.add("off"); }
+  else scanLink.classList.add("off");
   for (const m of markers) place(m.el, m.top, false);
   for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
 }
@@ -493,26 +498,82 @@ function flyTo(target, distance = 86, elev = 0.6, dur = 2200) {
 }
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/* ───────────── descending into a shrine, and back ─────────────
-   One continuous zoom: the detail terrain is docked into the overview at the place of the
-   recording, at its true small size. The camera keeps descending; the overview thins out, the
-   ground of the recording takes its place. When the flight ends the two coordinate systems are
-   exchanged, which changes nothing on screen. */
-const K = 0.016;                       // size of a detail terrain inside the overview (about 4 units wide)
+/* ───────────── arriving at a shrine, entering its scan, and back ─────────────
+   Two deliberate steps. Opening a shrine flies down to a stop above its place on the overview,
+   as close as the overview's finest data carries; the recording can be heard from there. A link
+   then leads into the LIDAR scan of the ground itself: the overview dissolves into points and the
+   scan forms. No attempt is made to blend the two, their scales are too far apart. */
+const STOP = new THREE.Vector3(-6, 13, 14).normalize().multiplyScalar(34);   // camera at a stop, relative to the shrine
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 8 }, uFar: { value: 6000 }, uForm: { value: 0 },
-  uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uLogMin: { value: 0 }, uJit: { value: 0 }, uHoleA: { value: 0 }, uHoleR: { value: 0 }, uCovOn: { value: 0 }, uHole: { value: new THREE.Vector4(0, 0, 1, 1) }, uHalf: { value: new THREE.Vector2(1, 1) }, uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
+  uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 1 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
+  uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
 const detLineMat = lineMat.clone();
-let detBase = null;
-let link = null;                       // while a zoom is under way: { c: the shrine's place on the overview }
+const detFaintMat = lineMat.clone();
+let detBase = null, detSpin = [];
+let stopIdx = -1;                      // the shrine the overview has stopped above, or -1
 
 function clearDetail() {
   for (const c of [...detGroup.children]) { detGroup.remove(c); c.geometry.dispose(); }
-  det = null; detTop = null; detBase = null;
+  det = null; detTop = null; detBase = null; detSpin = [];
 }
+
+// The shrine inside its scan: rings laid on the ground, a compass of ticks, a mast,
+// and a slowly turning double figure at its head.
+function shrineGlyph(b, hAt) {
+  const out = [];
+  const seg = (pts, mat) => out.push(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mat));
+  const onGround = (x, z, lift = 0.35) => new THREE.Vector3(x, hAt(x, z) + lift, z);
+  const ring = (r, n, mat, dash = 1) => {
+    const pts = [];
+    for (let a = 0; a < n; a++) {
+      if (dash > 1 && a % dash) continue;
+      const t0 = (a / n) * Math.PI * 2, t1 = ((a + 1) / n) * Math.PI * 2;
+      pts.push(onGround(b.x + Math.cos(t0) * r, b.z + Math.sin(t0) * r), onGround(b.x + Math.cos(t1) * r, b.z + Math.sin(t1) * r));
+    }
+    seg(pts, mat);
+  };
+  ring(2.4, 48, detLineMat);
+  ring(5.2, 72, detLineMat);
+  ring(9.5, 96, detFaintMat, 2);
+  ring(15, 120, detFaintMat, 4);
+  const ticks = [];
+  for (let a = 0; a < 16; a++) {
+    const t = (a / 16) * Math.PI * 2, r0 = a % 4 === 0 ? 5.2 : 10.4, r1 = a % 4 === 0 ? 12.6 : 11.6;
+    ticks.push(onGround(b.x + Math.cos(t) * r0, b.z + Math.sin(t) * r0), onGround(b.x + Math.cos(t) * r1, b.z + Math.sin(t) * r1));
+  }
+  seg(ticks, detFaintMat);
+  // a square set on its corner, between the rings
+  const sq = [];
+  for (let a = 0; a < 4; a++) {
+    const t0 = (a / 4) * Math.PI * 2, t1 = ((a + 1) / 4) * Math.PI * 2;
+    for (let k = 0; k < 10; k++) {
+      const p = (f) => onGround(b.x + (Math.cos(t0) * (1 - f) + Math.cos(t1) * f) * 7.4, b.z + (Math.sin(t0) * (1 - f) + Math.sin(t1) * f) * 7.4);
+      sq.push(p(k / 10), p((k + 1) / 10));
+    }
+  }
+  seg(sq, detFaintMat);
+  // mast with three collars
+  const mast = [new THREE.Vector3(b.x, b.y, b.z), new THREE.Vector3(b.x, b.y + 13.2, b.z)];
+  for (const [h, r] of [[4, 0.5], [7, 0.8], [10, 1.15]]) for (let a = 0; a < 24; a++) {
+    const t0 = (a / 24) * Math.PI * 2, t1 = ((a + 1) / 24) * Math.PI * 2;
+    mast.push(new THREE.Vector3(b.x + Math.cos(t0) * r, b.y + h, b.z + Math.sin(t0) * r), new THREE.Vector3(b.x + Math.cos(t1) * r, b.y + h, b.z + Math.sin(t1) * r));
+  }
+  seg(mast, detLineMat);
+  // head: an octahedron inside a larger, counter-turning one
+  for (const [r, mat, dir] of [[1.5, detLineMat, 1], [2.5, detFaintMat, -0.6]]) {
+    const g = new THREE.EdgesGeometry(new THREE.OctahedronGeometry(r));
+    const m = new THREE.LineSegments(g, mat);
+    m.position.set(b.x, b.y + 15.8, b.z);
+    m.userData.spin = dir;
+    detSpin.push(m); out.push(m);
+  }
+  return out;
+}
+
 function buildDetail(idx, img) {
   const s = SHRINES[idx];
   clearDetail();
@@ -522,51 +583,18 @@ function buildDetail(idx, img) {
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
   const y = det.heightAt(sx, sz);
   detBase = new THREE.Vector3(sx, y, sz);
-  detTop = new THREE.Vector3(sx, y + 16, sz);
-  detGroup.add(det.points, new THREE.Line(new THREE.BufferGeometry().setFromPoints([detBase, detTop]), detLineMat), ringLine(sx, sz, 3, det.heightAt));
-  detGroup.children[2].material = detLineMat;
+  detTop = new THREE.Vector3(sx, y + 20.5, sz);
+  detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
   detUniforms.uFocus.value.copy(detBase);
-  detUniforms.uHalf.value.set(det.W / 2, det.D / 2);
-  // how much coarser the overview is on the same ground: as a share of points, and as a scatter distance
-  const cEu = eu.W / eu.nx, cDet = det.W / det.nx;
-  detUniforms.uLogMin.value = Math.log(Math.min(1, Math.max(5e-5, ((cDet * K) / cEu) ** 2 * 1.2)));
-  detUniforms.uJit.value = 0.5 * cEu / K;
 }
-const homeCam = (b) => new THREE.Vector3(b.x - 64, b.y + 78, b.z + 150);   // where the camera rests in a detail view
-function dock(place) {                 // detail terrain into the overview, its recording spot on the shrine
-  detGroup.scale.setScalar(K);
-  detGroup.position.copy(place).addScaledVector(detBase, -K);
-  detGroup.updateMatrixWorld(true);
-  detUniforms.uScale.value = K;
-  uniforms.uHole.value.set(detGroup.position.x, detGroup.position.z, det.W / 2 * K, det.D / 2 * K);
-}
-function undock() {
-  detGroup.scale.setScalar(1); detGroup.position.set(0, 0, 0);
-  detGroup.updateMatrixWorld(true);
-  detUniforms.uScale.value = 1;
-}
+const homeCam = (b) => new THREE.Vector3(b.x - 64, b.y + 78, b.z + 150);   // where the camera rests in a scan
 function setEuForm(v) {
   uniforms.uForm.value = v;
   lineMat.opacity = 0.55 * v; isoMat.opacity = 0.34 * v; isoMatBold.opacity = 0.62 * v;
   shrineLayer.style.opacity = mode === "europe" ? (v < 0.6 ? 0 : (v - 0.6) / 0.4) : 1;
 }
-function setDetForm(v) { detUniforms.uForm.value = v; detLineMat.opacity = 0.55 * v; }
+function setDetForm(v) { detUniforms.uForm.value = v; detLineMat.opacity = 0.6 * v; detFaintMat.opacity = 0.26 * v; }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-// during a zoom both terrains follow the camera's distance to the shrine, not the clock
-function stepLink() {
-  if (!link) return;
-  const d = camera.position.distanceTo(link.c);
-  // the two overlap generously, so the picture never goes dark in between
-  // around the detail terrain the overview stays until the very end
-  setEuForm(sstep(link.near * 1.05, link.near * 2.6, d));
-  setDetForm(det ? 1 - sstep(110, 260, d) : 0);
-  // coarse and borderless while small, sharpening into the full scan on the last stretch
-  const n0 = Math.max(link.near, 0.5) * 1.02;
-  const sf = Math.min(1, Math.max(0, Math.log(d / n0) / Math.log(120 / n0)));
-  detUniforms.uSoft.value = sf;
-  uniforms.uHoleA.value = det ? 1 - Math.pow(sf, 1.25) : 0;
-  uniforms.uHoleR.value = Math.pow(sf, 0.5);
-}
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
 function zoomTo(p1, c1, dur, late) {
@@ -582,65 +610,98 @@ const tween = (dur, fn) => new Promise((res) => {
   step();
 });
 
-function arrive(idx) {                  // exchange the coordinate systems: now the detail terrain is the world
-  undock();
-  euGroup.visible = false; detGroup.visible = true;
-  mode = "detail"; detIdx = idx; link = null;
-  useView(det);
-  controls.minDistance = 7; controls.maxDistance = 420;
-  controls.target.copy(detBase);
-  camera.position.copy(homeCam(detBase));
-  setDetForm(1); setEuForm(0); detUniforms.uSoft.value = 0; uniforms.uHoleA.value = 0;
-  document.body.classList.add("detail");
-  backBtn.hidden = false;
+// scans are fetched once and kept
+const scans = new Map();
+function scanOf(idx) {
+  if (!scans.has(idx)) {
+    const s = SHRINES[idx], img = new Image();
+    const ready = new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); });
+    img.src = TERRAIN + (s.terrain || s.id.toLowerCase() + ".png");
+    scans.set(idx, { img, ready });
+  }
+  return scans.get(idx);
 }
 
-async function descend(idx, img, ready) {
-  const o = shrineObjs[idx];
-  euCam = { p: camera.position.clone(), t: controls.target.clone() };
-  const g = groundOf(o);
-  link = { c: g.clone(), near: homeCam(new THREE.Vector3()).length() * K };
-  controls.minDistance = 0.01;
-  setDetForm(0);
-  // the flight starts at once; the ground of the recording is built as soon as its scan has arrived
-  const built = ready.then((ok) => new Promise((res) => requestAnimationFrame(() => {
-    if (ok) { buildDetail(idx, img); dock(g); detGroup.visible = true; }
-    res(ok);
-  })));
-  const rest = homeCam(new THREE.Vector3()).multiplyScalar(K);
-  await zoomTo(g.clone().add(rest), g, 13000);
-  if (await built) arrive(idx);
-  else { link = null; setEuForm(1); controls.minDistance = 10; camera.position.copy(euCam.p); controls.target.copy(euCam.t); }
+// the two links into the scan: one in the panel, one at the shrine's place on the map
+const scanBtn = document.createElement("button");
+scanBtn.id = "scan-btn"; scanBtn.type = "button"; scanBtn.className = "u"; scanBtn.hidden = true;
+const scanLink = document.createElement("button");
+scanLink.type = "button"; scanLink.className = "scan-link u off"; scanLink.textContent = "Detailed LIDAR view ↓";
+function showLinks() {
+  const atStop = mode === "europe" && stopIdx >= 0 && !busy;
+  scanBtn.hidden = !(atStop || mode === "detail");
+  scanBtn.textContent = mode === "detail" ? "← Back to the map" : "Detailed LIDAR view ↓";
+  scanLink.hidden = !atStop;
+  backBtn.hidden = mode !== "detail";
 }
 
-async function ascend() {
-  const o = shrineObjs[detIdx];
-  // back into the overview's coordinates, the camera exactly where it is
-  const g = groundOf(o);
-  dock(g);
-  const toEu = (v) => v.clone().multiplyScalar(K).add(detGroup.position);
-  camera.position.copy(toEu(camera.position)); controls.target.copy(toEu(controls.target));
-  euGroup.visible = true;
-  // start exactly as sharp as the detail view is now, wherever the visitor has moved to
-  mode = "europe"; detIdx = -1; link = { c: g.clone(), near: camera.position.distanceTo(g) / 1.1 };
-  useView(eu);
-  controls.minDistance = 0.01; controls.maxDistance = 3500;
-  document.body.classList.remove("detail");
-  backBtn.hidden = true;
-  stepLink();
-  const home = euCam || { p: new THREE.Vector3(0, 632, 843), t: new THREE.Vector3(0, 0, 51) };
-  await zoomTo(home.p, home.t, 10000, true);
-  link = null; uniforms.uHoleA.value = 0;
-  clearDetail(); detGroup.visible = false; undock();
-  controls.minDistance = 10;
-  setEuForm(1);
+// step one: down to the stop above a shrine
+async function flyToStop(idx) {
+  const o = shrineObjs[idx], g = groundOf(o);
+  if (stopIdx < 0) euCam = { p: camera.position.clone(), t: controls.target.clone() };
+  stopIdx = -1; showLinks();
+  scanOf(idx);                                            // the scan loads during the flight
+  const d0 = camera.position.distanceTo(controls.target), travel = controls.target.distanceTo(g);
+  await zoomTo(g.clone().add(STOP), g, 2600 + 1700 * Math.abs(Math.log(d0 / STOP.length())) + Math.min(2600, travel * 9));
+  stopIdx = idx;
 }
 
-// from one shrine straight to another: the ground dissolves and forms again
-async function exchange(idx, img, ready) {
+// step two: into the scan
+async function enterScan() {
+  if (busy || mode !== "europe" || stopIdx < 0) return;
+  busy = true; showLinks();
+  const idx = stopIdx, sc = scanOf(idx);
+  await tween(1000, (k) => setEuForm(1 - k));
+  if (await sc.ready) {
+    buildDetail(idx, sc.img);
+    euGroup.visible = false; detGroup.visible = true;
+    mode = "detail"; detIdx = idx;
+    useView(det);
+    controls.minDistance = 7; controls.maxDistance = 420;
+    controls.target.copy(detBase);
+    // arrive from a little further up while the ground forms
+    const p1 = homeCam(detBase), p0 = detBase.clone().add(p1.clone().sub(detBase).multiplyScalar(1.45));
+    camera.position.copy(p0);
+    flight = { t0: performance.now(), dur: reduceMotion ? 1 : 3200, p0, p1, c0: detBase.clone(), c1: detBase.clone() };
+    document.body.classList.add("detail");
+    setDetForm(0);
+    await tween(2200, (k) => setDetForm(k));
+  } else {
+    await tween(600, (k) => setEuForm(k));
+  }
+  busy = false; showLinks();
+}
+
+// out of the scan: back to the stop above the shrine, or all the way up
+async function leaveScan(up) {
+  if (busy || mode !== "detail") return;
+  busy = true;
+  const idx = detIdx, g = groundOf(shrineObjs[idx]);
   await tween(900, (k) => setDetForm(1 - k));
-  if (await ready) {
-    buildDetail(idx, img);
+  clearDetail();
+  detGroup.visible = false; euGroup.visible = true;
+  mode = "europe"; detIdx = -1; stopIdx = idx;
+  useView(eu);
+  controls.minDistance = 10; controls.maxDistance = 3500;
+  controls.target.copy(g); camera.position.copy(g).add(STOP);
+  document.body.classList.remove("detail");
+  showLinks();
+  const forming = tween(1500, (k) => setEuForm(k));
+  if (up) await Promise.all([forming, riseFromStop()]); else await forming;
+  busy = false; showLinks();
+}
+async function riseFromStop() {
+  const home = euCam || { p: new THREE.Vector3(0, 632, 843), t: new THREE.Vector3(0, 0, 51) };
+  stopIdx = -1; euCam = null; showLinks();
+  await zoomTo(home.p, home.t, 7500, true);
+}
+
+// from one scan straight to another: the ground dissolves and forms again
+async function exchange(idx) {
+  const sc = scanOf(idx);
+  await tween(900, (k) => setDetForm(1 - k));
+  if (await sc.ready) {
+    buildDetail(idx, sc.img);
     detIdx = idx;
     useView(det);
     controls.target.copy(detBase); camera.position.copy(homeCam(detBase));
@@ -662,11 +723,7 @@ function openShrine(idx) {
   for (const m of markers) closeCluster(m.el);
   detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b> ${s.name}`;
 
-  // the detail terrain loads while the camera descends over Europe
-  const img = new Image();
-  const ready = new Promise((res) => { img.onload = () => res(true); img.onerror = () => res(false); });
-  img.src = TERRAIN + (s.terrain || s.id.toLowerCase() + ".png");
-  (mode === "europe" ? descend(idx, img, ready) : exchange(idx, img, ready)).then(() => { busy = false; });
+  (mode === "europe" ? flyToStop(idx) : exchange(idx)).then(() => { busy = false; showLinks(); });
 
   $("#p-id").textContent = s.id;
   $("#p-name").textContent = s.name;
@@ -700,10 +757,16 @@ function closePanel() {
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
   markActive(-1);
   current = -1;
-  if (mode === "detail") { busy = true; ascend().then(() => { busy = false; }); }
+  if (mode === "detail") leaveScan(true);
+  else if (stopIdx >= 0) { busy = true; riseFromStop().then(() => { busy = false; showLinks(); }); }
+  showLinks();
 }
 $("#close").addEventListener("click", closePanel);
-backBtn.addEventListener("click", closePanel);
+backBtn.addEventListener("click", () => leaveScan(false));
+scanBtn.addEventListener("click", () => (mode === "detail" ? leaveScan(false) : enterScan()));
+scanLink.addEventListener("click", enterScan);
+panel.querySelector(".player").after(scanBtn);
+shrineLayer.appendChild(scanLink);
 
 /* Audio engine. Real recordings first; if the file can't be reached
    (offline, blocked host) a quiet generated placeholder takes over so the
@@ -1141,8 +1204,8 @@ function loop() {
     if (k >= 1) flight = null;
   }
   if (mode === "europe") euGroup.scale.y = vertAt(camera.position.distanceTo(controls.target));
-  stepLink();
   stepLOD(dt);
+  for (const m of detSpin) m.rotation.y += dt * 0.22 * m.userData.spin;
   // slow orbit around the shrine while listening
   const playing = player.isPlaying();
   controls.autoRotate = !reduceMotion && mode === "detail" && !flight;

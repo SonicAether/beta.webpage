@@ -250,3 +250,19 @@ body.has-panel .iso-label, body.listening .iso-label { opacity: 0.25; }
 #wx-toggle:hover { color: var(--ice); border-color: var(--ice); }
 #wx-source a { color: inherit; pointer-events: auto; }
 #wx-source a:hover { color: var(--ink); }
+
+/* ── links into the scan ─────────── */
+#scan-btn {
+  display: block; width: calc(100% - 2 * var(--pad, 20px)); margin: 4px var(--pad, 20px) 14px; padding: 11px 14px; text-align: left;
+  color: var(--ice); font-size: var(--s-0); letter-spacing: 0.2em; border: 1px solid rgba(169, 219, 232, 0.4);
+  transition: background .3s, border-color .3s, color .3s;
+}
+#scan-btn:hover, #scan-btn:focus-visible { background: rgba(169, 219, 232, 0.1); border-color: var(--ice); color: var(--ink); }
+.scan-link {
+  position: absolute; left: 0; top: 0; margin: 26px 0 0 -12px; pointer-events: auto; white-space: nowrap;
+  padding: 7px 11px; color: var(--ice); font-size: 9px; letter-spacing: 0.2em;
+  background: rgba(6, 8, 10, 0.7); border: 1px solid rgba(169, 219, 232, 0.4); backdrop-filter: blur(4px);
+  transition: opacity .6s, background .3s, color .3s;
+}
+.scan-link:hover, .scan-link:focus-visible { background: rgba(169, 219, 232, 0.14); color: var(--ink); }
+.scan-link.off { opacity: 0; pointer-events: none; }
