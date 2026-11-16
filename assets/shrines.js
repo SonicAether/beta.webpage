@@ -589,9 +589,10 @@ function buildDetail(idx, img) {
 }
 // where the camera rests in a scan: the same steep view, looking toward `heading`
 // (degrees, 0 = north, 270 = west), so that for example a coast can lie at the bottom of the picture
+const SCAN_VIEW = { angle: 50, dist: 210 };   // camera in a scan: degrees above the ground, distance
 const homeCam = (b, heading = 0) => {
-  const h = heading * Math.PI / 180;
-  return new THREE.Vector3(b.x - Math.sin(h) * STEEP.z * 290, b.y + STEEP.y * 290, b.z + Math.cos(h) * STEEP.z * 290);
+  const h = heading * Math.PI / 180, a = SCAN_VIEW.angle * Math.PI / 180, r = SCAN_VIEW.dist;
+  return new THREE.Vector3(b.x - Math.sin(h) * Math.cos(a) * r, b.y + Math.sin(a) * r, b.z + Math.cos(h) * Math.cos(a) * r);
 };
 function setEuForm(v) {
   uniforms.uForm.value = v;
