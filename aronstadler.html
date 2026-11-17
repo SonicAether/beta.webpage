@@ -308,7 +308,12 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       clearTimeout(to);
       const c = (await r.json()).current;
       return { place, wx: { t: c.temperature_2m, p: c.pressure_msl, ws: c.wind_speed_10m, wd: c.wind_direction_10m, rh: c.relative_humidity_2m, cc: c.cloud_cover } };
-    } catch (_) { return { place, wx: null }; }
+    } catch (_) {
+      // previews that cannot reach the service may carry real readings captured once at random places
+      const S = window.SA_WX_PLACES;
+      if (S && S.length) { const k = S[Math.floor(Math.random() * S.length)]; return { place: k.place, wx: k.wx, snap: k.time }; }
+      return { place, wx: null };
+    }
   }
   const fmt = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
   const compass = (d) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((d % 360) + 360) % 360 / 45) % 8];
@@ -317,7 +322,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     const box = document.getElementById("source"), w = src.wx;
     document.getElementById("src-at").textContent = ll(src.place);
     document.getElementById("src-wx").innerHTML = w
-      ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %`
+      ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %` + (src.snap ? ` · recorded ${src.snap.slice(11, 16)} UTC` : "")
       : `no weather reached from here · neutral settings`;
     box.hidden = false;
   }
