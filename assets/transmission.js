@@ -49,10 +49,10 @@
     // 1 · carrier: brown noise that breathes
     const bed = ctx.createBufferSource(); bed.buffer = brown; bed.loop = true;
     // wind opens the noise and makes it gust
-    const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = opt.wx ? 220 + 520 * wind : 340; bedLp.Q.value = 0.4;
-    const bedG = G(opt.wx ? 0.26 + 0.24 * wind : 0.36);
-    bed.connect(bedLp).connect(pan(side * 0.35 * wind)).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
-    live.push(bed, lfo(0.008 + 0.05 * wind, 150 + 380 * wind, bedLp.frequency), lfo(0.005 + 0.09 * wind, 0.16 + 0.12 * wind, bedG.gain));
+    const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = opt.wx ? 260 + 140 * wind : 340; bedLp.Q.value = 0.4;
+    const bedG = G(opt.wx ? 0.3 + 0.16 * wind : 0.36);
+    bed.connect(bedLp).connect(pan(side * 0.3 * wind)).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
+    live.push(bed, lfo(0.006, 90, bedLp.frequency), lfo(0.004 + 0.02 * wind, 0.12 + 0.08 * wind, bedG.gain));
 
     // 2 · standing waves: overtone row, each partial a slowly beating L/R pair
     const ROW = opt.row || [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11];
@@ -90,12 +90,64 @@
       return bp;
     });
 
-    // 3b · a faint, high ether hiss that comes and goes
-    const air = ctx.createBufferSource(); air.buffer = white; air.loop = true;
-    const airBp = ctx.createBiquadFilter(); airBp.type = "bandpass"; airBp.frequency.value = 7200; airBp.Q.value = 0.9;
-    const airLevel = opt.wx ? 0.003 + 0.022 * wind * wind : 0.006;
-    const airG = G(airLevel); air.connect(airBp).connect(pan(side * 0.7)).connect(airG); send(airG, 0.3, 0.7); air.start();
-    live.push(air, lfo(0.007 + 0.12 * wind, airLevel * 0.85, airG.gain), lfo(0.012 + 0.04 * wind, 1800, airBp.frequency));
+    // 3b · resonant bodies: brown noise through slow, narrow formants, like air in a large pipe
+    const bodies = [0, 1, 2].map((k) => {
+      const s = ctx.createBufferSource(); s.buffer = brown; s.loop = true; s.loopStart = 1 + k * 2;
+      const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 9 + k * 5; bp.frequency.value = F0 * [2.5, 4.2, 6.6][k];
+      const g = G(0.22 / (k + 1)); s.connect(bp).connect(pan([-0.4, 0.35, 0][k])).connect(g); send(g, 0.4, 0.6); s.start();
+      live.push(s, lfo(1 / (70 + 60 * k), F0 * 0.6 * (k + 1), bp.frequency), lfo(1 / (45 + 30 * k), 0.1 / (k + 1), g.gain));
+      return bp;
+    });
+
+    // 3c · a warm undertone: two detuned triangles, low-passed, drifting against each other (tape wow)
+    const warmLp = ctx.createBiquadFilter(); warmLp.type = "lowpass"; warmLp.frequency.value = 260 + 380 * warm; warmLp.Q.value = 0.8;
+    const warmG = G(0.05);
+    [[1, -6], [2, 5], [3, 0]].forEach(([n, cents], i) => {
+      const o = ctx.createOscillator(); o.type = "triangle"; o.frequency.value = F0 * n; o.detune.value = cents;
+      lfo(0.07 + i * 0.03, 4 + i * 2, o.detune);                       // a slow, uneven wow
+      o.connect(G(1 / (i + 1.5))).connect(warmLp); o.start(); live.push(o);
+    });
+    warmLp.connect(warmG); send(warmG, 0.5, 0.5);
+    live.push(lfo(1 / 95, 0.035, warmG.gain), lfo(1 / 130, 160, warmLp.frequency));
+
+    // 3d · low-end drive: the bass and the bed pushed into a soft saturator; usually almost clean, at times it breaks up
+    const curve = new Float32Array(2048);
+    for (let i = 0; i < curve.length; i++) { const x = (i / (curve.length - 1)) * 2 - 1; curve[i] = Math.tanh(3 * x) / Math.tanh(3) + 0.12 * x * x; } // a little even harmonic: warmth
+    const shaper = ctx.createWaveShaper(); shaper.curve = curve; shaper.oversample = "4x";
+    const driveIn = G(0.4), driveOut = G(0.0);
+    const driveLp = ctx.createBiquadFilter(); driveLp.type = "lowpass"; driveLp.frequency.value = 180; driveLp.Q.value = 0.9;
+    const driveTone = ctx.createBiquadFilter(); driveTone.type = "lowpass"; driveTone.frequency.value = 6000; driveTone.Q.value = 0.5;
+    const driveHp = ctx.createBiquadFilter(); driveHp.type = "highpass"; driveHp.frequency.value = 30;
+    bed.connect(driveLp); sub.connect(driveLp);
+    driveLp.connect(driveIn).connect(shaper).connect(driveTone).connect(driveHp).connect(driveOut);
+    send(driveOut, 0.75, 0.25);
+    const grit = G(0.035); shaper.connect(grit); send(grit, 0.8, 0.2);
+
+    // 3e · warm crackle: sparse clicks and the odd pop, band-limited like an old record, never a hiss
+    const crk = ctx.createBuffer(2, sr * 9, sr);
+    for (let c = 0; c < 2; c++) {
+      const d = crk.getChannelData(c);
+      let t = 0;
+      while (t < d.length) {
+        t += Math.floor(sr * (-Math.log(1 - rnd()) / (4 + 10 * (1 - hum))));   // drier air, more crackle
+        const big = rnd() < 0.06, amp = (big ? 0.7 : 0.3 + rnd() * 0.7) * (rnd() < 0.5 ? -1 : 1), len = big ? 90 + rnd() * 200 : 8 + rnd() * 40;
+        for (let i = 0; i < len && t + i < d.length; i++) d[t + i] += amp * Math.exp(-i / (len / 4)) * (big ? Math.sin(i * 0.08) : rnd() * 2 - 1);
+      }
+    }
+    const crackle = ctx.createBufferSource(); crackle.buffer = crk; crackle.loop = true;
+    const crHp = ctx.createBiquadFilter(); crHp.type = "highpass"; crHp.frequency.value = 350;
+    const crLp = ctx.createBiquadFilter(); crLp.type = "lowpass"; crLp.frequency.value = 7500; crLp.Q.value = 0.4;
+    const crG = G(0.0);
+    crackle.connect(crHp).connect(crLp).connect(crG); send(crG, 0.7, 0.3); crackle.start();
+    live.push(crackle);
+    // the crackle comes and goes in long phrases
+    let crTimer = 0;
+    const crackleWave = () => {
+      const t = ctx.currentTime, dur = 20 + rnd() * 40, v = (rnd() < 0.25 ? 0.6 : 1.2 + rnd() * 1.8) * (0.6 + 0.8 * (1 - hum));
+      crG.gain.cancelScheduledValues(t); crG.gain.setValueAtTime(crG.gain.value, t); crG.gain.linearRampToValueAtTime(v, t + dur * 0.4);
+      crTimer = setTimeout(crackleWave, dur * 1000);
+    };
+    live.push({ stop() { clearTimeout(crTimer); } });
 
     // state for the readout
     const state = { drift: 0, event: "" };
@@ -103,20 +155,19 @@
 
     // 4 · artefacts, scheduled on the audio clock
     const ARTEFACTS = {
-      glitch(t) {
-        const s = ctx.createBufferSource(); s.buffer = white;
-        const hp = ctx.createBiquadFilter(); hp.type = "bandpass"; hp.frequency.value = 900 + rnd() * 2600; hp.Q.value = 2 + rnd() * 6;
-        const g = G(0), d = 0.02 + rnd() * 0.07;
-        s.connect(hp).connect(pan(rnd() * 2 - 1)).connect(g); send(g, 0.4, 0.6);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.05, t + 0.004); g.gain.setValueAtTime(0.05, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.01);
-        s.start(t, rnd(), d + 0.05);
-        if (rnd() < 0.5) ARTEFACTS.glitchEcho(t + d + 0.04 + rnd() * 0.1);
+      crack(t) {                                     // a short burst of crackle, closer than the bed
+        const s = ctx.createBufferSource(); s.buffer = crk; const g = G(0), d = 0.6 + rnd() * 2.4;
+        const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3000 + rnd() * 3000;
+        const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 400;
+        s.connect(hp).connect(lp).connect(pan(rnd() * 1.4 - 0.7)).connect(g); send(g, 0.7, 0.3);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.8 + rnd() * 0.8, t + 0.05); g.gain.setValueAtTime(1.0, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.4);
+        s.start(t, rnd() * 8, d + 0.5);
       },
-      glitchEcho(t) {
-        const s = ctx.createBufferSource(); s.buffer = white; const g = G(0);
-        const bp = ctx.createBiquadFilter(); bp.type = "highpass"; bp.frequency.value = 4000;
-        s.connect(bp).connect(g); send(g, 0.2, 0.8);
-        g.gain.setValueAtTime(0.018, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); s.start(t, rnd(), 0.05);
+      drive(t) {                                     // the low end breaks up for a while, then settles
+        const peak = 0.35 + rnd() * 0.5 + 0.4 * low, up = 3 + rnd() * 6, hold = 4 + rnd() * 14, down = 6 + rnd() * 10;
+        driveIn.gain.cancelScheduledValues(t); driveOut.gain.cancelScheduledValues(t);
+        driveIn.gain.setValueAtTime(0.4, t); driveIn.gain.linearRampToValueAtTime(2.2 + 3 * rnd(), t + up); driveIn.gain.setValueAtTime(2.2, t + up + hold); driveIn.gain.linearRampToValueAtTime(0.4, t + up + hold + down);
+        driveOut.gain.setValueAtTime(0, t); driveOut.gain.linearRampToValueAtTime(peak * 0.22, t + up); driveOut.gain.setValueAtTime(peak * 0.22, t + up + hold); driveOut.gain.linearRampToValueAtTime(0, t + up + hold + down);
       },
       ping(t) {
         const n = [12, 14, 15, 16, 18, 20, 21, 24][Math.floor(rnd() * 8)];
@@ -128,14 +179,11 @@
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.009, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
         o.start(t); o.stop(t + 2);
       },
-      static(t) {
-        const n = 6 + Math.floor(rnd() * 22), span = 0.3 + rnd() * 0.9;
-        for (let i = 0; i < n; i++) {
-          const tt = t + rnd() * span, s = ctx.createBufferSource(); s.buffer = white; const g = G(0);
-          s.connect(pan(rnd() * 2 - 1)).connect(g); send(g, 0.5, 0.5);
-          g.gain.setValueAtTime(0.05 + rnd() * 0.08, tt); g.gain.exponentialRampToValueAtTime(0.0001, tt + 0.002 + rnd() * 0.006);
-          s.start(tt, rnd(), 0.012);
-        }
+      pop(t) {                                       // a single warm thump, like dust on a needle
+        const o = ctx.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(140 + rnd() * 80, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.12);
+        const g = G(0); o.connect(g).connect(pan(rnd() * 1.2 - 0.6)); send(g, 0.8, 0.2);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.08 + rnd() * 0.06, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        o.start(t); o.stop(t + 0.25);
       },
       dropout(t) {
         const g = master.gain, v = LEVEL, depth = 0.25 + rnd() * 0.3;
@@ -153,7 +201,7 @@
         });
       },
     };
-    const WEIGHTS = [["glitch", 3], ["ping", 2], ["static", 2], ["wander", 1], ["drift", 1], ["dropout", 1]];
+    const WEIGHTS = [["crack", 3], ["pop", 2], ["ping", 1], ["drive", opt.wx ? 1 + 2 * low : 1.5], ["wander", 1], ["drift", 1], ["dropout", 1]];
     const pick = () => { let r = rnd() * WEIGHTS.reduce((a, w) => a + w[1], 0); for (const [k, w] of WEIGHTS) { if ((r -= w) <= 0) return k; } return "glitch"; };
     function schedule(until) {
       while (nextAt < until) {
@@ -185,6 +233,7 @@
       start() {
         const t = ctx.currentTime;
         if (opt.breathe) breathe(t + 14);
+        crTimer = setTimeout(crackleWave, 8000);
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
         nextAt = t + 12 + rnd() * 6;
         schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
