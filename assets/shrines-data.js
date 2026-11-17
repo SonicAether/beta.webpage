@@ -150,4 +150,24 @@ export const SHRINES = [
     synth: { wind: 0.2, water: 0.8, birds: 0.3, tone: 260 },
     prayer: [],   // text to follow
   },
+  {
+    id: "S-09",
+    name: "Cliff coast, singing fence, distant surf",
+    region: "Greenore Point, Rosslare, County Wexford, IE",
+    coords: "52.2412° N, 6.3161° W · 12 m",
+    date: "2025-11-28",
+    time: "17:48",
+    temp: "—",
+    weather: "—",
+    wind: "—",
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834151/SingenderzaunGrenorePointIrlandSHORT_mdrrik.mp3",
+    area: "Wexford",
+    geo: [52.241157637124, -6.3161070557458],   // exactly as in the file's tags
+    // the scan shows the coast at Tramore, County Waterford, in its own outline, the sea filled in along the shore
+    relief: 0.3,
+    spot: [0.724, 0.905],   // on the cliffs of the eastern headland, above the sea
+    synth: { wind: 0.6, water: 0.7, birds: 0.1, tone: 520 },
+    prayer: [],   // text to follow
+  },
 ];

@@ -246,6 +246,7 @@ function makeCloud(img, opt) {
     for (let i = 0; i < NX; i += stride) {
       if ((((i + j) / stride) & 1) !== pass) continue;
       const k = j * NX + i, isW = W[k];
+      if (px[k * 4] === 3) continue;   // outside a scan's own outline: no ground at all
       // the scan thins out toward its limits instead of ending in a wall
       const edge = opt.hard ? 1 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;   // detail maps end in a clean cut
       if (edge <= 0) continue;
