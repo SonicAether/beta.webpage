@@ -404,55 +404,130 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       : `no weather reached from here · neutral settings`;
     box.hidden = false;
   }
-  /* field recordings from radio aporee ::: maps nearest to the place, drifting in one after another */
-  let field = null;
-  function playField(recs) {
-    const list = document.getElementById("src-rec"), row = document.getElementById("src-rec-row");
-    if (!recs.length) { list.innerHTML = "none close enough to mix"; row.hidden = list.hidden = false; return; }
-    list.innerHTML = recs.map((r, i) => `<a href="${r.page}" target="_blank" rel="noopener noreferrer" data-i="${i}"><span class="dot"></span>${r.title || r.id}</a> <span class="by">${r.creator} · ${r.km < 1 ? "<1" : Math.round(r.km)} km · <a href="${r.licenseurl}" target="_blank" rel="noopener noreferrer">${r.license}</a></span>`).join("<br>");
-    row.hidden = list.hidden = false;
-    const me = { stop: false, nodes: [] };
-    field = me;
-    let k = 0;
-    const next = () => {
-      if (me.stop || !tx) return;
-      const r = recs[k % recs.length]; k++;
-      const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.src = r.src;
-      const node = ctxA.createMediaElementSource(a);
-      const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
-      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
-      const g = ctxA.createGain(); g.gain.value = 0;
-      // the recording stands in the middle, in front of the drone
-      const p = ctxA.createStereoPanner(); p.pan.value = 0;
-      const send = ctxA.createGain(); send.gain.value = 0.18;
-      node.connect(hp).connect(lp).connect(g).connect(p);
-      p.connect(tx.input); p.connect(send).connect(tx.space);
-      const hold = 80 + Math.random() * 90, fade = 18;
+  /* field recordings from radio aporee ::: maps nearest to the place. One sounds at a time; the next
+     is loaded ahead and blended in with an equal-power crossfade, also across a change of place.
+     They run on their own bus, so they are not cut when the drone of one place hands over to the next. */
+  const XF = 24, LEAD = 30;                        // crossfade length; how early the next one starts loading (s)
+  const REC_LEVEL = 0.85;
+  let field = null, fbus = null;
+  function fieldBus() {
+    if (fbus) return fbus;
+    const inp = ctxA.createGain(), comp = ctxA.createDynamicsCompressor(), out = ctxA.createGain(), send = ctxA.createGain();
+    comp.threshold.value = -18; comp.ratio.value = 2.5; comp.attack.value = 0.05; comp.release.value = 0.8;
+    send.gain.value = 0.18;
+    inp.connect(comp).connect(out); inp.connect(send);
+    return (fbus = { inp, out, send });
+  }
+  // the bus feeds whichever drone is current: its analyser (so the spectrogram shows it) and its space
+  function attachField(t) {
+    const b = fieldBus();
+    try { b.out.disconnect(); b.send.disconnect(); } catch (_) {}
+    b.out.connect(t.analyser); b.send.connect(t.space);
+    if (field && field.cur) t.duck(0.55, 8);
+  }
+  const sleep = (sec, me) => new Promise((res) => { const id = setTimeout(res, sec * 1000); me.timers.push(id); });
+  // load one recording and seek to a random excerpt; resolves when it can play, or null
+  function load(r, me) {
+    return new Promise((res) => {
+      const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.loop = true; a.src = r.src;
+      let done = false;
+      const fail = () => { if (done) return; done = true; a.src = ""; res(null); };
+      const to = setTimeout(fail, 20000); me.timers.push(to);
+      a.addEventListener("error", fail, { once: true });
       a.addEventListener("loadedmetadata", () => {
         const len = a.duration || r.length || 0;
-        if (len > hold + 2 * fade) a.currentTime = Math.random() * (len - hold - 2 * fade);
-        a.play().catch(() => {});
-        const t = ctxA.currentTime, lvl = 2.1;            // the recording carries the mix; the drone steps back
-        tx.duck(0.55, fade);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + fade);
-        g.gain.setValueAtTime(lvl, t + fade + hold); g.gain.linearRampToValueAtTime(0, t + 2 * fade + hold);
-        list.querySelectorAll("a[data-i]").forEach((x) => x.classList.toggle("on", +x.dataset.i === (k - 1) % recs.length));
-        markSounding((k - 1) % recs.length);
-        me.timer = setTimeout(next, (fade + hold) * 1000);   // the next one rises while this one fades
-        setTimeout(() => { a.pause(); a.src = ""; try { node.disconnect(); } catch (_) {} }, (2 * fade + hold + 1) * 1000);
+        if (len > 200) a.currentTime = Math.random() * (len - 200);
+        a.addEventListener("canplay", () => {
+          if (done) return; done = true; clearTimeout(to);
+          const node = ctxA.createMediaElementSource(a);
+          const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
+          const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
+          const g = ctxA.createGain(); g.gain.value = 0;
+          node.connect(hp).connect(lp).connect(g).connect(fieldBus().inp);   // in the middle, in front of the drone
+          res({ r, a, g, node });
+        }, { once: true });
       }, { once: true });
-      a.addEventListener("error", () => { if (!me.stop) me.timer = setTimeout(next, 1000); }, { once: true });
-      me.nodes.push({ a, g });
-    };
-    me.timer = setTimeout(next, 12000);                    // let the signal rise first
-    showRecs(recs);
+    });
   }
-  function stopField() {
-    if (!field) return;
-    field.stop = true; clearTimeout(field.timer);
+  const curveIn = new Float32Array(64).map((_, i) => Math.sin((i / 63) * Math.PI / 2) * REC_LEVEL);
+  const curveOut = new Float32Array(64).map((_, i) => Math.cos((i / 63) * Math.PI / 2) * REC_LEVEL);
+  function release(v, sec) {
+    if (!v) return;
     const t = ctxA.currentTime;
-    field.nodes.forEach(({ a, g }) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 4); setTimeout(() => { a.pause(); a.src = ""; }, 4500); });
+    v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value, t); v.g.gain.linearRampToValueAtTime(0, t + sec);
+    setTimeout(() => { v.a.pause(); v.a.src = ""; try { v.node.disconnect(); } catch (_) {} }, (sec + 0.5) * 1000);
+  }
+  // blend `from` out and `to` in, equal power, so the sum never dips
+  function crossfade(from, to) {
+    const t = ctxA.currentTime + 0.05;
+    to.a.play().catch(() => {});
+    to.g.gain.cancelScheduledValues(t); to.g.gain.setValueCurveAtTime(curveIn, t, XF);
+    if (from) {
+      from.g.gain.cancelScheduledValues(t); from.g.gain.setValueAtTime(REC_LEVEL, t); from.g.gain.setValueCurveAtTime(curveOut, t, XF);
+      setTimeout(() => { from.a.pause(); from.a.src = ""; try { from.node.disconnect(); } catch (_) {} }, (XF + 1) * 1000);
+    }
+    if (tx) tx.duck(0.55, XF * 0.6);
+  }
+  function listRecs(recs) {
+    const list = document.getElementById("src-rec"), row = document.getElementById("src-rec-row");
+    list.innerHTML = recs.length
+      ? recs.map((r, i) => `<a href="${r.page}" target="_blank" rel="noopener noreferrer" data-i="${i}"><span class="dot"></span>${r.title || r.id}</a> <span class="by">${r.creator} · ${r.km < 1 ? "<1" : Math.round(r.km)} km · <a href="${r.licenseurl}" target="_blank" rel="noopener noreferrer">${r.license}</a></span>`).join("<br>")
+      : "none close enough to mix";
+    row.hidden = list.hidden = false;
+  }
+  function markRec(i) {
+    document.getElementById("src-rec").querySelectorAll("a[data-i]").forEach((x) => x.classList.toggle("on", +x.dataset.i === i));
+    markSounding(i);
+  }
+  // `prev`: the field of the place before, still sounding; its recording is blended into the first new one
+  function playField(recs, prev) {
+    listRecs(recs); showRecs(recs);
+    const me = { stop: false, timers: [], cur: prev ? prev.cur : null };
+    if (prev) prev.handedOver = true;
+    field = me;
+    if (!recs.length) { release(me.cur, 10); me.cur = null; return; }
+    (async () => {
+      let k = 0;
+      const nextVoice = async () => {
+        for (let tries = 0; tries < recs.length; tries++) {
+          const i = k % recs.length; k++;
+          const v = await load(recs[i], me);
+          if (me.stop) { if (v) release(v, 0.1); return null; }
+          if (v) { v.i = i; return v; }
+        }
+        return null;
+      };
+      if (!me.cur) await sleep(12, me);                   // a fresh start: let the drone rise first
+      if (me.stop) return;
+      let v = await nextVoice();
+      while (!me.stop && v) {
+        crossfade(me.cur, v); me.cur = v; markRec(v.i);
+        const hold = 80 + Math.random() * 90;
+        await sleep(Math.max(XF, hold - LEAD), me);
+        if (me.stop || recs.length < 2) { if (recs.length < 2) await sleep(1e6, me); break; }
+        const ready = nextVoice();
+        await sleep(Math.min(LEAD, hold - XF), me);
+        v = await ready;
+      }
+      if (!me.stop && !v) { release(me.cur, 10); me.cur = null; }
+    })();
+  }
+  // stop the recordings altogether (LISTEN off): a soft fade
+  function stopField(sec = 6) {
+    if (!field) return;
+    field.stop = true; field.timers.forEach(clearTimeout);
+    release(field.cur, sec); field.cur = null;
     field = null;
+  }
+  // a change of place: the current recording keeps sounding until the next place's first one blends in
+  function holdField() {
+    if (!field) return null;
+    const f = field;
+    f.stop = true; f.timers.forEach(clearTimeout);
+    field = null;
+    // if nothing takes over within a minute, let it go
+    setTimeout(() => { if (!f.handedOver) release(f.cur, 10); }, 60000);
+    return f;
   }
 
   let busy = false;
@@ -468,15 +543,21 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     const nearby = window.SignalSource ? window.SignalSource.recordings(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
     src.name = ((await named) || {}).label;
     // changing place: the old signal and its recordings fade out while the new one rises
-    if (old) { stopField(); old.stop(); }
+    const prevField = old ? holdField() : null;
+    if (old) old.stop();
     tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.4, breathe: true, slow: 2 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
+    attachField(tx);
     showSource(src);
     showPlace(src.place, document.getElementById("src-at").textContent); document.body.classList.add("live");
     document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
-    nearby.then((recs) => { if (tx && my === tuneId) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "the archive could not be reached from here")); });
+    nearby.then((recs) => {
+      if (!tx || my !== tuneId) return;
+      if (recs) playField(recs, prevField);
+      else { document.getElementById("src-rec").textContent = "the archive could not be reached from here"; if (prevField) release(prevField.cur, 10); }
+    });
     btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
     busy = false; moveBtn.disabled = false; moveBtn.hidden = false;
     if (reduce) { for (let x = 0; x < W; x++) paint(idleColumn(x), x); }
