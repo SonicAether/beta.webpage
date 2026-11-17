@@ -162,6 +162,8 @@
 
     return {
       analyser, state, F0, shape: { warm, low, wind, hum, cloud, side },
+      // for outside material (field recordings): a dry input and a send into the space
+      input: dry, space: verb,
       start() {
         const t = ctx.currentTime;
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
