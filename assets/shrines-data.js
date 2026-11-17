@@ -169,7 +169,6 @@ export const SHRINES = [
     geo: [57.99685, 11.98025],
     // the scan was located by fitting the outline of Holmevatten (OpenStreetMap) onto it: 1.8 m per pixel
     relief: 0.9,
-    dense: true,
     water: "still",
     spot: [0.4966, 0.5383],   // the southern inlet by the shelter (vindskydd)
     synth: { wind: 0.2, water: 0.8, birds: 0.3, tone: 260 },

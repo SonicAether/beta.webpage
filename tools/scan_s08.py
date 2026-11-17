@@ -13,7 +13,9 @@ FINE = float(sys.argv[2]) if len(sys.argv) > 2 else 1.2
 g0 = np.asarray(Image.open(SRC).convert('L')).astype(np.float64)
 SH, SW = g0.shape; OH = round(OW * SH / SW); k = SW / OW; mpp = s_m * k
 g = np.asarray(Image.fromarray(g0.astype(np.float32)).resize((OW, OH), Image.LANCZOS), dtype=np.float64).clip(0, 255)
-lake = np.asarray(Image.fromarray(np.load('flat.npy').astype(np.float32)).resize((OW, OH), Image.BILINEAR)) > 0.5
+lake = np.asarray(Image.fromarray(np.load('flat.npy').astype(np.float32)).resize((OW, OH), Image.BILINEAR)) > 0.2
+# the flat grey band along every shore belongs to the water: no bright rim
+lake = ndimage.binary_dilation(lake, iterations=max(1, round(4 / k)))
 
 # scan px -> lat/lon
 lat0, lon0 = 57.9974, 11.9785; kx = 111320 * math.cos(math.radians(lat0)); ky = 111320
@@ -50,8 +52,11 @@ for l in range(1, n + 1):
     H = np.where(near, np.maximum(H, lvl + 0.08 * dd * mpp / 2), H)
 hmin, hmax = float(H.min()), float(H.max())
 Hn = (H - hmin) / (hmax - hmin)
-gs = g + 0.6 * (g - ndimage.gaussian_filter(g, 1.3))
-shade = np.clip((gs.clip(0, 255) / 255.0) ** 1.6 * 1.25, 0.03, 1)      # lifted contrast: flat grey 181 sits mid-tone
+# shading as in the other scans: flat ground mid-grey, slopes lighter or darker
+Sd = (g - 181.0) / 255.0
+rms = float(np.sqrt((Sd[~lake] ** 2).mean())); gain = float(np.clip(0.15 / (rms + 1e-9), 1.0, 3.5))
+shade = np.clip(0.52 + 0.95 * Sd * gain, 0.03, 1)
+print('rms', round(rms, 3), 'gain', round(gain, 2))
 h12 = np.clip(np.round(Hn * 4095), 1, 4095).astype(np.uint32)
 R = (np.clip(np.round(shade * 125), 2, 127) * 2).astype(np.uint8); R[lake] = 1
 Image.fromarray(np.dstack([R, (h12 >> 4).astype(np.uint8), ((h12 & 15) << 4).astype(np.uint8)]), 'RGB').save('s-08.png', optimize=True)
