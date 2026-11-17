@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=19";
+import { SHRINES } from "./shrines-data.js?v=20";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/54c41b485835f0cffa3e1b64f303f45b6e22bc7e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/a5bda574d6f54c804094ba7dfa075dfd2a9c014f/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -232,7 +232,7 @@ function makeCloud(img, opt) {
   const keepLake = opt.keepLake ?? 0.3;
   const KEEP = [keepLand, opt.keepSea ?? keepWater, keepLake, 0.5], WAT = [0, 1, 0.75, 0.6];
   const cap = Math.ceil((NX * NZ) / (stride * stride) * (opt.capShare ?? 0.56)) + 1000;   // room for the points that will be kept
-  const pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
+  let pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
   let n = 0;
   const cell = W_ / NX;
   let seed = 7;
@@ -259,6 +259,32 @@ function makeCloud(img, opt) {
       rnd[n] = rand(); wat[n] = WAT[isW]; n++;
     }
    }
+  }
+  // walls (opt.walls): where land meets water, the cliff face is drawn down to the water, so that
+  // seen from the side no gap opens between the sea and the ground
+  if (opt.walls) {
+    const wp = [], ws = [], step = cell * stride * 0.9;
+    for (let j = 1; j < NZ - 1; j += stride) for (let i = 1; i < NX - 1; i += stride) {
+      const k = j * NX + i;
+      if (W[k] || px[k * 4] === 3) continue;
+      let lo = Infinity;
+      for (const q of [k - 1, k + 1, k - NX, k + NX]) if (W[q]) lo = Math.min(lo, H[q]);
+      if (lo === Infinity) continue;
+      const top = H[k] * opt.relief, bot = lo * opt.relief - 0.4;
+      const m = Math.floor((top - bot) / step);
+      const x = (i / (NX - 1) - 0.5) * W_, z = (j / (NZ - 1) - 0.5) * D_;
+      for (let t = 1; t <= m; t++) {
+        if (rand() > 0.85) continue;
+        wp.push(x + (rand() - 0.5) * cell, top - t * step + (rand() - 0.5) * step * 0.6, z + (rand() - 0.5) * cell);
+        ws.push((px[k * 4] / 255) * (0.45 + 0.35 * rand()));
+      }
+    }
+    const tot = n + ws.length;
+    const P2 = new Float32Array(tot * 3); P2.set(pos.subarray(0, n * 3)); P2.set(wp, n * 3);
+    const S2 = new Float32Array(tot); S2.set(shade.subarray(0, n)); S2.set(ws, n);
+    const R2 = new Float32Array(tot); R2.set(rnd.subarray(0, n)); for (let q = n; q < tot; q++) R2[q] = rand();
+    const A2 = new Float32Array(tot); A2.set(wat.subarray(0, n));
+    pos = P2; shade = S2; rnd = R2; wat = A2; n = tot;
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.BufferAttribute(pos.slice(0, n * 3), 3));
@@ -717,7 +743,7 @@ function buildDetail(idx, img) {
   // water "still": lakes that only sparkle, instead of water that drifts like the sea
   const still = s.water === "still";
   det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 0.72 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
-    asSea: !still, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
+    asSea: !still, hard: true, walls: !!s.walls, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
   // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
