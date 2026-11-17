@@ -32,20 +32,35 @@ a { color: inherit; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
 
-/* behind everything: a 2D relief of the map area, and over it the spectrogram, blended so the land shows through */
-.map { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.mapin { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform 6s cubic-bezier(.45, 0, .2, 1); will-change: transform; }
-#mapimg { display: block; opacity: .46; transition: opacity 4s ease; }
-body.live #mapimg { opacity: .3; }
-#spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; mix-blend-mode: screen; opacity: .92; }
-.marks { z-index: 1; }
-#marks { position: absolute; left: 0; top: 0; overflow: visible; }
-#marks .ring { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-#marks .pulse { fill: none; stroke: var(--accent); vector-effect: non-scaling-stroke; animation: pulse 3.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-#marks .rec { fill: var(--ink); opacity: .85; }
+/* the spectrogram behind everything */
+#spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; }
+
+/* the map: on demand, sliding in from the right beside the spectrogram (colours of Listening Shrines) */
+.map-btn { position: fixed; z-index: 4; right: max(18px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%) rotate(180deg); writing-mode: vertical-rl;
+  padding: 14px 8px; font-size: 9px; letter-spacing: 0.3em; color: var(--dim); border: 1px solid var(--line); background: rgba(7,4,15,.55); backdrop-filter: blur(6px); transition: color .3s, border-color .3s, right .7s cubic-bezier(.3,.7,.2,1); }
+.map-btn:hover, .map-btn[aria-expanded="true"] { color: var(--ink); border-color: #a9dbe8; }
+.map-panel { position: fixed; z-index: 3; top: calc(52px + env(safe-area-inset-top, 0px)); right: 0; bottom: 0; width: min(440px, 92vw); padding: 22px;
+  display: flex; flex-direction: column; justify-content: center; gap: 14px;
+  background: rgba(6, 8, 10, 0.92); border-left: 1px solid rgba(223,230,234,.12); backdrop-filter: blur(10px);
+  transform: translateX(100%); transition: transform .7s cubic-bezier(.3,.7,.2,1); }
+.map-panel.open { transform: none; }
+body.map-open .map-btn { right: calc(min(440px, 92vw) + 10px); }
+.mp-head { display: flex; justify-content: space-between; align-items: baseline; }
+.mp-head button { color: var(--dim); font-size: 13px; }
+.mp-head button:hover { color: var(--ink); }
+.mp-map { position: relative; width: 100%; aspect-ratio: 1200 / 1214; border: 1px solid rgba(223,230,234,.1); }
+.mp-map img, .mp-map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#marks .ring { fill: none; stroke: #a9dbe8; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+#marks .pulse { fill: none; stroke: #a9dbe8; vector-effect: non-scaling-stroke; animation: pulse 3.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+#marks .core { fill: #a9dbe8; }
+#marks .rec { fill: #dfe6ea; stroke: #06080a; stroke-width: 1; vector-effect: non-scaling-stroke; }
 #marks .rec.on { fill: var(--accent); }
-#marks .link { stroke: rgba(236,230,240,.25); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 4; }
-@keyframes pulse { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
+@keyframes pulse { from { transform: scale(.5); opacity: .9; } to { transform: scale(3); opacity: 0; } }
+.mp-cap { margin: 0; color: #dfe6ea; font-size: 10px; letter-spacing: 0.08em; line-height: 1.7; min-height: 3.4em; }
+.mp-key { margin: 0; color: var(--dim); font-size: 9px; letter-spacing: 0.14em; }
+.mp-key span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
+.k-place { border: 1.5px solid #a9dbe8; } .k-rec { background: #dfe6ea; }
+@media (max-width: 760px) { .map-btn { top: auto; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: rotate(180deg); } body.map-open .map-btn { display: none; } .map-panel { top: calc(96px + env(safe-area-inset-top, 0px)); } }
 .veil { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(7,4,15,.9) 0%, rgba(7,4,15,.66) 34%, rgba(7,4,15,.12) 64%, rgba(7,4,15,0) 100%),
               linear-gradient(180deg, rgba(7,4,15,.6) 0%, rgba(7,4,15,0) 14%, rgba(7,4,15,0) 82%, rgba(7,4,15,.7) 100%); }
@@ -143,9 +158,14 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 </style>
 </head>
 <body>
-<div class="map" id="map" aria-hidden="true"><div class="mapin" id="mapin"><img id="mapimg" src="assets/geo/map.jpg" alt=""></div></div>
 <canvas id="spec" aria-hidden="true"></canvas>
-<div class="map marks" aria-hidden="true"><div class="mapin" id="marksin"><svg id="marks" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
+<button id="map-btn" class="map-btn" type="button" aria-expanded="false" aria-controls="map-panel">MAP</button>
+<aside id="map-panel" class="map-panel" aria-label="Where the signal comes from" hidden>
+  <div class="mp-head"><span class="h">Where the signal comes from</span><button id="map-close" type="button" aria-label="Close the map">✕</button></div>
+  <div class="mp-map"><img id="mapimg" src="assets/geo/map.jpg" alt="Relief map from Ireland to Sweden"><svg id="marks" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg></div>
+  <p class="mp-cap" id="map-cap">Press LISTEN and a place will be chosen somewhere on this map.</p>
+  <p class="mp-key"><span class="k-place"></span> the place &nbsp; <span class="k-rec"></span> recordings nearby</p>
+</aside>
 <div class="veil" aria-hidden="true"></div>
 <div class="axis" aria-hidden="true" id="axis"></div>
 <div class="wrap">
@@ -209,46 +229,36 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* ── the map behind: Web Mercator, the same area and tiles as the Listening Shrines overview ── */
-  const MAP = { n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336 };
-  const mapImg = document.getElementById("mapimg"), mapIn = document.getElementById("mapin"), marksIn = document.getElementById("marksin"), marks = document.getElementById("marks");
+  /* ── the map beside: Web Mercator, the same area and tiles as the Listening Shrines overview ── */
+  const MAP = { n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, w: 1200, h: 1214 };
+  const marks = document.getElementById("marks"), panel = document.getElementById("map-panel"), mapBtn = document.getElementById("map-btn"), cap = document.getElementById("map-cap");
+  marks.setAttribute("viewBox", `0 0 ${MAP.w} ${MAP.h}`);
   const toXY = (lat, lon) => {
     const tx_ = (lon + 180) / 360 * MAP.n, ty_ = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * MAP.n;
-    return [(tx_ - MAP.x0) / (MAP.x1 - MAP.x0) * mapImg.naturalWidth, (ty_ - MAP.y0) / (MAP.y1 - MAP.y0) * mapImg.naturalHeight];
+    return [(tx_ - MAP.x0) / (MAP.x1 - MAP.x0) * MAP.w, (ty_ - MAP.y0) / (MAP.y1 - MAP.y0) * MAP.h];
   };
-  let focus = null, recPts = [];
-  function frameMap(instant) {
-    const iw = mapImg.naturalWidth, ih = mapImg.naturalHeight; if (!iw) return;
-    const vw = innerWidth, vh = innerHeight, small = vw < 760;
-    // at rest the whole area fills the screen; with a place, the map comes closer and the place sits right of the text
-    const cover = Math.max(vw / iw, vh / ih);
-    const s = focus ? cover * (small ? 2.2 : 2.6) : cover;
-    const [fx, fy] = focus ? toXY(focus.lat, focus.lon) : [iw / 2, ih / 2];
-    const ax = focus ? (small ? 0.5 : 0.68) : 0.5, ay = focus ? (small ? 0.62 : 0.48) : 0.5;
-    let x = vw * ax - fx * s, y = vh * ay - fy * s;
-    x = Math.min(0, Math.max(vw - iw * s, x)); y = Math.min(0, Math.max(vh - ih * s, y));
-    for (const el of [mapIn, marksIn]) {
-      if (instant) el.style.transition = "none";
-      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(4)})`;
-      if (instant) { void el.offsetWidth; el.style.transition = ""; }
-    }
-    marks.setAttribute("width", iw); marks.setAttribute("height", ih); marks.setAttribute("viewBox", `0 0 ${iw} ${ih}`);
-    drawMarks(s);
-  }
-  function drawMarks(s) {
-    if (!focus) { marks.innerHTML = ""; return; }
-    const [fx, fy] = toXY(focus.lat, focus.lon), u = 1 / (s || 1);   // u: one screen pixel in map pixels
+  let focus = null, recPts = [], sounding = -1;
+  function drawMarks() {
     let h = "";
-    for (const r of recPts) { const [rx, ry] = toXY(r.lat, r.lon); h += `<line class="link" x1="${fx}" y1="${fy}" x2="${rx}" y2="${ry}"/><circle class="rec" data-i="${r.i}" cx="${rx}" cy="${ry}" r="${3 * u}"/>`; }
-    h += `<circle class="ring" cx="${fx}" cy="${fy}" r="${7 * u}"/><circle class="pulse" cx="${fx}" cy="${fy}" r="${7 * u}"/>`;
+    if (focus) {
+      for (const r of recPts) { const [rx, ry] = toXY(r.lat, r.lon); h += `<circle class="rec${r.i === sounding ? " on" : ""}" data-i="${r.i}" cx="${rx.toFixed(1)}" cy="${ry.toFixed(1)}" r="6"/>`; }
+      const [fx, fy] = toXY(focus.lat, focus.lon);
+      h += `<circle class="pulse" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12"/><circle class="ring" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12"/><circle class="core" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3.5"/>`;
+    }
     marks.innerHTML = h;
   }
-  function showPlace(p) { focus = p; recPts = []; frameMap(false); }
-  function showRecs(recs) { recPts = recs.map((r, i) => ({ lat: r.lat, lon: r.lon, i })); frameMap(false); }
-  function markSounding(i) { marks.querySelectorAll(".rec").forEach((c) => c.classList.toggle("on", +c.dataset.i === i)); }
-  mapImg.addEventListener("load", () => frameMap(true));
-  if (mapImg.complete) frameMap(true);
-  addEventListener("resize", () => frameMap(true));
+  function showPlace(p, label) { focus = p; recPts = []; sounding = -1; drawMarks(); cap.textContent = p ? (label || "") : "Press LISTEN and a place will be chosen somewhere on this map."; }
+  function showRecs(recs) { recPts = recs.map((r, i) => ({ lat: r.lat, lon: r.lon, i })); drawMarks(); }
+  function markSounding(i) { sounding = i; drawMarks(); }
+  function setMap(open) {
+    if (open) { panel.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("open"))); }
+    else { panel.classList.remove("open"); setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 700); }
+    document.body.classList.toggle("map-open", open);
+    mapBtn.setAttribute("aria-expanded", open); mapBtn.textContent = open ? "CLOSE" : "MAP";
+  }
+  mapBtn.addEventListener("click", () => setMap(!panel.classList.contains("open")));
+  document.getElementById("map-close").addEventListener("click", () => setMap(false));
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && panel.classList.contains("open")) setMap(false); });
 
   /* ── releases: a title each; the player opens beneath it ── */
   const RELEASES = [
@@ -464,7 +474,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
     showSource(src);
-    showPlace(src.place); document.body.classList.add("live");
+    showPlace(src.place, document.getElementById("src-at").textContent); document.body.classList.add("live");
     document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
     nearby.then((recs) => { if (tx && my === tuneId) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "the archive could not be reached from here")); });
     btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
