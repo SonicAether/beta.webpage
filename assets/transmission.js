@@ -12,6 +12,7 @@
     const sr = ctx.sampleRate, rnd = Math.random;
     const F0 = opt.f0 || (opt.wx ? 34 + 18 * warm : 54);      // carrier fundamental, Hz: warmer air sounds higher
     const LEVEL = opt.level || 0.42;                          // master level
+    const SLOW = opt.slow || 1;                               // stretches every movement in time
     const G = (v = 1) => { const g = ctx.createGain(); g.gain.value = v; return g; };
     const pan = (p) => { const n = ctx.createStereoPanner(); n.pan.value = p; return n; };
 
@@ -41,7 +42,7 @@
     for (let c = 0; c < 2; c++) { const d = brown.getChannelData(c); let l = 0; for (let i = 0; i < d.length; i++) { l = (l + 0.02 * (rnd() * 2 - 1)) / 1.02; d[i] = l * 3.5; } }
     { const d = white.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; }
     const lfo = (rate, depth, target, type = "sine") => {
-      const o = ctx.createOscillator(); o.type = type; o.frequency.value = rate;
+      const o = ctx.createOscillator(); o.type = type; o.frequency.value = rate / SLOW;
       const g = G(depth); o.connect(g).connect(target); o.start(); return o;
     };
     const live = [];
@@ -62,7 +63,7 @@
       const base = 0.075 / Math.pow(n, 0.8) * (n > 6 ? 0.55 : 1) * (opt.wx && n > 3 ? 1.25 - 0.85 * cloud : 1);
       const amp = G(base * 0.5);
       lfo(1 / (60 + rnd() * 140), base * 0.5, amp.gain);         // bloom and recede, 60–200 s
-      const beat = 0.015 + rnd() * (opt.wx ? 0.04 + 0.3 * low : 0.09);   // Hz between the pair: a low makes them restless
+      const beat = (0.015 + rnd() * (opt.wx ? 0.04 + 0.3 * low : 0.09)) / SLOW;   // Hz between the pair: a low makes them restless
       [-1, 1].forEach((side) => {
         const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = F0 * n + side * beat / 2;
         o.connect(pan(side * (0.25 + 0.5 * (i / ROW.length)))).connect(amp);
@@ -126,7 +127,7 @@
     // 3e · crackle like coal in a fire: many small ticks of every size and colour, arriving in uneven
     //      clusters, each channel on its own, with now and then a deeper snap; never a steady hiss
     const crk = ctx.createBuffer(2, sr * 16, sr);
-    const rate = 10 + 22 * (1 - hum);                                   // drier air, livelier fire
+    const rate = (10 + 22 * (1 - hum)) / Math.sqrt(SLOW);                                   // drier air, livelier fire
     for (let c = 0; c < 2; c++) {
       const d = crk.getChannelData(c);
       let t = 0, heat = 0.5;
@@ -159,7 +160,7 @@
     // the crackle comes and goes in long phrases
     let crTimer = 0;
     const crackleWave = () => {
-      const t = ctx.currentTime, dur = 20 + rnd() * 40, v = (rnd() < 0.25 ? 0.12 : 0.25 + rnd() * 0.4) * (0.6 + 0.8 * (1 - hum));
+      const t = ctx.currentTime, dur = (20 + rnd() * 40) * SLOW, v = (rnd() < 0.25 ? 0.12 : 0.25 + rnd() * 0.4) * (0.6 + 0.8 * (1 - hum));
       crG.gain.cancelScheduledValues(t); crG.gain.setValueAtTime(crG.gain.value, t); crG.gain.linearRampToValueAtTime(v, t + dur * 0.4);
       crTimer = setTimeout(crackleWave, dur * 1000);
     };
@@ -180,7 +181,7 @@
         s.start(t, rnd() * 14, d + 0.5);
       },
       drive(t) {                                     // the low end breaks up for a while, then settles
-        const peak = 0.35 + rnd() * 0.5 + 0.4 * low, up = 3 + rnd() * 6, hold = 4 + rnd() * 14, down = 6 + rnd() * 10;
+        const peak = 0.35 + rnd() * 0.5 + 0.4 * low, up = (3 + rnd() * 6) * SLOW, hold = (4 + rnd() * 14) * SLOW, down = (6 + rnd() * 10) * SLOW;
         driveIn.gain.cancelScheduledValues(t); driveOut.gain.cancelScheduledValues(t);
         driveIn.gain.setValueAtTime(0.4, t); driveIn.gain.linearRampToValueAtTime(2.2 + 3 * rnd(), t + up); driveIn.gain.setValueAtTime(2.2, t + up + hold); driveIn.gain.linearRampToValueAtTime(0.4, t + up + hold + down);
         driveOut.gain.setValueAtTime(0, t); driveOut.gain.linearRampToValueAtTime(peak * 0.22, t + up); driveOut.gain.setValueAtTime(peak * 0.22, t + up + hold); driveOut.gain.linearRampToValueAtTime(0, t + up + hold + down);
@@ -206,14 +207,14 @@
         g.setValueAtTime(v, t); g.linearRampToValueAtTime(v * depth, t + 0.05); g.setValueAtTime(v * depth, t + 0.3 + rnd() * 0.9); g.linearRampToValueAtTime(v, t + 2.5 + rnd() * 2);
       },
       drift(t) {
-        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = 45 + rnd() * 60;
+        const cents = (rnd() * 2 - 1) * (3 + rnd() * 9), dur = (45 + rnd() * 60) * SLOW;
         drones.forEach((o) => { o.detune.cancelScheduledValues(t); o.detune.setValueAtTime(o.detune.value, t); o.detune.linearRampToValueAtTime(cents, t + dur); });
         state.drift = cents;
       },
       wander(t) {
         singers.forEach((bp) => {
           const n = 6 + Math.floor(rnd() * 7); bp.frequency.cancelScheduledValues(t);
-          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + 45 + rnd() * 45);
+          bp.frequency.setValueAtTime(bp.frequency.value, t); bp.frequency.exponentialRampToValueAtTime(F0 * n, t + (45 + rnd() * 45) * SLOW);
         });
       },
     };
@@ -223,7 +224,7 @@
       while (nextAt < until) {
         const k = pick(); ARTEFACTS[k](nextAt);
         const at = nextAt; setTimeout(() => (state.event = k), Math.max(0, (at - ctx.currentTime) * 1000));
-        nextAt += (8 + rnd() * 18) * (opt.wx ? 1.5 - 1.1 * low : 1);   // a falling glass brings more disturbance
+        nextAt += (8 + rnd() * 18) * (opt.wx ? 1.5 - 1.1 * low : 1) * SLOW;   // a falling glass brings more disturbance
       }
     }
 
@@ -231,7 +232,7 @@
     let breathTimer = 0;
     function breathe(at) {
       const step = () => {
-        const t = ctx.currentTime, dur = 15 + rnd() * 25, v = 0.42 + rnd() * 0.72;
+        const t = ctx.currentTime, dur = (15 + rnd() * 25) * SLOW, v = 0.42 + rnd() * 0.72;
         for (const g of [genDry.gain, genWet.gain]) { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + dur); }
         breathTimer = setTimeout(step, dur * 1000);
       };
@@ -250,8 +251,8 @@
         const t = ctx.currentTime;
         if (opt.breathe) breathe(t + 14);
         crTimer = setTimeout(crackleWave, 8000);
-        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
-        nextAt = t + 12 + rnd() * 6;
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12 * SLOW);
+        nextAt = t + (12 + rnd() * 6) * SLOW;
         schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
       },
       stop() {
