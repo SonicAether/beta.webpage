@@ -326,3 +326,7 @@ body.radio-on .hud-readout { opacity: 0; pointer-events: none; }
   .radio { left: 0; right: 0; bottom: 0; width: auto; max-height: 64vh; border-left: 0; border-right: 0; border-bottom: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
   body.radio-on .hud-index { opacity: 0; pointer-events: none; }
 }
+/* area markers list their recordings right away */
+.shrine.cluster { pointer-events: none; }
+.shrine.cluster .cluster-list { pointer-events: auto; margin: 8px 0 0 18px; padding: 6px 10px; }
+.cluster-list li.active button, .cluster-list li.active button span { color: var(--ice); }
