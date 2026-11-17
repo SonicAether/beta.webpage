@@ -215,6 +215,45 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   // silent: a noise floor with faint, slowly breathing overtone lines, so the page is never dead
   let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   const F0 = 41, ROW = [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11, 13];
+  /* messages written into the spectrum: the letters are drawn as if they were sound, made of
+     close partials (horizontal lines), with grain and a short decay, around 1 kHz, below the text of the page */
+  const MESSAGES = ["love is coming from the aether"];
+  const MFONT = (px) => `italic 400 ${px}px Newsreader, Georgia, serif`;
+  if (document.fonts) document.fonts.load(MFONT(40)).catch(() => {});
+  let msg = null, msgK = 0, colN = 0, nextMsg = reduce ? Math.round(W * 0.42) : Infinity;   // still: written into the opening image
+  function makeMsg(text) {
+    const g = document.createElement("canvas").getContext("2d");
+    // as large as fits in about half the width; on narrow screens in two lines
+    const fit = (lines) => { g.font = MFONT(100); const wmax = Math.max(...lines.map((l) => g.measureText(l).width)); return Math.min(H * 0.15 / lines.length * 1.6, 100 * W * (W < 320 ? 0.85 : 0.52) / wmax); };
+    let lines = [text], px = fit(lines);
+    if (px < H * 0.07) { const words = text.split(" "), half = Math.ceil(words.length / 2); lines = [words.slice(0, half).join(" "), words.slice(half).join(" ")]; px = fit(lines); }
+    px = Math.max(8, Math.floor(px));
+    g.font = MFONT(px);
+    const w = Math.ceil(Math.max(...lines.map((l) => g.measureText(l).width)) + px * 0.6), lh = Math.round(px * 1.15), h = lh * lines.length + Math.round(px * 0.4);
+    g.canvas.width = w; g.canvas.height = h;
+    g.font = MFONT(px); g.fillStyle = "#fff"; g.shadowColor = "#fff"; g.shadowBlur = Math.max(1, px * 0.05);
+    lines.forEach((l, i) => g.fillText(l, px * 0.3, px * 0.95 + i * lh));
+    const d = g.getImageData(0, 0, w, h).data, a = new Float32Array(w * h);
+    for (let i = 0; i < a.length; i++) a[i] = d[i * 4 + 3] / 255;
+    const yc = (1 - Math.log((W < 320 ? 2600 : 1000) / FMIN) / Math.log(FMAX / FMIN)) * H;
+    return { w, h, a, y0: Math.round(yc - h / 2), env: new Float32Array(h), x: 0 };
+  }
+  function msgInto(out) {
+    colN++;
+    if (!msg && colN >= nextMsg) msg = makeMsg(MESSAGES[msgK++ % MESSAGES.length]);
+    if (!msg) return;
+    const m = msg, x = m.x++;
+    for (let y = 0; y < m.h; y++) {
+      const v = x < m.w ? m.a[y * m.w + x] : 0;
+      m.env[y] = Math.max(v, m.env[y] * 0.78);                      // a short release, like a sound dying away
+      const yy = m.y0 + y;
+      if (yy < 0 || yy >= H || m.env[y] < 0.01) continue;
+      const partial = 0.5 + 0.5 * Math.cos(yy * 2.2);             // close partials: the letters are made of lines
+      out[yy] += m.env[y] * (0.22 + 0.62 * partial) * (0.65 + 0.55 * rnd()) * 0.8;
+    }
+    if (x >= m.w + 24) { msg = null; nextMsg = colN + Math.round(SPEED * (50 + rnd() * 40)); }
+  }
+
   function idleColumn(t) {
     const out = new Float32Array(H);
     for (let y = 0; y < H; y++) {
@@ -229,6 +268,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     }
     // now and then a short burst of static, as on the home page
     if (rnd() < 0.006) { const y0 = Math.floor(rnd() * H * 0.6), h = 6 + rnd() * 40; for (let y = y0; y < Math.min(H, y0 + h); y++) out[y] += 0.18 + rnd() * 0.1; }
+    msgInto(out);
     return out;
   }
 
@@ -243,6 +283,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 
   // fill the screen once so the page opens on an image, not on black
   { let t = 0; for (let x = 0; x < W; x++) { t += 1 / SPEED; paint(idleColumn(t), x); } }
+  if (!reduce) nextMsg = colN + Math.round(SPEED * 4);          // the first message drifts in after a few seconds
 
   let acc = 0, last = performance.now(), clock = W / SPEED;
   function frame(now) {
