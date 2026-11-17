@@ -53,7 +53,13 @@
   // licences the page may mix freely: public domain, CC BY, CC BY-NC (no ShareAlike, no NoDerivatives)
   const usable = (u) => /publicdomain|licenses\/by\/|licenses\/by-nc\/\d/.test(u || "");
   const licName = (u) => (/publicdomain/.test(u) ? "public domain" : /by-nc\//.test(u) ? "CC BY-NC" : /licenses\/by\//.test(u) ? "CC BY" : "licensed");
+  const searched = new Map();                     // archive answers are kept for the visit
   async function search(lat, half) {
+    const key = Math.round(lat / half) + ":" + half;
+    if (!searched.has(key)) searched.set(key, searchBand(Math.round(lat / half) * half, half).catch((e) => { searched.delete(key); throw e; }));
+    return searched.get(key);
+  }
+  async function searchBand(lat, half) {
     const q = `collection:radio-aporee-maps AND latitude:[${(lat - half).toFixed(2)} TO ${(lat + half).toFixed(2)}]`;
     const u = `https://archive.org/services/search/v1/scrape?q=${encodeURIComponent(q)}&fields=identifier,latitude,longitude,licenseurl&count=10000`;
     const j = await (await fetch(u)).json();

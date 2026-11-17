@@ -6,7 +6,8 @@
 <title>Aron Stadler</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="robots" content="noindex, nofollow">
-<!-- test copy of the Aron Stadler page (unlinked); the version in Pull Request 7 replaces aronstadler.html -->
+<!-- unlinked test copy; the version in Pull Request 7 replaces the page itself -->
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,200;1,6..72,300;1,6..72,400&display=swap">
@@ -35,32 +36,6 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 /* the spectrogram behind everything */
 #spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; }
 
-/* the map: on demand, sliding in from the right beside the spectrogram (colours of Listening Shrines) */
-.map-btn { position: fixed; z-index: 4; right: max(18px, env(safe-area-inset-right, 0px)); top: 50%; transform: translateY(-50%) rotate(180deg); writing-mode: vertical-rl;
-  padding: 14px 8px; font-size: 9px; letter-spacing: 0.3em; color: var(--dim); border: 1px solid var(--line); background: rgba(7,4,15,.55); backdrop-filter: blur(6px); transition: color .3s, border-color .3s, right .7s cubic-bezier(.3,.7,.2,1); }
-.map-btn:hover, .map-btn[aria-expanded="true"] { color: var(--ink); border-color: #a9dbe8; }
-.map-panel { position: fixed; z-index: 3; top: calc(52px + env(safe-area-inset-top, 0px)); right: 0; bottom: 0; width: min(440px, 92vw); padding: 22px;
-  display: flex; flex-direction: column; justify-content: center; gap: 14px;
-  background: rgba(6, 8, 10, 0.92); border-left: 1px solid rgba(223,230,234,.12); backdrop-filter: blur(10px);
-  transform: translateX(100%); transition: transform .7s cubic-bezier(.3,.7,.2,1); }
-.map-panel.open { transform: none; }
-body.map-open .map-btn { right: calc(min(440px, 92vw) + 10px); }
-.mp-head { display: flex; justify-content: space-between; align-items: baseline; }
-.mp-head button { color: var(--dim); font-size: 13px; }
-.mp-head button:hover { color: var(--ink); }
-.mp-map { position: relative; width: 100%; aspect-ratio: 1200 / 1214; border: 1px solid rgba(223,230,234,.1); }
-.mp-map img, .mp-map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-#marks .ring { fill: none; stroke: #a9dbe8; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-#marks .pulse { fill: none; stroke: #a9dbe8; vector-effect: non-scaling-stroke; animation: pulse 6.5s ease-out infinite; transform-box: fill-box; transform-origin: center; }
-#marks .core { fill: #a9dbe8; }
-#marks .rec { fill: #dfe6ea; stroke: #06080a; stroke-width: 1; vector-effect: non-scaling-stroke; }
-#marks .rec.on { fill: var(--accent); }
-@keyframes pulse { from { transform: scale(.5); opacity: .9; } to { transform: scale(3); opacity: 0; } }
-.mp-cap { margin: 0; color: #dfe6ea; font-size: 10px; letter-spacing: 0.08em; line-height: 1.7; min-height: 3.4em; }
-.mp-key { margin: 0; color: var(--dim); font-size: 9px; letter-spacing: 0.14em; }
-.mp-key span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: -1px; margin-right: 4px; }
-.k-place { border: 1.5px solid #a9dbe8; } .k-rec { background: #dfe6ea; }
-@media (max-width: 760px) { .map-btn { top: auto; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); transform: rotate(180deg); } body.map-open .map-btn { display: none; } .map-panel { top: calc(96px + env(safe-area-inset-top, 0px)); } }
 .veil { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(7,4,15,.9) 0%, rgba(7,4,15,.66) 34%, rgba(7,4,15,.12) 64%, rgba(7,4,15,0) 100%),
               linear-gradient(180deg, rgba(7,4,15,.6) 0%, rgba(7,4,15,0) 14%, rgba(7,4,15,0) 82%, rgba(7,4,15,.7) 100%); }
@@ -94,32 +69,6 @@ main { display: grid; grid-template-columns: max-content minmax(0, 460px); align
 
 .col { display: grid; gap: 34px; align-content: end; padding-bottom: 6px; }
 .h { margin: 0; font-weight: 400; font-size: 10px; color: var(--dim); letter-spacing: 0.24em; text-transform: uppercase; }
-
-/* the signal: start and stop the generative sound */
-.signal { display: flex; align-items: center; gap: 18px; }
-.signal button { display: flex; align-items: center; gap: 16px; }
-.signal i { width: 46px; height: 46px; border: 1px solid rgba(236,230,240,.45); border-radius: 50%; position: relative; flex: none; transition: border-color .4s, box-shadow .6s; }
-.signal i::before { content: ""; position: absolute; left: 18px; top: 15px; border-left: 13px solid var(--ink); border-top: 8px solid transparent; border-bottom: 8px solid transparent; transition: opacity .3s; }
-.signal i::after { content: ""; position: absolute; inset: 17px; border-left: 3px solid var(--ink); border-right: 3px solid var(--ink); opacity: 0; transition: opacity .3s; }
-.signal button[aria-pressed="true"] i { border-color: var(--accent); box-shadow: 0 0 22px rgba(224,130,189,.28); }
-.signal button[aria-pressed="true"] i::before { opacity: 0; }
-.signal button[aria-pressed="true"] i::after { opacity: 1; }
-.signal button:hover i { border-color: var(--ink); }
-.signal .lbl { display: grid; gap: 4px; text-align: left; }
-.signal .lbl b { font-weight: 400; font-size: 11px; letter-spacing: 0.24em; }
-.signal .lbl span { color: var(--dim); font-size: 9px; letter-spacing: 0.18em; }
-.move { margin-left: auto; color: var(--dim); font-size: 9px; letter-spacing: 0.2em; border: 1px solid var(--line); padding: 8px 12px; transition: color .3s, border-color .3s; }
-.move:hover, .move:focus-visible { color: var(--ink); border-color: var(--accent); }
-.move:disabled { opacity: .4; cursor: default; }
-.source { margin: -14px 0 0 62px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 9px; letter-spacing: 0.12em; line-height: 1.6; }
-.source dt { color: var(--faint); text-transform: uppercase; letter-spacing: 0.2em; }
-.source dd { margin: 0; color: var(--dim); font-variant-numeric: tabular-nums; }
-.source dd a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--faint); }
-.source dd a:hover { color: var(--accent); border-color: var(--accent); }
-.source dd .by, .source dd .by a { color: var(--dim); }
-.source dd .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); margin-right: 7px; vertical-align: 1px; transition: background .6s, box-shadow .6s; }
-.source dd a.on .dot { background: var(--accent); box-shadow: 0 0 8px rgba(224,130,189,.7); }
-@media (max-width: 760px) { .source { margin-left: 0; grid-template-columns: 1fr; gap: 0; } .source dd { margin-bottom: 4px; } }
 
 /* releases */
 .releases { display: grid; gap: 0; border-top: 1px solid var(--line); }
@@ -159,18 +108,11 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 </head>
 <body>
 <canvas id="spec" aria-hidden="true"></canvas>
-<button id="map-btn" class="map-btn" type="button" aria-expanded="false" aria-controls="map-panel">MAP</button>
-<aside id="map-panel" class="map-panel" aria-label="Where the signal comes from" hidden>
-  <div class="mp-head"><span class="h">Where the signal comes from</span><button id="map-close" type="button" aria-label="Close the map">✕</button></div>
-  <div class="mp-map"><img id="mapimg" src="assets/geo/map.jpg" alt="Relief map from Ireland to Sweden"><svg id="marks" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg></div>
-  <p class="mp-cap" id="map-cap">Press LISTEN and a place will be chosen somewhere on this map.</p>
-  <p class="mp-key"><span class="k-place"></span> the place &nbsp; <span class="k-rec"></span> recordings nearby</p>
-</aside>
 <div class="veil" aria-hidden="true"></div>
 <div class="axis" aria-hidden="true" id="axis"></div>
 <div class="wrap">
   <header>
-    <div class="brand"><a href="../">SONIC AETHER</a></div>
+    <div class="brand"><a href=".././">SONIC AETHER</a></div>
     <nav aria-label="Main">
       <ul>
         <li><a href="../fieldrec.html">LISTENING SHRINES_</a></li>
@@ -184,15 +126,6 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   <main>
     <h1 class="name">Aron Stadler</h1>
     <div class="col">
-      <div class="signal">
-        <button id="signal" type="button" aria-pressed="false">
-          <i aria-hidden="true"></i>
-          <span class="lbl"><b id="signal-b">LISTEN</b><span id="signal-s">a generative signal from a random place, shaped by its weather and its field recordings</span></span>
-        </button>
-        <button id="move" class="move" type="button" hidden>CHANGE LOCATION ↻</button>
-      </div>
-      <dl class="source" id="source" hidden><dt>Received from</dt><dd id="src-at">—</dd><dt>Weather there now</dt><dd id="src-wx">—</dd><dt id="src-rec-row" hidden>Recordings nearby</dt><dd id="src-rec" hidden></dd></dl>
-
       <section aria-label="Releases">
         <h2 class="h">Releases</h2>
         <ol class="releases" id="releases" style="list-style:none;margin:12px 0 0;padding:0"></ol>
@@ -219,46 +152,13 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
         <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
       </ul>
     </section>
-    <div class="readout">SPECTROGRAM · 30 Hz – 16 kHz · <span id="state">NOISE FLOOR</span><br>weather · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · recordings · <a href="https://aporee.org/maps/" target="_blank" rel="noopener noreferrer">radio aporee</a> · places · <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer">GeoNames</a> &nbsp; Daniel Aron de Jong © 2026 · <a href="../privacy.html">Privacy</a></div>
+    <div class="readout">SPECTROGRAM · 30 Hz – 16 kHz · NOISE FLOOR<br>Daniel Aron de Jong © 2026 · <a href="../privacy.html">Privacy</a></div>
   </footer>
 </div>
 
-<script src="assets/transmission.js?v=3"></script>
-<script src="assets/signal-source.js?v=3"></script>
 <script>
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-  /* ── the map beside: Web Mercator, the same area and tiles as the Listening Shrines overview ── */
-  const MAP = { n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, w: 1200, h: 1214 };
-  const marks = document.getElementById("marks"), panel = document.getElementById("map-panel"), mapBtn = document.getElementById("map-btn"), cap = document.getElementById("map-cap");
-  marks.setAttribute("viewBox", `0 0 ${MAP.w} ${MAP.h}`);
-  const toXY = (lat, lon) => {
-    const tx_ = (lon + 180) / 360 * MAP.n, ty_ = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * MAP.n;
-    return [(tx_ - MAP.x0) / (MAP.x1 - MAP.x0) * MAP.w, (ty_ - MAP.y0) / (MAP.y1 - MAP.y0) * MAP.h];
-  };
-  let focus = null, recPts = [], sounding = -1;
-  function drawMarks() {
-    let h = "";
-    if (focus) {
-      for (const r of recPts) { const [rx, ry] = toXY(r.lat, r.lon); h += `<circle class="rec${r.i === sounding ? " on" : ""}" data-i="${r.i}" cx="${rx.toFixed(1)}" cy="${ry.toFixed(1)}" r="6"/>`; }
-      const [fx, fy] = toXY(focus.lat, focus.lon);
-      h += `<circle class="pulse" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12"/><circle class="ring" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="12"/><circle class="core" cx="${fx.toFixed(1)}" cy="${fy.toFixed(1)}" r="3.5"/>`;
-    }
-    marks.innerHTML = h;
-  }
-  function showPlace(p, label) { focus = p; recPts = []; sounding = -1; drawMarks(); cap.textContent = p ? (label || "") : "Press LISTEN and a place will be chosen somewhere on this map."; }
-  function showRecs(recs) { recPts = recs.map((r, i) => ({ lat: r.lat, lon: r.lon, i })); drawMarks(); }
-  function markSounding(i) { sounding = i; drawMarks(); }
-  function setMap(open) {
-    if (open) { panel.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.add("open"))); }
-    else { panel.classList.remove("open"); setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 700); }
-    document.body.classList.toggle("map-open", open);
-    mapBtn.setAttribute("aria-expanded", open); mapBtn.textContent = open ? "CLOSE" : "MAP";
-  }
-  mapBtn.addEventListener("click", () => setMap(!panel.classList.contains("open")));
-  document.getElementById("map-close").addEventListener("click", () => setMap(false));
-  addEventListener("keydown", (e) => { if (e.key === "Escape" && panel.classList.contains("open")) setMap(false); });
 
   /* ── releases: a title each; the player opens beneath it ── */
   const RELEASES = [
@@ -274,8 +174,6 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       const open = b.getAttribute("aria-expanded") === "true";
       relList.querySelectorAll(".rel > button[aria-expanded='true']").forEach((x) => { x.setAttribute("aria-expanded", "false"); const e = x.nextElementSibling; e.hidden = true; e.innerHTML = ""; });
       if (open) return;
-      // the record takes over from the generated signal
-      if (tx) stopSignal();
       box.innerHTML = `<iframe title="${r.title} on Spotify" src="https://open.spotify.com/embed/album/${r.album}?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
       box.hidden = false; b.setAttribute("aria-expanded", "true");
     });
@@ -334,17 +232,6 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     return out;
   }
 
-  let ctxA = null, tx = null, spec = null, binHz = 1;
-  function liveColumn() {
-    tx.analyser.getFloatFrequencyData(spec);
-    const out = new Float32Array(H);
-    for (let y = 0; y < H; y++) {
-      const b = Math.min(spec.length - 1, Math.max(1, Math.round(rowF[y] / binHz)));
-      const db = spec[b] + 6 * Math.log2(rowF[y] / 200);          // tilt: lift the highs a little
-      out[y] = Math.min(1, Math.max(0, (db + 108) / 74));
-    }
-    return out;
-  }
   function paint(vals, x) {
     const d = col.data;
     for (let y = 0; y < H; y++) {
@@ -365,278 +252,13 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     if (n > 0) {
       acc -= n;
       cx.drawImage(cv, n, 0, W - n, H, 0, 0, W - n, H);            // the image moves left
-      for (let k = n; k > 0; k--) { clock += 1 / SPEED; paint(tx ? liveColumn() : idleColumn(clock), W - k); }
+      for (let k = n; k > 0; k--) { clock += 1 / SPEED; paint(idleColumn(clock), W - k); }
     }
     if (!document.hidden) requestAnimationFrame(frame);
   }
   if (!reduce) requestAnimationFrame(frame);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !reduce) { last = performance.now(); requestAnimationFrame(frame); } });
 
-  /* ── the generative signal: the home page's transmission, a little lower and with a longer row ── */
-  const moveBtn = document.getElementById("move");
-  const btn = document.getElementById("signal"), lb = document.getElementById("signal-b"), ls = document.getElementById("signal-s"), st = document.getElementById("state");
-  // the signal comes from a random place between Ireland and Sweden; its weather now shapes the sound
-  const AREA = { lon: [-11.5, 20.5], lat: [49.8, 66.5] };
-  async function weatherSomewhere() {
-    const lat = AREA.lat[0] + Math.random() * (AREA.lat[1] - AREA.lat[0]), lon = AREA.lon[0] + Math.random() * (AREA.lon[1] - AREA.lon[0]);
-    const place = { lat: +lat.toFixed(2), lon: +lon.toFixed(2) };
-    try {
-      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 4500);
-      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,pressure_msl,wind_speed_10m,wind_direction_10m,relative_humidity_2m,cloud_cover`, { signal: ctl.signal });
-      clearTimeout(to);
-      const c = (await r.json()).current;
-      return { place, wx: { t: c.temperature_2m, p: c.pressure_msl, ws: c.wind_speed_10m, wd: c.wind_direction_10m, rh: c.relative_humidity_2m, cc: c.cloud_cover } };
-    } catch (_) {
-      // previews that cannot reach the service may carry real readings captured once at random places
-      const S = window.SA_WX_PLACES;
-      if (S && S.length) { const k = S[Math.floor(Math.random() * S.length)]; return { place: k.place, wx: k.wx, snap: k.time }; }
-      return { place, wx: null };
-    }
-  }
-  const fmt = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
-  const compass = (d) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((d % 360) + 360) % 360 / 45) % 8];
-  const ll = (p) => `${Math.abs(p.lat).toFixed(2)}° ${p.lat >= 0 ? "N" : "S"}, ${Math.abs(p.lon).toFixed(2)}° ${p.lon >= 0 ? "E" : "W"}`;
-  function showSource(src) {
-    const box = document.getElementById("source"), w = src.wx;
-    document.getElementById("src-at").textContent = (src.name ? src.name + " · " : "") + ll(src.place);
-    document.getElementById("src-wx").innerHTML = w
-      ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %` + (src.snap ? ` · recorded ${src.snap.slice(11, 16)} UTC` : "")
-      : `no weather reached from here · neutral settings`;
-    box.hidden = false;
-  }
-  /* field recordings from radio aporee ::: maps nearest to the place. One sounds at a time; the next
-     is loaded ahead and blended in with an equal-power crossfade, also across a change of place.
-     They run on their own bus, so they are not cut when the drone of one place hands over to the next. */
-  const XF = 24, LEAD = 30;                        // crossfade length; how early the next one starts loading (s)
-  const REC_LEVEL = 0.9;
-  let field = null, fbus = null;
-  function fieldBus() {
-    if (fbus) return fbus;
-    const inp = ctxA.createGain(), comp = ctxA.createDynamicsCompressor(), out = ctxA.createGain(), send = ctxA.createGain();
-    comp.threshold.value = -18; comp.ratio.value = 2.5; comp.attack.value = 0.05; comp.release.value = 0.8;
-    send.gain.value = 0.18;
-    inp.connect(comp).connect(out); inp.connect(send);
-    return (fbus = { inp, out, send });
-  }
-  // the bus feeds whichever drone is current: its analyser (so the spectrogram shows it) and its space
-  function attachField(t) {
-    const b = fieldBus();
-    try { b.out.disconnect(); b.send.disconnect(); } catch (_) {}
-    b.out.connect(t.analyser); b.send.connect(t.space);
-    if (field && field.cur) t.duck(0.55, 8);
-  }
-  const sleep = (sec, me) => new Promise((res) => { const id = setTimeout(res, sec * 1000); me.timers.push(id); });
-  /* Players. Safari (and iOS) only let a media element start if it was first started inside a click,
-     so a small pool of players is unlocked when LISTEN is pressed and reused for every recording.
-     Each player has a twin that plays directly, for browsers whose Web Audio stays silent with
-     audio from another site; then the blend is done with the element volume instead. */
-  let decks = null, direct = false;
-  function silentUrl() {
-    const n = 800, b = new ArrayBuffer(44 + n), v = new DataView(b), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
-    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
-    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, "data"); v.setUint32(40, n, true);
-    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
-    return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
-  }
-  function unlockDecks() {                         // call inside the click
-    if (decks) return;
-    const quiet = silentUrl();
-    const mk = () => { const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.src = quiet; const p = a.play(); if (p) p.then(() => a.pause()).catch(() => {}); return a; };
-    decks = [0, 1, 2, 3].map(() => {
-      const a = mk(), d = mk();
-      const node = ctxA.createMediaElementSource(a);
-      const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
-      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
-      const g = ctxA.createGain(); g.gain.value = 0;
-      const probe = ctxA.createAnalyser(); probe.fftSize = 2048;
-      node.connect(hp).connect(lp).connect(g).connect(fieldBus().inp);   // in the middle, in front of the drone
-      node.connect(probe);
-      return { a, d, g, probe, busy: false };
-    });
-  }
-  function free(el) { el.pause(); el.removeAttribute("src"); try { el.load(); } catch (_) {} }
-  // load one recording into a free player and seek to a random excerpt; resolves when it can play, or null
-  function load(r, me) {
-    return new Promise((res) => {
-      const deck = decks && decks.find((x) => !x.busy);
-      if (!deck) return res(null);
-      deck.busy = true;
-      const el = direct ? deck.d : deck.a;
-      el.loop = true; el.volume = direct ? 0 : 1; el.src = r.src; el.load();
-      let done = false;
-      const fail = () => { if (done) return; done = true; free(el); deck.busy = false; res(null); };
-      const to = setTimeout(fail, 25000); me.timers.push(to);
-      el.addEventListener("error", fail, { once: true });
-      el.addEventListener("loadedmetadata", () => {
-        const len = el.duration || r.length || 0;
-        if (len > 200) el.currentTime = Math.random() * (len - 200);
-        const ok = () => { if (done) return; done = true; clearTimeout(to); res({ r, deck, el, direct: el === deck.d }); };
-        if (el.readyState >= 3 && !el.seeking) ok(); else el.addEventListener("canplay", ok, { once: true });
-      }, { once: true });
-    });
-  }
-  const REC_DIRECT = 0.75;
-  const shapeIn = (x) => Math.sin(x * Math.PI / 2), shapeOut = (x) => Math.cos(x * Math.PI / 2);
-  // a volume fade for the direct players (Web Audio cannot reach them)
-  function volFade(v, shape, sec, from = v.el.volume) {
-    clearInterval(v.vt);
-    const t0 = performance.now();
-    v.vt = setInterval(() => {
-      const x = Math.min(1, (performance.now() - t0) / (sec * 1000));
-      v.el.volume = Math.max(0, Math.min(1, shape ? shape(x) * REC_DIRECT : from * (1 - x)));
-      if (x >= 1) clearInterval(v.vt);
-    }, 80);
-  }
-  const curveIn = new Float32Array(64).map((_, i) => shapeIn(i / 63) * REC_LEVEL);
-  const curveOut = new Float32Array(64).map((_, i) => shapeOut(i / 63) * REC_LEVEL);
-  function retire(v, after) {
-    setTimeout(() => { clearInterval(v.vt); free(v.el); v.deck.g.gain.cancelScheduledValues(0); v.deck.g.gain.value = 0; v.deck.busy = false; }, after * 1000);
-  }
-  function release(v, sec) {
-    if (!v) return;
-    if (v.direct) volFade(v, null, sec);
-    else { const t = ctxA.currentTime, g = v.deck.g.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + sec); }
-    retire(v, sec + 0.5);
-  }
-  // if this browser gives Web Audio only silence for the recording, move it to the direct twin
-  function checkHeard(v) {
-    if (v.direct) return;
-    const buf = new Float32Array(v.deck.probe.fftSize);
-    let peak = 0, n = 0;
-    const id = setInterval(() => {
-      if (field === null || v.el.paused) { if (n++ > 40) clearInterval(id); return; }
-      v.deck.probe.getFloatTimeDomainData(buf);
-      for (const x of buf) peak = Math.max(peak, Math.abs(x));
-      if (peak > 1e-5) return clearInterval(id);     // it sounds: fine
-      if (++n < 12 || v.el.currentTime < 1) return;
-      clearInterval(id);
-      direct = true;                                   // from now on all recordings play directly
-      const d = v.deck.d, at = v.el.currentTime;
-      v.el.pause(); d.loop = true; d.volume = 0; d.src = v.el.currentSrc || v.r.src;
-      d.addEventListener("loadedmetadata", () => { try { d.currentTime = at; } catch (_) {} d.play().catch(() => {}); }, { once: true });
-      d.load();
-      free(v.el); v.el = d; v.direct = true; volFade(v, shapeIn, 6);
-    }, 250);
-  }
-  // blend `from` out and `to` in, equal power, so the sum never dips
-  function crossfade(from, to) {
-    const t = ctxA.currentTime + 0.05;
-    const p = to.el.play(); if (p) p.catch((e) => console.warn("recording could not start:", e && e.name));
-    if (to.direct) volFade(to, shapeIn, XF);
-    else { to.deck.g.gain.cancelScheduledValues(t); to.deck.g.gain.setValueCurveAtTime(curveIn, t, XF); checkHeard(to); }
-    if (from) {
-      if (from.direct) volFade(from, shapeOut, XF);
-      else { const g = from.deck.g.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setValueCurveAtTime(curveOut.map((x) => x * Math.max(g.value, 0.001) / REC_LEVEL), t, XF); }
-      retire(from, XF + 1);
-    }
-    if (tx) tx.duck(0.55, XF * 0.6);
-  }
-  function listRecs(recs) {
-    const list = document.getElementById("src-rec"), row = document.getElementById("src-rec-row");
-    list.innerHTML = recs.length
-      ? recs.map((r, i) => `<a href="${r.page}" target="_blank" rel="noopener noreferrer" data-i="${i}"><span class="dot"></span>${r.title || r.id}</a> <span class="by">${r.creator} · ${r.km < 1 ? "<1" : Math.round(r.km)} km · <a href="${r.licenseurl}" target="_blank" rel="noopener noreferrer">${r.license}</a></span>`).join("<br>")
-      : "none close enough to mix";
-    row.hidden = list.hidden = false;
-  }
-  function markRec(i) {
-    document.getElementById("src-rec").querySelectorAll("a[data-i]").forEach((x) => x.classList.toggle("on", +x.dataset.i === i));
-    markSounding(i);
-  }
-  // `prev`: the field of the place before, still sounding; its recording is blended into the first new one
-  function playField(recs, prev) {
-    listRecs(recs); showRecs(recs);
-    const me = { stop: false, timers: [], cur: prev ? prev.cur : null };
-    if (prev) prev.handedOver = true;
-    field = me;
-    if (!recs.length) { release(me.cur, 10); me.cur = null; return; }
-    (async () => {
-      let k = 0;
-      const nextVoice = async () => {
-        for (let tries = 0; tries < recs.length; tries++) {
-          const i = k % recs.length; k++;
-          const v = await load(recs[i], me);
-          if (me.stop) { if (v) release(v, 0.1); return null; }
-          if (v) { v.i = i; return v; }
-        }
-        return null;
-      };
-      if (!me.cur) await sleep(12, me);                   // a fresh start: let the drone rise first
-      if (me.stop) return;
-      let v = await nextVoice();
-      while (!me.stop && v) {
-        crossfade(me.cur, v); me.cur = v; markRec(v.i);
-        const hold = 80 + Math.random() * 90;
-        await sleep(Math.max(XF, hold - LEAD), me);
-        if (me.stop || recs.length < 2) { if (recs.length < 2) await sleep(1e6, me); break; }
-        const ready = nextVoice();
-        await sleep(Math.min(LEAD, hold - XF), me);
-        v = await ready;
-      }
-      if (!me.stop && !v) { release(me.cur, 10); me.cur = null; }
-    })();
-  }
-  // stop the recordings altogether (LISTEN off): a soft fade
-  function stopField(sec = 6) {
-    if (!field) return;
-    field.stop = true; field.timers.forEach(clearTimeout);
-    release(field.cur, sec); field.cur = null;
-    field = null;
-  }
-  // a change of place: the current recording keeps sounding until the next place's first one blends in
-  function holdField() {
-    if (!field) return null;
-    const f = field;
-    f.stop = true; f.timers.forEach(clearTimeout);
-    field = null;
-    // if nothing takes over within a minute, let it go
-    setTimeout(() => { if (!f.handedOver) release(f.cur, 10); }, 60000);
-    return f;
-  }
-
-  let busy = false;
-  let tuneId = 0;
-  async function startSignal(change) {
-    if (busy) return; busy = true;
-    const my = ++tuneId, old = change ? tx : null;
-    const AC = window.AudioContext || window.webkitAudioContext;
-    ctxA = ctxA || new AC(); ctxA.resume();               // unlocked inside the click, before the network
-    unlockDecks();
-    lb.textContent = "TUNING"; ls.textContent = "listening for a place"; moveBtn.disabled = true;
-    const src = await weatherSomewhere();
-    const named = window.SignalSource ? window.SignalSource.name(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
-    const nearby = window.SignalSource ? window.SignalSource.recordings(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
-    src.name = ((await named) || {}).label;
-    // changing place: the old signal and its recordings fade out while the new one rises
-    const prevField = old ? holdField() : null;
-    if (old) old.stop();
-    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.6, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.6, breathe: true, slow: 2 });
-    tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
-    spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
-    tx.start();
-    attachField(tx);
-    showSource(src);
-    showPlace(src.place, document.getElementById("src-at").textContent); document.body.classList.add("live");
-    document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
-    nearby.then((recs) => {
-      if (!tx || my !== tuneId) return;
-      if (recs) playField(recs, prevField);
-      else { document.getElementById("src-rec").textContent = "the archive could not be reached from here"; if (prevField) release(prevField.cur, 10); }
-    });
-    btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
-    busy = false; moveBtn.disabled = false; moveBtn.hidden = false;
-    if (reduce) { for (let x = 0; x < W; x++) paint(idleColumn(x), x); }
-  }
-  function stopSignal() {
-    if (!tx) return;
-    stopField();
-    tx.stop(); tx = null;
-    document.getElementById("source").hidden = true; moveBtn.hidden = true;
-    showPlace(null); document.body.classList.remove("live");
-    document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = true;
-    btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal from a random place, shaped by its weather and its field recordings"; st.textContent = "NOISE FLOOR";
-  }
-  btn.addEventListener("click", () => (tx ? stopSignal() : startSignal()));
-  moveBtn.addEventListener("click", () => { if (tx) startSignal(true); });
 })();
 </script>
 </body>
