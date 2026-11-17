@@ -69,7 +69,7 @@
     const [, loc, snd] = item.identifier.split("_");
     const md = m.metadata || {};
     return {
-      id: item.identifier, km: item.km, bearing: item.bearing,
+      id: item.identifier, km: item.km, bearing: item.bearing, lat: item.lat, lon: item.lon,
       title: String(md.title || "").replace(/<[^>]+>/g, ""), creator: who(md.creator),
       license: licName(md.licenseurl), licenseurl: md.licenseurl,
       src: `https://archive.org/download/${item.identifier}/${encodeURIComponent(mp3.name)}`,

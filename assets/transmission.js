@@ -31,7 +31,10 @@
     const dry = G(0.8), wet = G(opt.wx ? 0.42 + 0.6 * hum : 0.75);
     const wetLp = ctx.createBiquadFilter(); wetLp.type = "lowpass"; wetLp.frequency.value = opt.wx ? 9500 - 7000 * hum : 20000;
     dry.connect(master); verb.connect(wetLp).connect(wet).connect(master);
-    const send = (node, d = 0.6, w = 0.4) => { node.connect(G(d)).connect(dry); node.connect(G(w)).connect(verb); };
+    // the generated sound has its own bus, so its level can breathe and make room for field recordings
+    const genDry = G(1), genWet = G(1), duckD = G(1), duckW = G(1);
+    genDry.connect(duckD).connect(dry); genWet.connect(duckW).connect(verb);
+    const send = (node, d = 0.6, w = 0.4) => { node.connect(G(d)).connect(genDry); node.connect(G(w)).connect(genWet); };
 
     // shared noise buffers
     const brown = ctx.createBuffer(2, sr * 8, sr), white = ctx.createBuffer(1, sr * 2, sr);
@@ -77,7 +80,7 @@
     const rumLp = ctx.createBiquadFilter(); rumLp.type = "lowpass"; rumLp.frequency.value = 70; rumLp.Q.value = 0.7;
     rum.connect(rumLp).connect(G(0.35)).connect(sub); rum.start(); live.push(rum);
     sub.gain.value = opt.wx ? 0.5 + 0.6 * low : 0.75; lfo(1 / 140, 0.25, sub.gain);   // swells over ~2½ min; deeper in a low
-    sub.connect(dry);
+    sub.connect(genDry);
 
     // 3 · overtones singing out of the noise (very narrow band-passes that wander)
     const singers = [0, 1].map((k) => {
@@ -160,18 +163,34 @@
       }
     }
 
+    // a slow, irregular swell of the whole drone: new targets every 15–40 s, between about −8 and +1 dB
+    let breathTimer = 0;
+    function breathe(at) {
+      const step = () => {
+        const t = ctx.currentTime, dur = 15 + rnd() * 25, v = 0.42 + rnd() * 0.72;
+        for (const g of [genDry.gain, genWet.gain]) { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + dur); }
+        breathTimer = setTimeout(step, dur * 1000);
+      };
+      breathTimer = setTimeout(step, Math.max(0, (at - ctx.currentTime) * 1000));
+    }
     return {
+      // lower the drone while something else is in front (1 = no ducking); takes effect over `sec`
+      duck(v, sec = 6) {
+        const t = ctx.currentTime;
+        for (const g of [duckD.gain, duckW.gain]) { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + sec); }
+      },
       analyser, state, F0, shape: { warm, low, wind, hum, cloud, side },
       // for outside material (field recordings): a dry input and a send into the space
       input: dry, space: verb,
       start() {
         const t = ctx.currentTime;
+        if (opt.breathe) breathe(t + 14);
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);
         nextAt = t + 12 + rnd() * 6;
         schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
       },
       stop() {
-        clearInterval(timer);
+        clearInterval(timer); clearTimeout(breathTimer);
         const t = ctx.currentTime;
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(master.gain.value, t); master.gain.linearRampToValueAtTime(0, t + 5);
         setTimeout(() => { live.forEach((n) => { try { n.stop(); } catch (_) {} }); master.disconnect(); }, 5300);
