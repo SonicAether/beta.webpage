@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { SHRINES } from "./shrines-data.js";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/a49d90970df3e0fd1e1a53e822c844423b957e57/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/a6ed5b2b117f76d0058f56d98614ada149352f2b/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -77,6 +77,7 @@ const uniforms = {
   uIce: { value: new THREE.Color(0xa9dbe8) },
   uBg: { value: BG },
   uSolid: { value: 0 },
+  uDrop: { value: 0.04 },
 };
 
 const pointMat = new THREE.ShaderMaterial({
@@ -86,7 +87,7 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit, uSolid;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit, uSolid, uDrop;
     uniform vec2 uHalf;
     uniform float uHoleA, uHoleR, uCovOn;
     uniform vec4 uHole;
@@ -109,11 +110,13 @@ const pointMat = new THREE.ShaderMaterial({
         // fading in at the start of its path and out at the end
         float ph = fract(aRand * 7.31 + uTime * (0.028 + 0.03 * aShade));
         float ang = 2.4 + 0.7 * sin(p.x * 0.031 + p.z * 0.023) + 0.4 * sin(uTime * 0.05 + p.z * 0.05);
-        p.xz += vec2(cos(ang), sin(ang)) * (ph - 0.5) * uDrift * (aWater > 0.7 ? 1.0 : 0.5);
+        p.xz += vec2(cos(ang), sin(ang)) * (ph - 0.5) * uDrift * (aWater > 0.9 ? 1.0 : aWater > 0.7 ? 0.08 : 0.5);
         life = smoothstep(0.0, 0.18, ph) * (1.0 - smoothstep(0.82, 1.0, ph));
+        // lakes hardly move: their points stay and sparkle, each at its own pace
+        if (aWater > 0.7 && aWater < 0.9) life = 0.25 + 0.75 * pow(0.5 + 0.5 * sin(uTime * (0.6 + 2.2 * aRand) + aRand * 40.0), 6.0);
       }
       if (aWater > 0.5) {
-        float swell = aWater > 0.9 ? 1.0 : (aWater > 0.7 ? 0.3 : 0.12);
+        float swell = aWater > 0.9 ? 1.0 : (aWater > 0.7 ? 0.04 : 0.12);
         p.y += (sin(p.x * 0.11 + uTime * 0.6) * 0.18 + sin(p.z * 0.07 - uTime * 0.45 + p.x * 0.03) * 0.22) * swell;
       }
       // LIDAR sweep: a slow band travelling across the terrain
@@ -165,7 +168,7 @@ const pointMat = new THREE.ShaderMaterial({
       }
       vFog = smoothstep(uFar, 220.0, depth) * life * form * soft;
       // scan dropout flicker
-      vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
+      vFog *= step(uDrop, fract(aRand + uTime * 0.013 * aRand));
       // a solid scan: once the surface has formed, the land points give way to it (water stays)
       if (aWater < 0.5) soft *= 1.0 - uSolid;
       if (form * soft < 0.03) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);   // not there yet: don't cover what lies behind
@@ -228,7 +231,7 @@ function makeCloud(img, opt) {
   const keepWater = 0.11;
   const keepLake = opt.keepLake ?? 0.3;
   const KEEP = [keepLand, opt.keepSea ?? keepWater, keepLake, 0.5], WAT = [0, 1, 0.75, 0.6];
-  const cap = Math.ceil((NX * NZ) / (stride * stride) * 0.56) + 1000;   // room for the points that will be kept
+  const cap = Math.ceil((NX * NZ) / (stride * stride) * (opt.capShare ?? 0.56)) + 1000;   // room for the points that will be kept
   const pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
   let n = 0;
   const cell = W_ / NX;
@@ -601,7 +604,7 @@ const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
   uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 0 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
-  uFocus: { value: new THREE.Vector3(9999, 0, 9999) }, uSolid: { value: 0 },
+  uFocus: { value: new THREE.Vector3(9999, 0, 9999) }, uSolid: { value: 0 }, uSize: { value: 1 }, uDrop: { value: 0.04 },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
@@ -674,9 +677,15 @@ function buildDetail(idx, img) {
   clearDetail();
   const rel = DETAIL.relief * (s.relief ?? 1);
   // a solid scan keeps a thinner cloud: it only shows while the ground assembles, and for the water
-  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : undefined, asSea: true, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : undefined });
+  // dense: every pixel of the scan becomes a point (on phones every second one)
+  // water "still": lakes that only sparkle, instead of water that drifts like the sea
+  const still = s.water === "still";
+  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 1 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
+    asSea: !still, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
+  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.5 : 1);
+  detUniforms.uDrop.value = s.dense ? 0.006 : 0.04;                         // and fewer flickering gaps   // dense scans: points just large enough to close the ground
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
