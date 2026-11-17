@@ -76,6 +76,7 @@ const uniforms = {
   uDim: { value: 0.74 },
   uIce: { value: new THREE.Color(0xa9dbe8) },
   uBg: { value: BG },
+  uSolid: { value: 0 },
 };
 
 const pointMat = new THREE.ShaderMaterial({
@@ -85,7 +86,7 @@ const pointMat = new THREE.ShaderMaterial({
     attribute float aShade;
     attribute float aRand;
     attribute float aWater;
-    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit;
+    uniform float uTime, uSize, uPx, uLevel, uListen, uSpan, uDrift, uFar, uForm, uScale, uRise, uSoft, uLogMin, uJit, uSolid;
     uniform vec2 uHalf;
     uniform float uHoleA, uHoleR, uCovOn;
     uniform vec4 uHole;
@@ -165,6 +166,8 @@ const pointMat = new THREE.ShaderMaterial({
       vFog = smoothstep(uFar, 220.0, depth) * life * form * soft;
       // scan dropout flicker
       vFog *= step(0.04, fract(aRand + uTime * 0.013 * aRand));
+      // a solid scan: once the surface has formed, the land points give way to it (water stays)
+      if (aWater < 0.5) soft *= 1.0 - uSolid;
       if (form * soft < 0.03) gl_Position = vec4(2.0, 2.0, 2.0, 1.0);   // not there yet: don't cover what lies behind
     }`,
   fragmentShader: /* glsl */ `
@@ -220,10 +223,11 @@ function makeCloud(img, opt) {
     return h * opt.relief;
   };
 
-  const stride = isSmall ? 2 : 1;
+  const stride = opt.stride ?? (isSmall ? 2 : 1);
   const keepLand = opt.keepLand;
   const keepWater = 0.11;
-  const KEEP = [keepLand, opt.keepSea ?? keepWater, 0.3, 0.5], WAT = [0, 1, 0.75, 0.6];
+  const keepLake = opt.keepLake ?? 0.3;
+  const KEEP = [keepLand, opt.keepSea ?? keepWater, keepLake, 0.5], WAT = [0, 1, 0.75, 0.6];
   const cap = Math.ceil((NX * NZ) / (stride * stride) * 0.56) + 1000;   // room for the points that will be kept
   const pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
   let n = 0;
@@ -260,6 +264,81 @@ function makeCloud(img, opt) {
   const points = new THREE.Points(geo, opt.mat || pointMat);
   points.frustumCulled = false;
   return { points, W: W_, D: D_, heightAt: hAt, count: n, half, nx: NX };
+}
+
+/* A solid surface for a scan (shrine option solid: true): a mesh whose heights come from the same
+   terrain PNG, coloured per pixel from the scan's own shading and lit from its normals, so it reads
+   as a cast of the ground and nothing behind shows through. Vertices on a coarser grid; the full
+   detail comes from the texture. */
+function makeSurface(img, opt) {
+  const NX = img.width, NZ = img.height, W_ = opt.world, D_ = W_ * NZ / NX;
+  const cv = document.createElement("canvas"); cv.width = NX; cv.height = NZ;
+  const cx = cv.getContext("2d", { willReadFrequently: true }); cx.drawImage(img, 0, 0);
+  const px = cx.getImageData(0, 0, NX, NZ).data;
+  const st = opt.stride, nx = Math.floor((NX - 1) / st) + 1, nz = Math.floor((NZ - 1) / st) + 1;
+  const pos = new Float32Array(nx * nz * 3), uv = new Float32Array(nx * nz * 2);
+  for (let j = 0, n = 0; j < nz; j++) {
+    for (let i = 0; i < nx; i++, n++) {
+      const I = Math.min(i * st, NX - 1), J = Math.min(j * st, NZ - 1), k = (J * NX + I) * 4;
+      pos[n * 3] = (I / (NX - 1) - 0.5) * W_;
+      pos[n * 3 + 1] = (px[k + 1] * 16 + (px[k + 2] >> 4)) / 4095 * opt.relief;
+      pos[n * 3 + 2] = (J / (NZ - 1) - 0.5) * D_;
+      uv[n * 2] = (I + 0.5) / NX; uv[n * 2 + 1] = (J + 0.5) / NZ;
+    }
+  }
+  const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
+  for (let j = 0, m = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+    idx[m++] = a; idx[m++] = c; idx[m++] = b; idx[m++] = b; idx[m++] = c; idx[m++] = d;
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute("uv", new THREE.BufferAttribute(uv, 2));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
+  const tex = new THREE.Texture(img);
+  tex.colorSpace = THREE.NoColorSpace; tex.flipY = false; tex.premultiplyAlpha = false;
+  tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+  tex.anisotropy = renderer.capabilities.getMaxAnisotropy(); tex.needsUpdate = true;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uTex: { value: tex }, uTexel: { value: new THREE.Vector2(1 / NX, 1 / NZ) }, uCell: { value: new THREE.Vector2(W_ / NX, D_ / NZ) },
+      uRelief: { value: opt.relief }, uSolid: detUniforms.uSolid, uTime: uniforms.uTime, uLevel: uniforms.uLevel, uListen: uniforms.uListen,
+      uFocus: detUniforms.uFocus, uInk: uniforms.uInk, uIce: uniforms.uIce, uBg: uniforms.uBg, uDim: detUniforms.uDim, uSpan: detUniforms.uSpan,
+    },
+    vertexShader: /* glsl */ `
+      varying vec2 vUv; varying vec3 vP;
+      void main(){ vUv = uv; vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D uTex; uniform vec2 uTexel, uCell; uniform float uRelief, uSolid, uTime, uLevel, uListen, uDim, uSpan;
+      uniform vec3 uFocus, uInk, uIce, uBg;
+      varying vec2 vUv; varying vec3 vP;
+      float h(vec2 q){ vec4 t = texture2D(uTex, q); return (floor(t.g * 255.0 + 0.5) * 16.0 + floor(t.b * 255.0 / 16.0 + 0.03)) / 4095.0 * uRelief; }
+      void main(){
+        vec4 t = texture2D(uTex, vUv);
+        float r = t.r * 255.0;
+        // the form from the heights, sampled two pixels apart (the 12-bit steps would show at one)
+        vec2 e = uTexel * 2.0;
+        float dx = (h(vUv + vec2(e.x, 0.0)) - h(vUv - vec2(e.x, 0.0))) / (4.0 * uCell.x);
+        float dz = (h(vUv + vec2(0.0, e.y)) - h(vUv - vec2(0.0, e.y))) / (4.0 * uCell.y);
+        vec3 n = normalize(vec3(-dx, 1.0, -dz));
+        float lam = max(dot(n, normalize(vec3(-0.55, 0.75, -0.45))), 0.0);   // light from the north-west, as in the scan
+        float sky = 0.5 + 0.5 * n.y;
+        float s = pow(clamp(r / 250.0, 0.0, 1.0), 1.35);
+        vec3 col = uInk * (0.08 + s * 0.92) * (0.62 + 0.3 * lam + 0.18 * sky);
+        if (r < 1.5) col = vec3(0.035, 0.06, 0.075) + vec3(0.02, 0.05, 0.06) * lam;   // lakes: dark water under the shimmer
+        // the slow sweep and the listening rings, as on the points
+        float sweepX = mod(uTime * uSpan * 0.03, uSpan * 2.0) - uSpan;
+        col += uInk * exp(-pow((vP.x + vP.z * 0.25 - sweepX) / (uSpan * 0.006), 2.0)) * 0.25;
+        float d = distance(vP.xz, uFocus.xz), rr = mod(uTime * 11.0, 60.0);
+        float ring = (exp(-pow((d - rr) / 1.6, 2.0)) * (1.0 - rr / 60.0) * (0.25 + uLevel * 2.2) + smoothstep(14.0, 0.0, d) * uLevel * 1.4) * uListen;
+        col *= mix(1.0, 0.72, uListen);
+        col = mix(col, uIce, clamp(ring, 0.0, 1.0) * 0.8);
+        gl_FragColor = vec4(mix(uBg, col * uDim, uSolid), 1.0);
+      }`,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false; mesh.userData.own = true;
+  return mesh;
 }
 
 /* ───────────── two views: Europe overview · one detail terrain ───────────── */
@@ -522,18 +601,21 @@ const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
   uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 0 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
-  uFocus: { value: new THREE.Vector3(9999, 0, 9999) },
+  uFocus: { value: new THREE.Vector3(9999, 0, 9999) }, uSolid: { value: 0 },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
 const detLineMat = lineMat.clone();
 const detFaintMat = lineMat.clone();
-let detBase = null, detSpin = [];
+let detBase = null, detSpin = [], detSurface = null;
 let stopIdx = -1;                      // the shrine the overview has stopped above, or -1
 
 function clearDetail() {
-  for (const c of [...detGroup.children]) { detGroup.remove(c); c.geometry.dispose(); }
-  det = null; detTop = null; detBase = null; detSpin = [];
+  for (const c of [...detGroup.children]) {
+    detGroup.remove(c); c.geometry.dispose();
+    if (c.userData.own) { c.material.uniforms.uTex.value.dispose(); c.material.dispose(); }
+  }
+  det = null; detSurface = null; detTop = null; detBase = null; detSpin = [];
 }
 
 // The shrine inside its scan: a beam of light rising from the place of the recording.
@@ -590,7 +672,11 @@ function shrineGlyph(b, hAt) {
 function buildDetail(idx, img) {
   const s = SHRINES[idx];
   clearDetail();
-  det = makeCloud(img, { world: DETAIL.world, relief: DETAIL.relief * (s.relief ?? 1), keepLand: 0.92, keepSea: 0.085, asSea: true, hard: true, mat: detMat });
+  const rel = DETAIL.relief * (s.relief ?? 1);
+  // a solid scan keeps a thinner cloud: it only shows while the ground assembles, and for the water
+  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : undefined, asSea: true, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : undefined });
+  detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
+  detUniforms.uSolid.value = 0;
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
@@ -598,6 +684,7 @@ function buildDetail(idx, img) {
   detBase = new THREE.Vector3(sx, y, sz);
   detTop = new THREE.Vector3(sx, y + 9, sz);
   detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
+  if (detSurface) { detSurface.renderOrder = -1; detGroup.add(detSurface); }
   detUniforms.uFocus.value.copy(detBase);
 }
 // where the camera rests in a scan: the same steep view, looking toward `heading`
@@ -612,7 +699,10 @@ function setEuForm(v) {
   lineMat.opacity = 0.55 * v; isoMat.opacity = 0.34 * v; isoMatBold.opacity = 0.62 * v;
   shrineLayer.style.opacity = mode === "europe" ? (v < 0.6 ? 0 : (v - 0.6) / 0.4) : 1;
 }
-function setDetForm(v) { detUniforms.uForm.value = v; detLineMat.opacity = 0.8 * v; beamUniforms.uA.value = v; }
+function setDetForm(v) {
+  detUniforms.uForm.value = v; detLineMat.opacity = 0.8 * v; beamUniforms.uA.value = v;
+  detUniforms.uSolid.value = detSurface ? sstep(0.5, 1, v) : 0;   // a solid scan sets after its points have gathered
+}
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
 // zoom at an even pace for the eye: the distance to the target changes exponentially
@@ -682,7 +772,7 @@ async function enterScan() {
     document.body.classList.add("detail");
     // the scan assembles point by point where it lies; the camera does not move
     setEuForm(0); setDetForm(0);
-    await tween(1500, (k) => setDetForm(k));
+    await tween(SHRINES[idx].solid ? 2600 : 1500, (k) => setDetForm(k));
   }
   busy = false; showLinks();
 }
@@ -721,7 +811,7 @@ async function exchange(idx) {
     const vt = detBase.clone().lerp(new THREE.Vector3(0, detBase.y, 0), 0.55);
     controls.target.copy(vt); camera.position.copy(homeCam(vt, SHRINES[idx].view));
     setDetForm(0);
-    await tween(1500, (k) => setDetForm(k));
+    await tween(SHRINES[idx].solid ? 2600 : 1500, (k) => setDetForm(k));
   }
 }
 

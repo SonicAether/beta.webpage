@@ -47,15 +47,16 @@ print('fine relief: std', round(float(fine.std()), 1), 'm, p99', round(float(np.
 # lakes: level, a little below their shore
 lab, n = ndimage.label(lake)
 for l in range(1, n + 1):
-    m = lab == l; ring = ndimage.binary_dilation(m, iterations=3) & ~m
-    lvl = np.percentile(H[ring], 15) - 2 if ring.any() else H[m].min(); H[m] = lvl
+    m = lab == l; ring = ndimage.binary_dilation(m, iterations=4) & ~m
+    lvl = np.percentile(H[ring], 35) - 0.3 if ring.any() else H[m].min(); H[m] = lvl   # level with the shore, not sunk
     dd = ndimage.distance_transform_edt(~m); near = (dd < 6) & ~m
     H = np.where(near, np.maximum(H, lvl + 0.6 * dd), H)
 
 hmin, hmax = float(H.min()), float(H.max())
 Hn = (H - hmin) / (hmax - hmin)
 # shade: the scan's own light, with a little more depth in the darks
-shade = np.clip((g / 255.0) ** 1.15 * 1.02, 0.03, 1)
+gs = g + 0.7 * (g - ndimage.gaussian_filter(g, 1.3))           # a little crisper: every ridge and runnel
+shade = np.clip((gs.clip(0, 255) / 255.0) ** 1.15 * 1.02, 0.03, 1)
 h12 = np.clip(np.round(Hn * 4095), 1, 4095).astype(np.uint32)
 R = (np.clip(np.round(shade * 125), 2, 127) * 2).astype(np.uint8); R[lake] = 1
 Image.fromarray(np.dstack([R, (h12 >> 4).astype(np.uint8), ((h12 & 15) << 4).astype(np.uint8)]), 'RGB').save(OUT, optimize=True)
