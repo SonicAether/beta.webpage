@@ -510,7 +510,7 @@ function buildShrines() {
     members.forEach((i) => base.add(bases[i]));
     base.divideScalar(members.length);
     base.y = eu.heightAt(base.x, base.z);
-    const top = base.clone().setY(base.y + 32);
+    const top = base.clone().setY(base.y + STEM);
     const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat);
     const ring = ringLine(base.x, base.z, 3.2, eu.heightAt);   // an area looks like a single shrine
     euGroup.add(stem, ring);
@@ -519,7 +519,7 @@ function buildShrines() {
     el.className = "shrine";
     if (members.length === 1) {
       const s = SHRINES[members[0]];
-      el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span></button>`;
+      el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b></span></button>`;
       el.querySelector("button").addEventListener("click", () => openShrine(members[0]));
     } else {
       // several recordings close together: from afar one marker listing them all; close by,
@@ -529,7 +529,7 @@ function buildShrines() {
       const ul = el.querySelector("ul");
       members.forEach((i) => {
         const s = SHRINES[i], item = document.createElement("li");
-        item.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
+        item.innerHTML = `<button type="button" aria-label="${s.id} ${s.name}, open shrine"><span>${s.id}</span></button>`;
         item.querySelector("button").addEventListener("click", () => openShrine(i));
         ul.appendChild(item);
       });
@@ -537,9 +537,9 @@ function buildShrines() {
     shrineLayer.appendChild(el);
     const own = [];
     if (members.length > 1) for (const i of members) {
-      const s = SHRINES[i], b = bases[i], t = b.clone().setY(b.y + 32), e = document.createElement("div");
+      const s = SHRINES[i], b = bases[i], t = b.clone().setY(b.y + STEM), e = document.createElement("div");
       e.className = "shrine solo off";
-      e.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span></button>`;
+      e.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b></span></button>`;
       e.querySelector("button").addEventListener("click", () => openShrine(i));
       shrineLayer.appendChild(e);
       const st = new THREE.Line(new THREE.BufferGeometry().setFromPoints([b, t]), lineMat), rg = ringLine(b.x, b.z, 3.2, eu.heightAt);
@@ -565,6 +565,7 @@ function markActive(idx) {
 }
 
 const tmp = new THREE.Vector3();
+const STEM = 52;   // how high a shrine's marker stands above the ground of the overview
 // an area splits into its recordings as soon as they would stand this far apart on screen
 const SPLIT_PX = 24;
 const scr = new THREE.Vector3();
@@ -876,7 +877,7 @@ function openShrine(idx) {
   current = idx; busy = true;
   markActive(idx);
   for (const m of markers) closeCluster(m.el);
-  detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b> ${s.name}`;
+  detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b>`;
 
   const go = mode === "europe" ? flyToStop(idx)
     : hasScan(idx) ? exchange(idx)
@@ -1418,7 +1419,7 @@ async function radioAt(lat, lon, label) {
   if (!eu) return;
   const my = ++radioFlight;
   const [x, z] = geoToWorld(lat, lon), y = eu.heightAt(x, z);
-  radio.on = true; radio.base = new THREE.Vector3(x, y, z); radio.top = radio.base.clone().setY(y + 32);
+  radio.on = true; radio.base = new THREE.Vector3(x, y, z); radio.top = radio.base.clone().setY(y + STEM);
   radioMark.querySelector(".shrine-label").innerHTML = `<b>◉</b> ${label}`;
   if (!panel.hidden) {                         // a shrine was open: it gives way without flying home
     player.pause();

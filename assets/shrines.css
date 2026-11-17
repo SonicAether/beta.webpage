@@ -329,3 +329,7 @@ body.radio-on .hud-readout { opacity: 0; pointer-events: none; }
 .shrine.cluster .cluster-list { pointer-events: auto; margin: 8px 0 0 18px; padding: 6px 10px; }
 .cluster-list li.active button, .cluster-list li.active button span { color: var(--ice); }
 .shrine.cluster .shrine-mark { display: block; pointer-events: auto; }
+/* map labels: no box behind them, only the numbers */
+.shrine.cluster .cluster-list { background: none; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 0; margin: 6px 0 0 18px; gap: 0; }
+.cluster-list button { padding: 2px 0; text-shadow: 0 0 8px var(--void), 0 0 2px var(--void); }
+.cluster-list button span { color: var(--ice); }
