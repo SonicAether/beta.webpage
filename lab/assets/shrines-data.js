@@ -153,4 +153,26 @@ export const SHRINES = [
     synth: { wind: 0.3, water: 0.8, birds: 0.2, tone: 320 },
     prayer: [],   // text to follow
   },
+  {
+    id: "S-08",
+    name: "Lonely lake, gurgling water",
+    region: "Holmevatten, Bohusleden, Stenungsund, SE",
+    coords: "57.9968° N, 11.9803° E · 107 m",
+    date: "2026-05-07",
+    time: "14:23",
+    temp: "—",
+    weather: "—",
+    wind: "—",
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834151/WellengluckernSeeuferniceStereoBohusledenSHORT_zr26u0.mp3",
+    area: "Bohuslän",
+    geo: [57.99685, 11.98025],
+    // the scan was located by fitting the outline of Holmevatten (OpenStreetMap) onto it: 1.8 m per pixel
+    relief: 0.9,
+    dense: true,
+    water: "still",
+    spot: [0.4966, 0.5383],   // the southern inlet by the shelter (vindskydd)
+    synth: { wind: 0.2, water: 0.8, birds: 0.3, tone: 260 },
+    prayer: [],   // text to follow
+  },
 ];
