@@ -680,12 +680,14 @@ function buildDetail(idx, img) {
   // dense: every pixel of the scan becomes a point (on phones every second one)
   // water "still": lakes that only sparkle, instead of water that drifts like the sea
   const still = s.water === "still";
-  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 1 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
+  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 0.72 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
     asSea: !still, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
-  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.5 : 1);
-  detUniforms.uDrop.value = s.dense ? 0.006 : 0.04;                         // and fewer flickering gaps   // dense scans: points just large enough to close the ground
+  // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
+  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.05 : 1);
+  detUniforms.uDrop.value = s.dense ? 0.03 : 0.04;
+  detUniforms.uDim.value = s.dense ? 0.82 : 1;
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
