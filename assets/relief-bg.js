@@ -67,15 +67,18 @@ function build(img) {
   cx.drawImage(img, 0, 0);
   const px = cx.getImageData(0, 0, img.width, img.height).data;
   const stride = small ? 3 : 2;
-  const SX = Math.floor((img.width - 1) / stride), SZ = Math.floor((img.height - 1) / stride);
-  const D = WORLD * img.height / img.width;
-  const g = new THREE.PlaneGeometry(WORLD, D, SX, SZ);
+  const NX = img.width, NZ = img.height, D = WORLD * NZ / NX;
+  // the ground continues beyond the scan as its mirror image, so no edge comes into view on wide screens
+  const MX = 0.3, MZ = 0.9;                    // margin on each side, as a share of the scan
+  const SX = Math.floor(NX * (1 + 2 * MX) / stride), SZ = Math.floor(NZ * (1 + 2 * MZ) / stride);
+  const g = new THREE.PlaneGeometry(WORLD * (1 + 2 * MX), D * (1 + 2 * MZ), SX, SZ);
   g.rotateX(-Math.PI / 2);                     // plane lies in x/z, row 0 in the north
   const P = g.attributes.position, n = P.count;
   const t = new Float32Array(n), sh = new Float32Array(n);
+  const fold = (k, N) => { const m = 2 * (N - 1); k = ((k % m) + m) % m; return k < N ? k : m - k; };
   for (let v = 0; v < n; v++) {
-    const i = (v % (SX + 1)) * stride, j = Math.floor(v / (SX + 1)) * stride;
-    const q = (j * img.width + i) * 4;
+    const i = fold(Math.round((v % (SX + 1)) * stride - NX * MX), NX), j = fold(Math.round(Math.floor(v / (SX + 1)) * stride - NZ * MZ), NZ);
+    const q = (j * NX + i) * 4;
     P.setY(v, ((px[q + 1] * 16 + (px[q + 2] >> 4)) / 4095) * RELIEF);
     t[v] = px[q] / 255; sh[v] = (px[q + 2] & 15) / 15;
   }
@@ -91,8 +94,11 @@ let D = 520;
 function placeCamera(time) {
   const a = time * 0.012;
   const x = Math.sin(a) * WORLD * 0.18, z = D * 0.42 + Math.cos(a * 0.7) * D * 0.08;
-  camera.position.set(x, 520 + Math.sin(a * 1.3) * 30, z + D * 0.05);
-  camera.lookAt(Math.sin(a + 0.6) * WORLD * 0.12, 0, D * 0.02);
+  // tall screens look down more steeply, so the far edge of the ground never shows
+  const tall = camera.aspect < 0.9;
+  // wide screens: a steeper view, kept toward the south and the middle so the edges of the ground stay out of sight
+  camera.position.set(x * (tall ? 0.5 : 0.55), (tall ? 560 : 600) + Math.sin(a * 1.3) * 30, z * (tall ? 0.4 : 0.55) + D * (tall ? -0.05 : 0.12));
+  camera.lookAt(Math.sin(a + 0.6) * WORLD * (tall ? 0.05 : 0.07), 0, D * (tall ? -0.06 : 0.1));
 }
 
 function resize() {
