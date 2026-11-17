@@ -259,7 +259,7 @@
     btn.setAttribute("aria-pressed", "true");
     requestAnimationFrame(() => card.classList.add("open"));
     setState("tuning"); $("r-next").disabled = true;
-    $("r-place").textContent = "listening for a place…"; $("r-coords").textContent = ""; $("r-wx").textContent = "—"; $("r-heard").textContent = "—"; $("r-recs").textContent = "searching radio aporee ::: maps…";
+    $("r-place").textContent = "listening for a place…"; $("r-coords").textContent = ""; $("r-wx").textContent = "—"; $("r-recs").textContent = "searching radio aporee ::: maps…";
     const found = await findPlace(my);
     if (my !== tuneId) return;
     $("r-next").disabled = false;
@@ -270,7 +270,7 @@
     $("r-place").textContent = label;
     $("r-coords").textContent = ll(found.lat, found.lon);
     $("r-wx").textContent = w ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h from ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %` : "no weather reached from here";
-    $("r-heard").innerHTML = applyWeather(w).map((x) => `<span>${x}</span>`).join("");
+    applyWeather(w);
     showRecs(found.recs, -1);
     gusts();
     if (window.SA_MAP) window.SA_MAP.radioAt(found.lat, found.lon, label);
