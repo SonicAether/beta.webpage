@@ -17,6 +17,9 @@
   position: absolute; inset: -2%; width: 104%; height: 104%; object-fit: cover;
   filter: saturate(1.05) brightness(0.88);
 }
+.hero canvas.water { position: absolute; inset: -2%; width: 104%; height: 104%; z-index: 1; display: block;
+  filter: saturate(1.05) brightness(0.88); opacity: 0; transition: opacity 1.6s ease; }
+.hero canvas.water.on { opacity: 1; }
 .hero::after { /* scan lines + edges */
   content: ""; position: absolute; inset: 0; z-index: 2;
   background:
@@ -412,5 +415,6 @@ body.navbottom .top nav a { color: var(--ink); font-size: 13px; letter-spacing: 
 })();
 
 </script>
+<script src="assets/water.js?v=1"></script>
 </body>
 </html>
