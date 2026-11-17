@@ -51,7 +51,7 @@ body.map-open .map-btn { right: calc(min(440px, 92vw) + 10px); }
 .mp-map { position: relative; width: 100%; aspect-ratio: 1200 / 1214; border: 1px solid rgba(223,230,234,.1); }
 .mp-map img, .mp-map svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 #marks .ring { fill: none; stroke: #a9dbe8; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
-#marks .pulse { fill: none; stroke: #a9dbe8; vector-effect: non-scaling-stroke; animation: pulse 3.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+#marks .pulse { fill: none; stroke: #a9dbe8; vector-effect: non-scaling-stroke; animation: pulse 6.5s ease-out infinite; transform-box: fill-box; transform-origin: center; }
 #marks .core { fill: #a9dbe8; }
 #marks .rec { fill: #dfe6ea; stroke: #06080a; stroke-width: 1; vector-effect: non-scaling-stroke; }
 #marks .rec.on { fill: var(--accent); }
@@ -284,7 +284,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 
   /* ── the spectrogram ── */
   const cv = document.getElementById("spec"), cx = cv.getContext("2d", { alpha: false });
-  const FMIN = 30, FMAX = 16000, SPEED = 34;          // px per second at the internal resolution
+  const FMIN = 30, FMAX = 16000, SPEED = 18;          // px per second at the internal resolution
   // palette of the home image: night violet → indigo → blue → violet → magenta → pink → pale pink
   const STOPS = [[0, [7, 4, 15]], [0.16, [28, 12, 52]], [0.32, [39, 26, 124]], [0.46, [57, 73, 175]], [0.56, [50, 108, 202]],
                  [0.66, [115, 69, 159]], [0.76, [169, 84, 168]], [0.86, [217, 131, 193]], [0.94, [235, 197, 224]], [1, [250, 236, 242]]];
@@ -427,7 +427,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       const send = ctxA.createGain(); send.gain.value = 0.18;
       node.connect(hp).connect(lp).connect(g).connect(p);
       p.connect(tx.input); p.connect(send).connect(tx.space);
-      const hold = 50 + Math.random() * 60, fade = 10;
+      const hold = 80 + Math.random() * 90, fade = 18;
       a.addEventListener("loadedmetadata", () => {
         const len = a.duration || r.length || 0;
         if (len > hold + 2 * fade) a.currentTime = Math.random() * (len - hold - 2 * fade);
@@ -444,7 +444,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       a.addEventListener("error", () => { if (!me.stop) me.timer = setTimeout(next, 1000); }, { once: true });
       me.nodes.push({ a, g });
     };
-    me.timer = setTimeout(next, 6000);                     // let the signal rise first
+    me.timer = setTimeout(next, 12000);                    // let the signal rise first
     showRecs(recs);
   }
   function stopField() {
@@ -469,7 +469,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     src.name = ((await named) || {}).label;
     // changing place: the old signal and its recordings fade out while the new one rises
     if (old) { stopField(); old.stop(); }
-    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4, breathe: true } : { f0: F0, row: ROW, level: 0.4, breathe: true });
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.4, breathe: true, slow: 2 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
