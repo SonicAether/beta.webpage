@@ -408,7 +408,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
      is loaded ahead and blended in with an equal-power crossfade, also across a change of place.
      They run on their own bus, so they are not cut when the drone of one place hands over to the next. */
   const XF = 24, LEAD = 30;                        // crossfade length; how early the next one starts loading (s)
-  const REC_LEVEL = 1.5;
+  const REC_LEVEL = 0.9;
   let field = null, fbus = null;
   function fieldBus() {
     if (fbus) return fbus;

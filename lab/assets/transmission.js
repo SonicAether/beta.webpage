@@ -20,7 +20,9 @@
     comp.threshold.value = -20; comp.ratio.value = 3; comp.attack.value = 0.08; comp.release.value = 0.6;
     const analyser = ctx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.85;
     const floor = ctx.createBiquadFilter(); floor.type = "highpass"; floor.frequency.value = 32; floor.Q.value = 0.6;
-    master.connect(floor).connect(comp).connect(analyser).connect(destination);
+    // a last safety limiter: everything (drone and recordings) passes it on the way out
+    const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.25;
+    master.connect(floor).connect(comp).connect(analyser).connect(lim).connect(destination);
 
     // a large, dark synthetic space
     const ir = ctx.createBuffer(2, Math.floor(sr * 7), sr);
