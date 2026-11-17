@@ -131,4 +131,24 @@ export const SHRINES = [
     synth: { wind: 0.2, water: 1.0, birds: 0.05, tone: 240 },
     prayer: [],   // text to follow
   },
+  {
+    id: "S-07",
+    name: "Northern forest, creek, soft rain",
+    region: "Engerdal, Innlandet, NO",
+    coords: "61.8759° N, 11.8848° E · 792 m",
+    date: "2026-08-26",
+    time: "15:31",
+    temp: "—",
+    weather: "soft rain",
+    wind: "—",
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834154/260826004BeautifulNorthernForestwithCreekandRain_oz1rbt.mp3",
+    area: "Engerdal",
+    geo: [61.8759, 11.8848],
+    // the scan: two LIDAR views stitched (Sølen in the north), the large forms from an elevation model
+    relief: 1.4,
+    spot: [0.9, 0.35],      // provisional: the recorded coordinates lie about 10 km east of the scan
+    synth: { wind: 0.3, water: 0.8, birds: 0.2, tone: 320 },
+    prayer: [],   // text to follow
+  },
 ];
