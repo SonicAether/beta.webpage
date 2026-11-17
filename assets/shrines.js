@@ -685,7 +685,7 @@ function buildDetail(idx, img) {
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
   // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
-  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 0.72 : 1);
+  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 0.95 : 1);
   detUniforms.uDrop.value = s.dense ? 0.03 : 0.04;
   detUniforms.uDim.value = s.dense ? 0.82 : 1;
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
