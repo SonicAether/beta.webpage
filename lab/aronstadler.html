@@ -426,45 +426,108 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     if (field && field.cur) t.duck(0.55, 8);
   }
   const sleep = (sec, me) => new Promise((res) => { const id = setTimeout(res, sec * 1000); me.timers.push(id); });
-  // load one recording and seek to a random excerpt; resolves when it can play, or null
+  /* Players. Safari (and iOS) only let a media element start if it was first started inside a click,
+     so a small pool of players is unlocked when LISTEN is pressed and reused for every recording.
+     Each player has a twin that plays directly, for browsers whose Web Audio stays silent with
+     audio from another site; then the blend is done with the element volume instead. */
+  let decks = null, direct = false;
+  function silentUrl() {
+    const n = 800, b = new ArrayBuffer(44 + n), v = new DataView(b), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, "RIFF"); v.setUint32(4, 36 + n, true); w(8, "WAVEfmt "); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true); w(36, "data"); v.setUint32(40, n, true);
+    for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+    return URL.createObjectURL(new Blob([b], { type: "audio/wav" }));
+  }
+  function unlockDecks() {                         // call inside the click
+    if (decks) return;
+    const quiet = silentUrl();
+    const mk = () => { const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.src = quiet; const p = a.play(); if (p) p.then(() => a.pause()).catch(() => {}); return a; };
+    decks = [0, 1, 2, 3].map(() => {
+      const a = mk(), d = mk();
+      const node = ctxA.createMediaElementSource(a);
+      const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
+      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
+      const g = ctxA.createGain(); g.gain.value = 0;
+      const probe = ctxA.createAnalyser(); probe.fftSize = 2048;
+      node.connect(hp).connect(lp).connect(g).connect(fieldBus().inp);   // in the middle, in front of the drone
+      node.connect(probe);
+      return { a, d, g, probe, busy: false };
+    });
+  }
+  function free(el) { el.pause(); el.removeAttribute("src"); try { el.load(); } catch (_) {} }
+  // load one recording into a free player and seek to a random excerpt; resolves when it can play, or null
   function load(r, me) {
     return new Promise((res) => {
-      const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.loop = true; a.src = r.src;
+      const deck = decks && decks.find((x) => !x.busy);
+      if (!deck) return res(null);
+      deck.busy = true;
+      const el = direct ? deck.d : deck.a;
+      el.loop = true; el.volume = direct ? 0 : 1; el.src = r.src; el.load();
       let done = false;
-      const fail = () => { if (done) return; done = true; a.src = ""; res(null); };
-      const to = setTimeout(fail, 20000); me.timers.push(to);
-      a.addEventListener("error", fail, { once: true });
-      a.addEventListener("loadedmetadata", () => {
-        const len = a.duration || r.length || 0;
-        if (len > 200) a.currentTime = Math.random() * (len - 200);
-        a.addEventListener("canplay", () => {
-          if (done) return; done = true; clearTimeout(to);
-          const node = ctxA.createMediaElementSource(a);
-          const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
-          const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
-          const g = ctxA.createGain(); g.gain.value = 0;
-          node.connect(hp).connect(lp).connect(g).connect(fieldBus().inp);   // in the middle, in front of the drone
-          res({ r, a, g, node });
-        }, { once: true });
+      const fail = () => { if (done) return; done = true; free(el); deck.busy = false; res(null); };
+      const to = setTimeout(fail, 25000); me.timers.push(to);
+      el.addEventListener("error", fail, { once: true });
+      el.addEventListener("loadedmetadata", () => {
+        const len = el.duration || r.length || 0;
+        if (len > 200) el.currentTime = Math.random() * (len - 200);
+        const ok = () => { if (done) return; done = true; clearTimeout(to); res({ r, deck, el, direct: el === deck.d }); };
+        if (el.readyState >= 3 && !el.seeking) ok(); else el.addEventListener("canplay", ok, { once: true });
       }, { once: true });
     });
   }
-  const curveIn = new Float32Array(64).map((_, i) => Math.sin((i / 63) * Math.PI / 2) * REC_LEVEL);
-  const curveOut = new Float32Array(64).map((_, i) => Math.cos((i / 63) * Math.PI / 2) * REC_LEVEL);
+  const REC_DIRECT = 0.75;
+  const shapeIn = (x) => Math.sin(x * Math.PI / 2), shapeOut = (x) => Math.cos(x * Math.PI / 2);
+  // a volume fade for the direct players (Web Audio cannot reach them)
+  function volFade(v, shape, sec, from = v.el.volume) {
+    clearInterval(v.vt);
+    const t0 = performance.now();
+    v.vt = setInterval(() => {
+      const x = Math.min(1, (performance.now() - t0) / (sec * 1000));
+      v.el.volume = Math.max(0, Math.min(1, shape ? shape(x) * REC_DIRECT : from * (1 - x)));
+      if (x >= 1) clearInterval(v.vt);
+    }, 80);
+  }
+  const curveIn = new Float32Array(64).map((_, i) => shapeIn(i / 63) * REC_LEVEL);
+  const curveOut = new Float32Array(64).map((_, i) => shapeOut(i / 63) * REC_LEVEL);
+  function retire(v, after) {
+    setTimeout(() => { clearInterval(v.vt); free(v.el); v.deck.g.gain.cancelScheduledValues(0); v.deck.g.gain.value = 0; v.deck.busy = false; }, after * 1000);
+  }
   function release(v, sec) {
     if (!v) return;
-    const t = ctxA.currentTime;
-    v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value, t); v.g.gain.linearRampToValueAtTime(0, t + sec);
-    setTimeout(() => { v.a.pause(); v.a.src = ""; try { v.node.disconnect(); } catch (_) {} }, (sec + 0.5) * 1000);
+    if (v.direct) volFade(v, null, sec);
+    else { const t = ctxA.currentTime, g = v.deck.g.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(0, t + sec); }
+    retire(v, sec + 0.5);
+  }
+  // if this browser gives Web Audio only silence for the recording, move it to the direct twin
+  function checkHeard(v) {
+    if (v.direct) return;
+    const buf = new Float32Array(v.deck.probe.fftSize);
+    let peak = 0, n = 0;
+    const id = setInterval(() => {
+      if (field === null || v.el.paused) { if (n++ > 40) clearInterval(id); return; }
+      v.deck.probe.getFloatTimeDomainData(buf);
+      for (const x of buf) peak = Math.max(peak, Math.abs(x));
+      if (peak > 1e-5) return clearInterval(id);     // it sounds: fine
+      if (++n < 12 || v.el.currentTime < 1) return;
+      clearInterval(id);
+      direct = true;                                   // from now on all recordings play directly
+      const d = v.deck.d, at = v.el.currentTime;
+      v.el.pause(); d.loop = true; d.volume = 0; d.src = v.el.currentSrc || v.r.src;
+      d.addEventListener("loadedmetadata", () => { try { d.currentTime = at; } catch (_) {} d.play().catch(() => {}); }, { once: true });
+      d.load();
+      free(v.el); v.el = d; v.direct = true; volFade(v, shapeIn, 6);
+    }, 250);
   }
   // blend `from` out and `to` in, equal power, so the sum never dips
   function crossfade(from, to) {
     const t = ctxA.currentTime + 0.05;
-    to.a.play().catch(() => {});
-    to.g.gain.cancelScheduledValues(t); to.g.gain.setValueCurveAtTime(curveIn, t, XF);
+    const p = to.el.play(); if (p) p.catch((e) => console.warn("recording could not start:", e && e.name));
+    if (to.direct) volFade(to, shapeIn, XF);
+    else { to.deck.g.gain.cancelScheduledValues(t); to.deck.g.gain.setValueCurveAtTime(curveIn, t, XF); checkHeard(to); }
     if (from) {
-      from.g.gain.cancelScheduledValues(t); from.g.gain.setValueAtTime(REC_LEVEL, t); from.g.gain.setValueCurveAtTime(curveOut, t, XF);
-      setTimeout(() => { from.a.pause(); from.a.src = ""; try { from.node.disconnect(); } catch (_) {} }, (XF + 1) * 1000);
+      if (from.direct) volFade(from, shapeOut, XF);
+      else { const g = from.deck.g.gain; g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.setValueCurveAtTime(curveOut.map((x) => x * Math.max(g.value, 0.001) / REC_LEVEL), t, XF); }
+      retire(from, XF + 1);
     }
     if (tx) tx.duck(0.55, XF * 0.6);
   }
@@ -537,6 +600,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     const my = ++tuneId, old = change ? tx : null;
     const AC = window.AudioContext || window.webkitAudioContext;
     ctxA = ctxA || new AC(); ctxA.resume();               // unlocked inside the click, before the network
+    unlockDecks();
     lb.textContent = "TUNING"; ls.textContent = "listening for a place"; moveBtn.disabled = true;
     const src = await weatherSomewhere();
     const named = window.SignalSource ? window.SignalSource.name(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
@@ -545,7 +609,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     // changing place: the old signal and its recordings fade out while the new one rises
     const prevField = old ? holdField() : null;
     if (old) old.stop();
-    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.9, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.9, breathe: true, slow: 2 });
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.6, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.6, breathe: true, slow: 2 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
