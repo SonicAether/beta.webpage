@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=9";
+import { SHRINES } from "./shrines-data.js?v=10";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/b877c2d44f9fa0fe72a94b9dcf390dffcbd60d83/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/5bba3da626d9d323f32e61db9d616d3017350a52/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -685,7 +685,7 @@ function buildDetail(idx, img) {
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
   // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
-  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.05 : 1);
+  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 0.72 : 1);
   detUniforms.uDrop.value = s.dense ? 0.03 : 0.04;
   detUniforms.uDim.value = s.dense ? 0.82 : 1;
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
