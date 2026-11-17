@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=11";
+import { SHRINES } from "./shrines-data.js?v=12";
 
 /* ───────────── constants ───────────── */
 const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/617ed0e6b8d4c548f438ef0ac02bb0b8f450900c/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
