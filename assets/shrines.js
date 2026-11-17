@@ -512,7 +512,7 @@ function buildShrines() {
     base.y = eu.heightAt(base.x, base.z);
     const top = base.clone().setY(base.y + 32);
     const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat);
-    const ring = ringLine(base.x, base.z, members.length > 1 ? 5.2 : 3.2, eu.heightAt);
+    const ring = ringLine(base.x, base.z, 3.2, eu.heightAt);   // an area looks like a single shrine
     euGroup.add(stem, ring);
 
     const el = document.createElement("div");
@@ -565,7 +565,16 @@ function markActive(idx) {
 }
 
 const tmp = new THREE.Vector3();
-const NEAR_SPLIT = 420;   // closer than this, the recordings of an area stand at their own places
+// an area splits into its recordings as soon as they would stand this far apart on screen
+const SPLIT_PX = 24;
+const scr = new THREE.Vector3();
+function apart(own) {
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  const pts = own.map((o) => { scr.copy(o.top); scr.y *= euGroup.scale.y; scr.project(camera); return [scr.x * w / 2, scr.y * h / 2]; });
+  let d = Infinity;
+  for (let a = 0; a < pts.length; a++) for (let b = a + 1; b < pts.length; b++) d = Math.min(d, Math.hypot(pts[a][0] - pts[b][0], pts[a][1] - pts[b][1]));
+  return d;
+}
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
 const VMIN = 0.06;
@@ -592,11 +601,10 @@ function placeLabels() {
   }
   detMark.classList.add("off");
   stopMark.classList.add("off");
-  const near = camera.position.distanceTo(controls.target) < NEAR_SPLIT;
   if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].own, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
   else scanLink.classList.add("off");
   for (const m of markers) {
-    const split = near && m.own.length > 0;
+    const split = m.own.length > 0 && apart(m.own) > SPLIT_PX;
     if (split) m.el.classList.add("off"); else place(m.el, m.top, false);
     for (const o of m.own) { if (split) place(o.el, o.top, false); else o.el.classList.add("off"); o.geo.forEach((g) => (g.visible = split)); }
     m.geo.forEach((g) => (g.visible = !split));
