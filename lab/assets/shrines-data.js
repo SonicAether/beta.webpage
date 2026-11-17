@@ -147,6 +147,7 @@ export const SHRINES = [
     geo: [61.8759, 11.8848],
     // the scan: two LIDAR views stitched (Sølen in the north), the large forms from an elevation model
     relief: 1.4,
+    solid: true,          // drawn as a closed surface once its points have gathered
     spot: [0.9, 0.35],      // provisional: the recorded coordinates lie about 10 km east of the scan
     synth: { wind: 0.3, water: 0.8, birds: 0.2, tone: 320 },
     prayer: [],   // text to follow
