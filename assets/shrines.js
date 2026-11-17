@@ -461,7 +461,8 @@ const tmp = new THREE.Vector3();
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
 const VMIN = 0.06;
-const vertAt = (d) => VMIN + (1 - VMIN) * sstep(Math.log(76), Math.log(700), Math.log(Math.max(d, 1)));
+const VMAX = 0.5;   // relief at the start view, as a share of the stored exaggeration
+const vertAt = (d) => VMIN + (VMAX - VMIN) * sstep(Math.log(76), Math.log(700), Math.log(Math.max(d, 1)));
 const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
