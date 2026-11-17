@@ -123,27 +123,43 @@
     send(driveOut, 0.75, 0.25);
     const grit = G(0.035); shaper.connect(grit); send(grit, 0.8, 0.2);
 
-    // 3e · warm crackle: sparse clicks and the odd pop, band-limited like an old record, never a hiss
-    const crk = ctx.createBuffer(2, sr * 9, sr);
+    // 3e · crackle like coal in a fire: many small ticks of every size and colour, arriving in uneven
+    //      clusters, each channel on its own, with now and then a deeper snap; never a steady hiss
+    const crk = ctx.createBuffer(2, sr * 16, sr);
+    const rate = 10 + 22 * (1 - hum);                                   // drier air, livelier fire
     for (let c = 0; c < 2; c++) {
       const d = crk.getChannelData(c);
-      let t = 0;
+      let t = 0, heat = 0.5;
       while (t < d.length) {
-        t += Math.floor(sr * (-Math.log(1 - rnd()) / (4 + 10 * (1 - hum))));   // drier air, more crackle
-        const big = rnd() < 0.06, amp = (big ? 0.7 : 0.3 + rnd() * 0.7) * (rnd() < 0.5 ? -1 : 1), len = big ? 90 + rnd() * 200 : 8 + rnd() * 40;
-        for (let i = 0; i < len && t + i < d.length; i++) d[t + i] += amp * Math.exp(-i / (len / 4)) * (big ? Math.sin(i * 0.08) : rnd() * 2 - 1);
+        heat = Math.min(1, Math.max(0.05, heat + (rnd() - 0.5) * 0.35));  // the fire flares and settles
+        const burst = rnd() < 0.12 ? 3 + Math.floor(rnd() * 9) : 1;      // a little cluster of ticks
+        t += Math.floor(sr * (-Math.log(1 - rnd()) / (rate * (0.3 + 1.4 * heat))));
+        for (let b = 0; b < burst; b++) {
+          const at = t + Math.floor(rnd() * sr * 0.03 * b);
+          const kind = rnd();
+          const snap = kind < 0.04;                                       // a deeper snap
+          const amp = (snap ? 0.5 + rnd() * 0.4 : Math.pow(rnd(), 2.2) * 0.9) * (rnd() < 0.5 ? -1 : 1);
+          const tau = snap ? 25 + rnd() * 90 : 1.5 + Math.pow(rnd(), 1.6) * 28;   // samples: from needle-fine to soft
+          const len = Math.floor(tau * 6);
+          const col = snap ? 0.06 + rnd() * 0.1 : 0.15 + rnd() * 0.8;     // per tick: from dull to bright
+          let lp = 0;
+          for (let i = 0; i < len && at + i < d.length; i++) {
+            lp += col * ((rnd() * 2 - 1) - lp);                           // a one-pole filter gives each tick its own colour
+            d[at + i] += amp * Math.exp(-i / tau) * lp * (snap ? 2.2 : 1.6);
+          }
+        }
       }
     }
     const crackle = ctx.createBufferSource(); crackle.buffer = crk; crackle.loop = true;
-    const crHp = ctx.createBiquadFilter(); crHp.type = "highpass"; crHp.frequency.value = 350;
-    const crLp = ctx.createBiquadFilter(); crLp.type = "lowpass"; crLp.frequency.value = 7500; crLp.Q.value = 0.4;
+    const crHp = ctx.createBiquadFilter(); crHp.type = "highpass"; crHp.frequency.value = 160;
+    const crLp = ctx.createBiquadFilter(); crLp.type = "lowpass"; crLp.frequency.value = 9500; crLp.Q.value = 0.3;
     const crG = G(0.0);
     crackle.connect(crHp).connect(crLp).connect(crG); send(crG, 0.7, 0.3); crackle.start();
     live.push(crackle);
     // the crackle comes and goes in long phrases
     let crTimer = 0;
     const crackleWave = () => {
-      const t = ctx.currentTime, dur = 20 + rnd() * 40, v = (rnd() < 0.25 ? 0.6 : 1.2 + rnd() * 1.8) * (0.6 + 0.8 * (1 - hum));
+      const t = ctx.currentTime, dur = 20 + rnd() * 40, v = (rnd() < 0.25 ? 0.12 : 0.25 + rnd() * 0.4) * (0.6 + 0.8 * (1 - hum));
       crG.gain.cancelScheduledValues(t); crG.gain.setValueAtTime(crG.gain.value, t); crG.gain.linearRampToValueAtTime(v, t + dur * 0.4);
       crTimer = setTimeout(crackleWave, dur * 1000);
     };
@@ -160,8 +176,8 @@
         const lp = ctx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 3000 + rnd() * 3000;
         const hp = ctx.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 400;
         s.connect(hp).connect(lp).connect(pan(rnd() * 1.4 - 0.7)).connect(g); send(g, 0.7, 0.3);
-        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.8 + rnd() * 0.8, t + 0.05); g.gain.setValueAtTime(1.0, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.4);
-        s.start(t, rnd() * 8, d + 0.5);
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.25 + rnd() * 0.25, t + 0.4); g.gain.setValueAtTime(0.3, t + d); g.gain.linearRampToValueAtTime(0, t + d + 0.4);
+        s.start(t, rnd() * 14, d + 0.5);
       },
       drive(t) {                                     // the low end breaks up for a while, then settles
         const peak = 0.35 + rnd() * 0.5 + 0.4 * low, up = 3 + rnd() * 6, hold = 4 + rnd() * 14, down = 6 + rnd() * 10;
