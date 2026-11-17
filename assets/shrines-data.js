@@ -166,6 +166,7 @@ export const SHRINES = [
     geo: [52.241157637124, -6.3161070557458],   // exactly as in the file's tags
     // the scan shows the coast at Tramore, County Waterford, in its own outline, the sea filled in along the shore
     relief: 0.3,
+    walls: true,          // cliff faces drawn down to the sea
     spot: [0.724, 0.905],   // on the cliffs of the eastern headland, above the sea
     synth: { wind: 0.6, water: 0.7, birds: 0.1, tone: 520 },
     prayer: [],   // text to follow

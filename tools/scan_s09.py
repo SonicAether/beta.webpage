@@ -39,30 +39,26 @@ sea = ndimage.binary_closing(sea, iterations=3) & ~scan
 # keep the open water only: pieces of map-grey inland are left out
 lab, n = ndimage.label(sea); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
 sea = np.isin(lab, [l for l in range(1, n + 1) if sz[l] > 20000])
-# water inside the scan: the smooth band of sea and wet sand off the shore, and the lagoon behind
-# the dunes. Smooth at the scale of ~30 px (fields have hedges, roofs, banks), and either touching the
-# open water or a large single sheet.
+# water inside the scan: the coastline traced by hand along the foot of the cliffs, the sea wall
+# and the beach crest (coastline.json); seaward of it is water, except rocks that reach out from
+# the cliffs. The lagoon behind the dunes: a large, smooth sheet.
+from PIL import ImageDraw
+poly = json.load(open('coastline.json'))['west']
+im = Image.new('L', (W0, H0), 0); ImageDraw.Draw(im).polygon([tuple(p) for p in poly], fill=1)
+seaward = np.asarray(im) > 0
+gl = ndimage.gaussian_filter(rgb.mean(-1), 1.0)
+rock = (np.abs(gl - 180) > 48) & scan & seaward
+lab, n = ndimage.label(rock | (scan & ~seaward))
+landlab = np.unique(lab[scan & ~seaward]); rock &= np.isin(lab, landlab[landlab > 0])
+rock = ndimage.binary_closing(rock, iterations=2) & seaward & ndimage.binary_dilation(~seaward, iterations=30)
 gy_, gx_ = np.gradient(ndimage.gaussian_filter(rgb.mean(-1), 4))
 gm = ndimage.uniform_filter(np.hypot(gx_, gy_), 31)
-dsea0 = ndimage.distance_transform_edt(~sea)
-cand = scan & ((gm < WTH) | ((gm < BTH) & (dsea0 < 160)))     # near the open water, rippled sand and surf count as water too
-cand = ndimage.binary_opening(cand, iterations=3)
+cand = ndimage.binary_opening(scan & ~seaward & (gm < WTH), iterations=3)
 lab, n = ndimage.label(cand); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
-touch = ndimage.binary_dilation(sea, iterations=8)
-ids = set(np.unique(lab[touch & cand])) | {l for l in range(1, n + 1) if sz[l] > 40000}
-ids.discard(0)
-wet = np.isin(lab, list(ids))
-wet = ndimage.binary_closing(wet, iterations=4) & scan
-wet = ndimage.binary_fill_holes(wet) & scan
-# thin slivers left between water (the edge of the survey, lines of foam): water too
-land = scan & ~wet
-thin = land & ~ndimage.binary_opening(land, iterations=4) & (dsea0 < 200)
-wet |= thin
-land = scan & ~wet
-lab, n = ndimage.label(land); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
-wet |= np.isin(lab, [l for l in range(1, n + 1) if sz[l] < 3000])
-wet &= scan
-sea = sea | wet
+lagoon = np.isin(lab, [l for l in range(1, n + 1) if sz[l] > 40000])
+lagoon = ndimage.binary_fill_holes(ndimage.binary_closing(lagoon, iterations=4)) & scan
+wet = (scan & seaward & ~rock) | lagoon
+sea = (sea | wet) & (seaward | lagoon | sea)
 scan = scan & ~wet
 foot = scan | sea
 # smooth the outline of the added water so it reads as a soft band, not pixels
