@@ -511,8 +511,9 @@ function buildShrines() {
     base.divideScalar(members.length);
     base.y = eu.heightAt(base.x, base.z);
     const top = base.clone().setY(base.y + 32);
-    euGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat));
-    euGroup.add(ringLine(base.x, base.z, members.length > 1 ? 5.2 : 3.2, eu.heightAt));
+    const stem = new THREE.Line(new THREE.BufferGeometry().setFromPoints([base, top]), lineMat);
+    const ring = ringLine(base.x, base.z, members.length > 1 ? 5.2 : 3.2, eu.heightAt);
+    euGroup.add(stem, ring);
 
     const el = document.createElement("div");
     el.className = "shrine";
@@ -521,10 +522,11 @@ function buildShrines() {
       el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span></button>`;
       el.querySelector("button").addEventListener("click", () => openShrine(members[0]));
     } else {
-      el.classList.add("cluster");
-      el.innerHTML = `<button type="button" class="shrine-btn" aria-expanded="false" aria-label="${area}, ${members.length} shrines"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${area}</b> · ${members.length}</span></button><ul class="cluster-list"></ul>`;
-      const head = el.querySelector(".shrine-btn"), ul = el.querySelector("ul");
-      head.addEventListener("click", () => { const open = el.classList.toggle("open"); head.setAttribute("aria-expanded", open); });
+      // several recordings close together: from afar one marker listing them all; close by,
+      // each stands at its own place (see placeLabels)
+      el.classList.add("cluster", "open");
+      el.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><ul class="cluster-list" aria-label="${area}"></ul>`;
+      const ul = el.querySelector("ul");
       members.forEach((i) => {
         const s = SHRINES[i], item = document.createElement("li");
         item.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
@@ -533,25 +535,37 @@ function buildShrines() {
       });
     }
     shrineLayer.appendChild(el);
-    markers.push({ el, top });
+    const own = [];
+    if (members.length > 1) for (const i of members) {
+      const s = SHRINES[i], b = bases[i], t = b.clone().setY(b.y + 32), e = document.createElement("div");
+      e.className = "shrine solo off";
+      e.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b> ${s.name}</span></button>`;
+      e.querySelector("button").addEventListener("click", () => openShrine(i));
+      shrineLayer.appendChild(e);
+      const st = new THREE.Line(new THREE.BufferGeometry().setFromPoints([b, t]), lineMat), rg = ringLine(b.x, b.z, 3.2, eu.heightAt);
+      st.visible = rg.visible = false; euGroup.add(st, rg);
+      own.push({ el: e, top: t, i, geo: [st, rg] });
+    }
+    markers.push({ el, top, own, geo: [stem, ring] });
     members.forEach((i) => { shrineObjs[i].el = el; shrineObjs[i].base = base; shrineObjs[i].inArea = members.length > 1; });
   }
   shrineLayer.appendChild(detMark);
   shrineLayer.appendChild(stopMark);
   shrineLayer.appendChild(radioMark);
-  addEventListener("pointerdown", (e) => { for (const m of markers) if (!m.el.contains(e.target)) closeCluster(m.el); });
+
 }
-function closeCluster(el) {
-  if (!el.classList.contains("open")) return;
-  el.classList.remove("open");
-  el.querySelector(".shrine-btn").setAttribute("aria-expanded", "false");
-}
+function closeCluster() {}   // area lists stay open now
 function markActive(idx) {
-  for (const m of markers) m.el.classList.toggle("active", idx >= 0 && shrineObjs[idx].el === m.el);
+  for (const m of markers) {
+    m.el.classList.toggle("active", idx >= 0 && shrineObjs[idx].el === m.el);
+    for (const o of m.own) o.el.classList.toggle("active", o.i === idx);
+    m.el.querySelectorAll(".cluster-list li").forEach((li, k) => li.classList.toggle("active", m.own[k] && m.own[k].i === idx));
+  }
   shrineObjs.forEach((x, i) => x.li.classList.toggle("active", i === idx));
 }
 
 const tmp = new THREE.Vector3();
+const NEAR_SPLIT = 420;   // closer than this, the recordings of an area stand at their own places
 // The overview's relief is strongly exaggerated, which reads well from afar but turns hills into
 // spikes close up. Near the ground it eases off, down to the scale of the detail terrains.
 const VMIN = 0.06;
@@ -570,23 +584,23 @@ function place(el, p, far) {
 }
 function placeLabels() {
   if (mode === "detail") {
-    for (const m of markers) m.el.classList.add("off");
+    for (const m of markers) { m.el.classList.add("off"); for (const o of m.own) o.el.classList.add("off"); }
     scanLink.classList.add("off"); radioMark.classList.add("off"); stopMark.classList.add("off");
     for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
     return;
   }
   detMark.classList.add("off");
-  // close to a shrine of an area: its own marker replaces the area's
-  const near = current >= 0 && shrineObjs[current].inArea && !panel.hidden && camera.position.distanceTo(controls.target) < 420;
-  if (near) {
-    const o = shrineObjs[current];
-    stopMark.querySelector(".shrine-label").innerHTML = `<b>${o.s.id}</b> ${o.s.name}`;
-    place(stopMark, o.own.clone().setY(o.own.y + 32), false);
-  } else stopMark.classList.add("off");
+  stopMark.classList.add("off");
+  const near = camera.position.distanceTo(controls.target) < NEAR_SPLIT;
   if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].own, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
   else scanLink.classList.add("off");
-  for (const m of markers) { place(m.el, m.top, false); if (near && m.el === shrineObjs[current].el) m.el.classList.add("off"); }
+  for (const m of markers) {
+    const split = near && m.own.length > 0;
+    if (split) m.el.classList.add("off"); else place(m.el, m.top, false);
+    for (const o of m.own) { if (split) place(o.el, o.top, false); else o.el.classList.add("off"); o.geo.forEach((g) => (g.visible = split)); }
+    m.geo.forEach((g) => (g.visible = !split));
+  }
   if (radio.on && radio.top) place(radioMark, radio.top, false); else radioMark.classList.add("off");
   for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
 }
