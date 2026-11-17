@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=5";
+import { SHRINES } from "./shrines-data.js?v=7";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/a6ed5b2b117f76d0058f56d98614ada149352f2b/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/6b77e7e54f5fe75591e8302479d8d7262a0ed817/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -680,12 +680,14 @@ function buildDetail(idx, img) {
   // dense: every pixel of the scan becomes a point (on phones every second one)
   // water "still": lakes that only sparkle, instead of water that drifts like the sea
   const still = s.water === "still";
-  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 1 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
+  det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 0.72 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
     asSea: !still, hard: true, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
-  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.5 : 1);
-  detUniforms.uDrop.value = s.dense ? 0.006 : 0.04;                         // and fewer flickering gaps   // dense scans: points just large enough to close the ground
+  // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
+  detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 1.05 : 1);
+  detUniforms.uDrop.value = s.dense ? 0.03 : 0.04;
+  detUniforms.uDim.value = s.dense ? 0.82 : 1;
   // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
   const [su, sv] = s.spot || [0.5, 0.5];
   const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;

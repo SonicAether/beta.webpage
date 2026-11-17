@@ -144,7 +144,7 @@ export const SHRINES = [
     rig: "—",
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834154/260826004BeautifulNorthernForestwithCreekandRain_oz1rbt.mp3",
     area: "Engerdal",
-    geo: [61.8759, 11.8848],
+    geo: [61.771, 11.46],   // on the overview: the plateau where the shrine stands in the scan (the recorded coordinates are in `coords`)
     // the scan: two LIDAR views stitched (Sølen in the north), the large forms from an elevation model
     relief: 1.4,
     dense: true,          // every pixel of the scan a point
