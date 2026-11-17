@@ -223,8 +223,6 @@ body.ready #boot-status { visibility: hidden; }
 /* ── markers: one per area, a short list where several recordings share it ── */
 .shrine { display: block; }
 .shrine-btn { display: flex; align-items: center; gap: 10px; padding: 0; }
-.shrine.cluster .shrine-mark { width: 16px; height: 16px; box-shadow: 0 0 0 3px rgba(6, 8, 10, .6), 0 0 0 4px rgba(169, 219, 232, .45); }
-.shrine.cluster .shrine-mark::after { margin: 5px; }
 .cluster-list {
   list-style: none; margin: 10px 0 0 24px; padding: 8px 12px; display: none; gap: 2px;
   background: rgba(6, 8, 10, 0.82); border: 1px solid var(--line); backdrop-filter: blur(6px);
@@ -330,3 +328,4 @@ body.radio-on .hud-readout { opacity: 0; pointer-events: none; }
 .shrine.cluster { pointer-events: none; }
 .shrine.cluster .cluster-list { pointer-events: auto; margin: 8px 0 0 18px; padding: 6px 10px; }
 .cluster-list li.active button, .cluster-list li.active button span { color: var(--ice); }
+.shrine.cluster .shrine-mark { display: block; pointer-events: auto; }
