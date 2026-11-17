@@ -29,6 +29,24 @@ export const SHRINES = [
     ],
   },
   {
+    id: "S-02",
+    name: "Purring moor, pine, birch",
+    region: "Spolsener Moor, Uplengen, Lower Saxony, DE",
+    coords: "53.3713° N, 7.8738° E · 12 m",
+    date: "2026-04-15",
+    time: "10:49",
+    temp: "—",
+    weather: "—",
+    wind: "—",
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834154/260412005SpolsenerMooramSumpfMoorknisterncutEq24bit_slmnah.mp3",
+    area: "Ostfriesland",
+    geo: [53.37127037, 7.87380695],   // exactly as in the file's tags
+    scan: false,                      // no LIDAR scan yet: the overview is its map
+    synth: { wind: 0.3, water: 0.3, birds: 0.5, tone: 700 },
+    prayer: [],   // text to follow
+  },
+  {
     id: "S-03",
     name: "The night of the Billy Witch",
     region: "Bohlenbergerfeld, Lower Saxony, DE",
