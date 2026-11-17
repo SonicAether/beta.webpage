@@ -19,7 +19,10 @@
     const master = G(0), comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -20; comp.ratio.value = 3; comp.attack.value = 0.08; comp.release.value = 0.6;
     const analyser = ctx.createAnalyser(); analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.85;
-    master.connect(comp).connect(analyser).connect(destination);
+    const floor = ctx.createBiquadFilter(); floor.type = "highpass"; floor.frequency.value = 32; floor.Q.value = 0.6;
+    // a last safety limiter: everything (drone and recordings) passes it on the way out
+    const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -6; lim.knee.value = 4; lim.ratio.value = 20; lim.attack.value = 0.003; lim.release.value = 0.25;
+    master.connect(floor).connect(comp).connect(analyser).connect(lim).connect(destination);
 
     // a large, dark synthetic space
     const ir = ctx.createBuffer(2, Math.floor(sr * 7), sr);
@@ -253,7 +256,8 @@
         const t = ctx.currentTime;
         if (opt.breathe) breathe(t + 14);
         crTimer = setTimeout(crackleWave, 8000);
-        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12 * SLOW);
+        // audible within a few seconds, then the slow rise to full level
+        master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL * 0.4, t + 3); master.gain.linearRampToValueAtTime(LEVEL, t + 12 * SLOW);
         nextAt = t + (12 + rnd() * 6) * SLOW;
         schedule(t + 2); timer = setInterval(() => schedule(ctx.currentTime + 2), 1000);
       },

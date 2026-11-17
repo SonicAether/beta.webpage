@@ -406,7 +406,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
      is loaded ahead and blended in with an equal-power crossfade, also across a change of place.
      They run on their own bus, so they are not cut when the drone of one place hands over to the next. */
   const XF = 24, LEAD = 30;                        // crossfade length; how early the next one starts loading (s)
-  const REC_LEVEL = 0.85;
+  const REC_LEVEL = 0.9;
   let field = null, fbus = null;
   function fieldBus() {
     if (fbus) return fbus;
@@ -543,7 +543,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     // changing place: the old signal and its recordings fade out while the new one rises
     const prevField = old ? holdField() : null;
     if (old) old.stop();
-    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.4, breathe: true, slow: 2 });
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.9, breathe: true, slow: 2 } : { f0: F0, row: ROW, level: 0.9, breathe: true, slow: 2 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
