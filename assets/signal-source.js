@@ -59,6 +59,8 @@
     const j = await (await fetch(u)).json();
     return j.items || [];
   }
+  // the recordist as aporee lists them; some entries carry an e-mail address or a placeholder instead of a name
+  const who = (c) => { c = String(c || "").replace(/<[^>]+>/g, "").trim(); return !c || /@/.test(c) || /^(info|unknown|admin|n\/?a)$/i.test(c) ? "radio aporee contributor" : c; };
   async function details(item) {
     const m = await (await fetch(`https://archive.org/metadata/${item.identifier}`)).json();
     const files = (m.files || []).filter((f) => /\.mp3$/i.test(f.name));
@@ -68,7 +70,7 @@
     const md = m.metadata || {};
     return {
       id: item.identifier, km: item.km, bearing: item.bearing,
-      title: String(md.title || "").replace(/<[^>]+>/g, ""), creator: String(md.creator || "unknown").replace(/<[^>]+>/g, ""),
+      title: String(md.title || "").replace(/<[^>]+>/g, ""), creator: who(md.creator),
       license: licName(md.licenseurl), licenseurl: md.licenseurl,
       src: `https://archive.org/download/${item.identifier}/${encodeURIComponent(mp3.name)}`,
       length: parseFloat(mp3.length) || 0,
