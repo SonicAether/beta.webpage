@@ -34,7 +34,9 @@
     dry.connect(master); verb.connect(wetLp).connect(wet).connect(master);
     // the generated sound has its own bus, so its level can breathe and make room for field recordings
     const genDry = G(1), genWet = G(1), duckD = G(1), duckW = G(1);
-    genDry.connect(duckD).connect(dry); genWet.connect(duckW).connect(verb);
+    // a gentle cut in the droning register (about 100–350 Hz), so the body of the sound does not dominate
+    const eq = (g) => { const f = ctx.createBiquadFilter(); f.type = "peaking"; f.frequency.value = 190; f.Q.value = 0.6; f.gain.value = opt.lowMid ?? -5; return f; };
+    genDry.connect(eq()).connect(duckD).connect(dry); genWet.connect(eq()).connect(duckW).connect(verb);
     const send = (node, d = 0.6, w = 0.4) => { node.connect(G(d)).connect(genDry); node.connect(G(w)).connect(genWet); };
 
     // shared noise buffers
