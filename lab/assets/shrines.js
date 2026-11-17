@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=17";
+import { SHRINES } from "./shrines-data.js?v=18";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/d7039df8ac0d2ad8e43948e84ac842c958feacb6/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/f3d71719516270113115f77c5b23dea81527d4e0/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -246,6 +246,7 @@ function makeCloud(img, opt) {
     for (let i = 0; i < NX; i += stride) {
       if ((((i + j) / stride) & 1) !== pass) continue;
       const k = j * NX + i, isW = W[k];
+      if (px[k * 4] === 3) continue;   // outside a scan's own outline: no ground at all
       // the scan thins out toward its limits instead of ending in a wall
       const edge = opt.hard ? 1 : Math.min(i, j, NX - 1 - i, NZ - 1 - j) / 40;   // detail maps end in a clean cut
       if (edge <= 0) continue;
