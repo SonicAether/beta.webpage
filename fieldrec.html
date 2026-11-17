@@ -38,7 +38,27 @@
 <section class="hud hud-index" aria-label="Shrines">
   <h2 class="u">Shrines · <span id="shrine-count">6</span></h2>
   <ul id="index-list"></ul>
+  <button id="radio-btn" type="button" class="radio-btn" aria-pressed="false" aria-controls="radio"><span class="r-dot" aria-hidden="true"></span><span class="u">Aether radio</span><span class="r-sub">a random place, as it sounds now</span></button>
 </section>
+
+<aside id="radio" class="radio" hidden aria-label="Aether radio" aria-live="polite">
+  <div class="r-head">
+    <span class="r-eye u"><span class="r-dot" aria-hidden="true"></span>Aether radio · <span id="r-state">tuning</span></span>
+    <button id="r-close" type="button" aria-label="Stop the radio">✕</button>
+  </div>
+  <h2 id="r-place">listening for a place…</h2>
+  <div class="r-coords u" id="r-coords"></div>
+  <dl class="r-data">
+    <dt>There now</dt><dd id="r-wx">—</dd>
+    <dt>Heard as</dt><dd id="r-heard">—</dd>
+    <dt>Recordings</dt><dd id="r-recs">—</dd>
+  </dl>
+  <div class="r-ctrl">
+    <button id="r-next" type="button" class="u">Another place →</button>
+    <label class="vol u" for="r-vol">vol <input id="r-vol" type="range" min="0" max="1" step="0.01" value="0.9"></label>
+  </div>
+  <p class="r-credit">Recordings from <a href="https://aporee.org/maps/" target="_blank" rel="noopener noreferrer">radio aporee ::: maps</a> via the Internet Archive · weather <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · places <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer">GeoNames</a> · <a href="privacy.html">privacy</a></p>
+</aside>
 
 <dl class="hud hud-readout">
   <dt>E</dt><dd id="hud-x">0000</dd>
@@ -113,6 +133,8 @@
   </div>
 </div>
 
+<script src="assets/signal-source.js?v=4"></script>
+<script src="assets/aether-radio.js?v=1"></script>
 <script type="module" src="assets/shrines.js"></script>
 </body>
 </html>

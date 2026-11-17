@@ -395,6 +395,12 @@ const detMark = document.createElement("div");
 detMark.className = "shrine active off";
 detMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"></span>`;
 
+// Aether radio: a marker at the place it is tuned to (see aether-radio.js)
+const radio = { on: false, base: null, top: null };
+const radioMark = document.createElement("div");
+radioMark.className = "shrine radio-mark off";
+radioMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"></span>`;
+
 function buildShrines() {
   const list = $("#index-list");
   $("#shrine-count").textContent = SHRINES.length;
@@ -445,6 +451,7 @@ function buildShrines() {
     members.forEach((i) => { shrineObjs[i].el = el; shrineObjs[i].base = base; });
   }
   shrineLayer.appendChild(detMark);
+  shrineLayer.appendChild(radioMark);
   addEventListener("pointerdown", (e) => { for (const m of markers) if (!m.el.contains(e.target)) closeCluster(m.el); });
 }
 function closeCluster(el) {
@@ -477,7 +484,7 @@ function place(el, p, far) {
 function placeLabels() {
   if (mode === "detail") {
     for (const m of markers) m.el.classList.add("off");
-    scanLink.classList.add("off");
+    scanLink.classList.add("off"); radioMark.classList.add("off");
     for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
     return;
@@ -486,6 +493,7 @@ function placeLabels() {
   if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].base, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
   else scanLink.classList.add("off");
   for (const m of markers) place(m.el, m.top, false);
+  if (radio.on && radio.top) place(radioMark, radio.top, false); else radioMark.classList.add("off");
   for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
 }
 
@@ -649,7 +657,7 @@ function showLinks() {
 // step one: down to the stop above a shrine
 async function flyToStop(idx) {
   const o = shrineObjs[idx], g = groundOf(o);
-  if (stopIdx < 0) euCam = { p: camera.position.clone(), t: controls.target.clone() };
+  if (stopIdx < 0 && !euCam) euCam = { p: camera.position.clone(), t: controls.target.clone() };
   stopIdx = -1; showLinks();
   scanOf(idx);                                            // the scan loads during the flight
   const d0 = camera.position.distanceTo(controls.target), travel = controls.target.distanceTo(g);
@@ -724,6 +732,7 @@ let current = -1;
 
 function openShrine(idx) {
   if (busy || (mode === "detail" && idx === detIdx)) return;
+  if (window.AetherRadio && window.AetherRadio.on()) window.AetherRadio.stop(true);
   const o = shrineObjs[idx];
   const s = o.s;
   current = idx; busy = true;
@@ -1228,7 +1237,7 @@ function loop() {
   stepCompass();
   for (const m of detSpin) m.rotation.y += dt * 0.22 * m.userData.spin;
   // slow orbit around the shrine while listening
-  const playing = player.isPlaying();
+  const playing = player.isPlaying() || radio.on;
   // both maps turn slowly while nothing else moves; the overview more slowly
   controls.autoRotate = !reduceMotion && !flight && !busy && entered;
   controls.autoRotateSpeed = (playing ? 0.35 : 0.18) * (mode === "detail" ? 1 : 0.45);
@@ -1236,7 +1245,7 @@ function loop() {
 
   listen += ((uniforms._listenTarget || 0) - listen) * Math.min(1, dt * 2);
   uniforms.uListen.value = listen;
-  lvl += (player.level() - lvl) * Math.min(1, dt * 8);
+  lvl += (Math.max(player.level(), window.AetherRadio ? window.AetherRadio.level() : 0) - lvl) * Math.min(1, dt * 8);
   uniforms.uLevel.value = lvl;
 
   renderer.render(scene, camera);
@@ -1257,6 +1266,49 @@ function loop() {
   hud.az.textContent = ((THREE.MathUtils.radToDeg(controls.getAzimuthalAngle()) + 360) % 360).toFixed(0).padStart(3, "0");
   requestAnimationFrame(loop);
 }
+
+/* ───────────── Aether radio: the map side ─────────────
+   The radio picks a place and calls radioAt; the overview flies to a regional view of it, a marker
+   stands there and the listening rings spread from it. radioOff rises back to where the visitor was. */
+const RADIO_DIST = 300;
+const waitIdle = async () => { while (busy) await new Promise((r) => setTimeout(r, 120)); };
+let radioFlight = 0;
+async function radioAt(lat, lon, label) {
+  if (!eu) return;
+  const my = ++radioFlight;
+  const [x, z] = geoToWorld(lat, lon), y = eu.heightAt(x, z);
+  radio.on = true; radio.base = new THREE.Vector3(x, y, z); radio.top = radio.base.clone().setY(y + 32);
+  radioMark.querySelector(".shrine-label").innerHTML = `<b>◉</b> ${label}`;
+  if (!panel.hidden) {                         // a shrine was open: it gives way without flying home
+    player.pause();
+    panel.classList.remove("open"); panel.hidden = true;
+    document.body.classList.remove("has-panel", "listening");
+    markActive(-1); current = -1;
+  }
+  uniforms.uFocus.value.set(x, 0, z); uniforms._listenTarget = 1;
+  await waitIdle();
+  if (my !== radioFlight || !radio.on) return;
+  if (mode === "detail") { await leaveScan(false); await waitIdle(); }
+  if (my !== radioFlight || !radio.on || !entered) return;
+  busy = true;
+  if (!euCam) euCam = { p: camera.position.clone(), t: controls.target.clone() };
+  stopIdx = -1; showLinks();
+  const g = radio.base.clone().setY(y * VMIN);
+  const d0 = camera.position.distanceTo(controls.target), travel = controls.target.distanceTo(g);
+  await zoomTo(g.clone().add(STEEP.clone().multiplyScalar(RADIO_DIST)), g, 2600 + 1400 * Math.abs(Math.log(d0 / RADIO_DIST)) + Math.min(2600, travel * 5));
+  busy = false; showLinks();
+}
+async function radioOff(keepView) {
+  radio.on = false; radioFlight++;
+  radioMark.classList.add("off");
+  uniforms.uFocus.value.set(9999, 0, 9999);
+  if (!player.isPlaying()) uniforms._listenTarget = 0;
+  if (keepView) return;
+  await waitIdle();
+  if (radio.on || mode !== "europe" || stopIdx >= 0 || !panel.hidden) return;
+  busy = true; await riseFromStop(); busy = false; showLinks();
+}
+window.SA_MAP = { radioAt, radioOff };
 
 /* ───────────── keyboard ───────────── */
 addEventListener("keydown", (e) => {
