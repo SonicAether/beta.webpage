@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Aron Stadler</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="robots" content="noindex, nofollow">
+<!-- test copy of the Aron Stadler page (unlinked); the version in Pull Request 7 replaces aronstadler.html -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@75..112.5,200..500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,200;1,6..72,300;1,6..72,400&display=swap">
+<style>
+/* Aron Stadler: the whole page is a spectrogram. Silent, it shows a faint noise floor;
+   once the generative sound runs, the spectrogram is its live analysis. Releases sit on top, quietly. */
+:root {
+  --void: #07040f;
+  --ink: #ece6f0;
+  --dim: #8a8296;
+  --faint: #3b3447;
+  --line: rgba(236, 230, 240, 0.14);
+  --accent: #e082bd;
+  --f-mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-text: "Newsreader", "Iowan Old Style", Georgia, serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { min-height: 100%; }
+body { margin: 0; background: var(--void); color: var(--ink); font-family: var(--f-mono); font-size: 11px; -webkit-font-smoothing: antialiased; }
+a { color: inherit; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+:focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
+
+/* the spectrogram behind everything */
+#spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; }
+.veil { position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: linear-gradient(90deg, rgba(7,4,15,.9) 0%, rgba(7,4,15,.66) 34%, rgba(7,4,15,.12) 64%, rgba(7,4,15,0) 100%),
+              linear-gradient(180deg, rgba(7,4,15,.6) 0%, rgba(7,4,15,0) 14%, rgba(7,4,15,0) 82%, rgba(7,4,15,.7) 100%); }
+.axis { position: fixed; z-index: 1; right: max(18px, env(safe-area-inset-right, 0px)); top: 0; bottom: 0; pointer-events: none;
+  color: var(--faint); font-size: 9px; letter-spacing: 0.14em; }
+.axis span { position: absolute; right: 0; transform: translateY(-50%); white-space: nowrap; }
+.axis span::after { content: ""; display: inline-block; width: 10px; height: 1px; background: currentColor; margin-left: 8px; vertical-align: middle; }
+
+.wrap {
+  position: relative; z-index: 2; min-height: 100vh; min-height: 100dvh;
+  display: grid; grid-template-rows: auto 1fr auto; gap: 40px;
+  padding-block: calc(18px + env(safe-area-inset-top, 0px)) calc(22px + env(safe-area-inset-bottom, 0px));
+  padding-left: max(22px, env(safe-area-inset-left, 0px)); padding-right: max(64px, env(safe-area-inset-right, 0px));
+}
+header { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.brand a { font-family: var(--f-text); text-decoration: none; font-size: 13px; letter-spacing: 0.32em; font-weight: 500; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 20px; }
+nav a { color: var(--dim); text-decoration: none; font-size: 10px; letter-spacing: 0.18em; }
+nav a:hover, nav a[aria-current] { color: var(--ink); }
+
+main { display: grid; grid-template-columns: max-content minmax(0, 460px); align-items: end; gap: 28px 48px; align-self: stretch; }
+
+/* the name: one colour, set upright along the left edge */
+.name {
+  margin: 0; grid-row: 1 / span 2; align-self: stretch;
+  writing-mode: vertical-rl; transform: rotate(180deg); width: 1.05em;
+  font-family: var(--f-text); font-weight: 200; font-style: italic;
+  font-size: clamp(64px, 11.5vh, 132px); line-height: .9; letter-spacing: 0.02em;
+  color: var(--ink); white-space: nowrap; text-align: end;
+}
+
+.col { display: grid; gap: 34px; align-content: end; padding-bottom: 6px; }
+.h { margin: 0; font-weight: 400; font-size: 10px; color: var(--dim); letter-spacing: 0.24em; text-transform: uppercase; }
+
+/* the signal: start and stop the generative sound */
+.signal { display: flex; align-items: center; gap: 18px; }
+.signal button { display: flex; align-items: center; gap: 16px; }
+.signal i { width: 46px; height: 46px; border: 1px solid rgba(236,230,240,.45); border-radius: 50%; position: relative; flex: none; transition: border-color .4s, box-shadow .6s; }
+.signal i::before { content: ""; position: absolute; left: 18px; top: 15px; border-left: 13px solid var(--ink); border-top: 8px solid transparent; border-bottom: 8px solid transparent; transition: opacity .3s; }
+.signal i::after { content: ""; position: absolute; inset: 17px; border-left: 3px solid var(--ink); border-right: 3px solid var(--ink); opacity: 0; transition: opacity .3s; }
+.signal button[aria-pressed="true"] i { border-color: var(--accent); box-shadow: 0 0 22px rgba(224,130,189,.28); }
+.signal button[aria-pressed="true"] i::before { opacity: 0; }
+.signal button[aria-pressed="true"] i::after { opacity: 1; }
+.signal button:hover i { border-color: var(--ink); }
+.signal .lbl { display: grid; gap: 4px; text-align: left; }
+.signal .lbl b { font-weight: 400; font-size: 11px; letter-spacing: 0.24em; }
+.signal .lbl span { color: var(--dim); font-size: 9px; letter-spacing: 0.18em; }
+.move { margin-left: auto; color: var(--dim); font-size: 9px; letter-spacing: 0.2em; border: 1px solid var(--line); padding: 8px 12px; transition: color .3s, border-color .3s; }
+.move:hover, .move:focus-visible { color: var(--ink); border-color: var(--accent); }
+.move:disabled { opacity: .4; cursor: default; }
+.source { margin: -14px 0 0 62px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 9px; letter-spacing: 0.12em; line-height: 1.6; }
+.source dt { color: var(--faint); text-transform: uppercase; letter-spacing: 0.2em; }
+.source dd { margin: 0; color: var(--dim); font-variant-numeric: tabular-nums; }
+.source dd a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--faint); }
+.source dd a:hover { color: var(--accent); border-color: var(--accent); }
+.source dd .by, .source dd .by a { color: var(--dim); }
+.source dd .dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); margin-right: 7px; vertical-align: 1px; transition: background .6s, box-shadow .6s; }
+.source dd a.on .dot { background: var(--accent); box-shadow: 0 0 8px rgba(224,130,189,.7); }
+@media (max-width: 760px) { .source { margin-left: 0; grid-template-columns: 1fr; gap: 0; } .source dd { margin-bottom: 4px; } }
+
+/* releases */
+.releases { display: grid; gap: 0; border-top: 1px solid var(--line); }
+.rel { border-bottom: 1px solid var(--line); }
+.rel > button { width: 100%; display: grid; grid-template-columns: 2.4em minmax(0, 1fr) auto; align-items: baseline; gap: 4px 14px; padding: 16px 0; text-align: left; transition: padding .4s ease; }
+.rel .n { color: var(--faint); font-family: var(--f-text); font-style: italic; font-size: 17px; }
+.rel .t { font-family: var(--f-text); font-weight: 300; font-size: clamp(21px, 2.4vw, 27px); line-height: 1.15; letter-spacing: 0.005em; }
+.rel .m { color: var(--dim); font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; white-space: nowrap; }
+.rel > button:hover { padding-left: 10px; }
+.rel > button:hover .t, .rel > button[aria-expanded="true"] .t { color: var(--accent); }
+.rel > button[aria-expanded="true"] .n { color: var(--accent); }
+.rel .embed { padding: 0 0 16px; }
+.rel iframe { display: block; width: 100%; height: 152px; border: 0; border-radius: 12px; background: #120c1c; }
+
+.videos { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 0; padding: 0; list-style: none; }
+.videos a, .outlets a { color: var(--ink); text-decoration: none; font-size: 10px; letter-spacing: 0.16em; border-bottom: 1px solid var(--faint); padding-bottom: 2px; transition: border-color .3s, color .3s; }
+.videos a:hover, .outlets a:hover { border-color: var(--accent); color: var(--accent); }
+
+footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 18px 28px; flex-wrap: wrap; }
+.outlets { display: grid; gap: 10px; }
+.outlets ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.readout { color: var(--faint); font-size: 9px; letter-spacing: 0.16em; text-align: right; line-height: 1.9; font-variant-numeric: tabular-nums; }
+.readout span { color: var(--dim); }
+.readout a { color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--faint); }
+
+@media (max-width: 760px) {
+  .wrap { padding-right: max(22px, env(safe-area-inset-right, 0px)); gap: 28px; }
+  nav ul { gap: 4px 12px; max-width: 56vw; }
+  main { grid-template-columns: 1fr; align-items: start; }
+  .name { grid-row: auto; writing-mode: horizontal-tb; transform: none; width: auto; font-size: clamp(54px, 17vw, 84px); white-space: normal; text-align: left; }
+  .veil { background: linear-gradient(180deg, rgba(7,4,15,.55), rgba(7,4,15,.62) 40%, rgba(7,4,15,.85)); }
+  .axis { display: none; }
+  .readout { text-align: left; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<canvas id="spec" aria-hidden="true"></canvas>
+<div class="veil" aria-hidden="true"></div>
+<div class="axis" aria-hidden="true" id="axis"></div>
+<div class="wrap">
+  <header>
+    <div class="brand"><a href="../">SONIC AETHER</a></div>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="../fieldrec.html">LISTENING SHRINES_</a></li>
+        <li><a href="../aronstadler.html" aria-current="page">ARON STADLER_</a></li>
+        <li><a href="../sound.html">SOUND FOR FILM_</a></li>
+        <li><a href="../about.html">ABOUT CONTACT_</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <h1 class="name">Aron Stadler</h1>
+    <div class="col">
+      <div class="signal">
+        <button id="signal" type="button" aria-pressed="false">
+          <i aria-hidden="true"></i>
+          <span class="lbl"><b id="signal-b">LISTEN</b><span id="signal-s">a generative signal from a random place, shaped by its weather and its field recordings</span></span>
+        </button>
+        <button id="move" class="move" type="button" hidden>CHANGE LOCATION ↻</button>
+      </div>
+      <dl class="source" id="source" hidden><dt>Received from</dt><dd id="src-at">—</dd><dt>Weather there now</dt><dd id="src-wx">—</dd><dt id="src-rec-row" hidden>Recordings nearby</dt><dd id="src-rec" hidden></dd></dl>
+
+      <section aria-label="Releases">
+        <h2 class="h">Releases</h2>
+        <ol class="releases" id="releases" style="list-style:none;margin:12px 0 0;padding:0"></ol>
+      </section>
+
+      <section aria-label="Moving image" style="display:grid;gap:12px">
+        <h2 class="h">Moving image</h2>
+        <ul class="videos">
+          <li><a href="https://www.youtube.com/watch?v=Is61Fw3eyeU" target="_blank" rel="noopener noreferrer">VIDEO I ↗</a></li>
+          <li><a href="https://www.youtube.com/watch?v=yO79E6lUVYE" target="_blank" rel="noopener noreferrer">VIDEO II ↗</a></li>
+          <li><a href="https://www.youtube.com/watch?v=KXtL9ygCUY8" target="_blank" rel="noopener noreferrer">VIDEO III ↗</a></li>
+          <li><a href="https://www.youtube.com/watch?v=DPgM4UV4IVs" target="_blank" rel="noopener noreferrer">VIDEO IV ↗</a></li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <section class="outlets" aria-label="Find the music">
+      <h2 class="h">Find the music</h2>
+      <ul>
+        <li><a href="https://midirarecords.com/release/md-125-aron-stadler-rivers-of-frequency/" target="_blank" rel="noopener noreferrer">MIDIRA RECORDS ↗</a></li>
+        <li><a href="https://aronstadler.bandcamp.com/" target="_blank" rel="noopener noreferrer">BANDCAMP ↗</a></li>
+        <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
+      </ul>
+    </section>
+    <div class="readout">SPECTROGRAM · 30 Hz – 16 kHz · <span id="state">NOISE FLOOR</span><br>weather · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · recordings · <a href="https://aporee.org/maps/" target="_blank" rel="noopener noreferrer">radio aporee</a> · places · <a href="https://www.geonames.org/" target="_blank" rel="noopener noreferrer">GeoNames</a> &nbsp; Daniel Aron de Jong © 2026 · <a href="../privacy.html">Privacy</a></div>
+  </footer>
+</div>
+
+<script src="assets/transmission.js"></script>
+<script src="assets/signal-source.js"></script>
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── releases: a title each; the player opens beneath it ── */
+  const RELEASES = [
+    { n: "I", title: "Fragile Synchronicity", meta: "Release I", album: "67d5gSXrGgFAW34aUZBuwM" },
+    { n: "II", title: "Rivers of Frequency", meta: "Midira · MD-125", album: "33BaFUigOl5aj3vRZ90Uay" },
+  ];
+  const relList = document.getElementById("releases");
+  RELEASES.forEach((r, i) => {
+    const li = document.createElement("li"); li.className = "rel";
+    li.innerHTML = `<button type="button" aria-expanded="false" aria-controls="rel-${i}"><span class="n">${r.n}</span><span class="t">${r.title}</span><span class="m">${r.meta}</span></button><div class="embed" id="rel-${i}" hidden></div>`;
+    const b = li.querySelector("button"), box = li.querySelector(".embed");
+    b.addEventListener("click", () => {
+      const open = b.getAttribute("aria-expanded") === "true";
+      relList.querySelectorAll(".rel > button[aria-expanded='true']").forEach((x) => { x.setAttribute("aria-expanded", "false"); const e = x.nextElementSibling; e.hidden = true; e.innerHTML = ""; });
+      if (open) return;
+      // the record takes over from the generated signal
+      if (tx) stopSignal();
+      box.innerHTML = `<iframe title="${r.title} on Spotify" src="https://open.spotify.com/embed/album/${r.album}?utm_source=generator&theme=0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>`;
+      box.hidden = false; b.setAttribute("aria-expanded", "true");
+    });
+    relList.appendChild(li);
+  });
+
+  /* ── the spectrogram ── */
+  const cv = document.getElementById("spec"), cx = cv.getContext("2d", { alpha: false });
+  const FMIN = 30, FMAX = 16000, SPEED = 34;          // px per second at the internal resolution
+  // palette of the home image: night violet → indigo → blue → violet → magenta → pink → pale pink
+  const STOPS = [[0, [7, 4, 15]], [0.16, [28, 12, 52]], [0.32, [39, 26, 124]], [0.46, [57, 73, 175]], [0.56, [50, 108, 202]],
+                 [0.66, [115, 69, 159]], [0.76, [169, 84, 168]], [0.86, [217, 131, 193]], [0.94, [235, 197, 224]], [1, [250, 236, 242]]];
+  const LUT = new Uint8ClampedArray(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const t = i / 255; let k = 1; while (k < STOPS.length - 1 && STOPS[k][0] < t) k++;
+    const [t0, c0] = STOPS[k - 1], [t1, c1] = STOPS[k], u = Math.min(1, Math.max(0, (t - t0) / (t1 - t0)));
+    for (let c = 0; c < 3; c++) LUT[i * 3 + c] = c0[c] + (c1[c] - c0[c]) * u;
+  }
+  let W = 0, H = 0, col = null, rowF = null;
+  function size() {
+    // internal resolution: one row per ~2.4 screen px, columns at the same pitch
+    H = Math.max(160, Math.min(420, Math.round(innerHeight / 2.4)));
+    W = Math.max(200, Math.round(H * innerWidth / innerHeight));
+    const old = cv.width ? cx.getImageData(0, 0, cv.width, cv.height) : null;
+    cv.width = W; cv.height = H;
+    cx.fillStyle = "rgb(7,4,15)"; cx.fillRect(0, 0, W, H);
+    if (old) { const tmp = document.createElement("canvas"); tmp.width = old.width; tmp.height = old.height; tmp.getContext("2d").putImageData(old, 0, 0); cx.drawImage(tmp, 0, 0, W, H); }
+    col = cx.createImageData(1, H);
+    rowF = new Float32Array(H).map((_, y) => FMIN * Math.pow(FMAX / FMIN, 1 - (y + 0.5) / H));   // top = high
+    // axis labels at their heights
+    const ax = document.getElementById("axis"); ax.innerHTML = "";
+    for (const [f, l] of [[8000, "8k"], [2000, "2k"], [500, "500"], [125, "125 Hz"]]) {
+      const y = (1 - Math.log(f / FMIN) / Math.log(FMAX / FMIN)) * 100;
+      const s = document.createElement("span"); s.style.top = y + "%"; s.textContent = l; ax.appendChild(s);
+    }
+  }
+  size(); addEventListener("resize", size);
+
+  // silent: a noise floor with faint, slowly breathing overtone lines, so the page is never dead
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const F0 = 41, ROW = [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11, 13];
+  function idleColumn(t) {
+    const out = new Float32Array(H);
+    for (let y = 0; y < H; y++) {
+      const f = rowF[y], lf = Math.log(f);
+      let v = 0.22 + 0.12 * Math.exp(-Math.pow((lf - Math.log(120)) / 1.3, 2)) - 0.05 * (lf - Math.log(FMIN)) / Math.log(FMAX / FMIN);
+      v += (rnd() - 0.5) * 0.09;
+      for (let k = 0; k < ROW.length; k++) {
+        const fk = F0 * ROW[k], d = Math.abs(lf - Math.log(fk));
+        if (d < 0.03) v += (0.22 / Math.pow(ROW[k], 0.35)) * (0.55 + 0.45 * Math.sin(t * (0.05 + k * 0.011) + k * 1.7)) * (1 - d / 0.03);
+      }
+      out[y] = v;
+    }
+    // now and then a short burst of static, as on the home page
+    if (rnd() < 0.006) { const y0 = Math.floor(rnd() * H * 0.6), h = 6 + rnd() * 40; for (let y = y0; y < Math.min(H, y0 + h); y++) out[y] += 0.18 + rnd() * 0.1; }
+    return out;
+  }
+
+  let ctxA = null, tx = null, spec = null, binHz = 1;
+  function liveColumn() {
+    tx.analyser.getFloatFrequencyData(spec);
+    const out = new Float32Array(H);
+    for (let y = 0; y < H; y++) {
+      const b = Math.min(spec.length - 1, Math.max(1, Math.round(rowF[y] / binHz)));
+      const db = spec[b] + 6 * Math.log2(rowF[y] / 200);          // tilt: lift the highs a little
+      out[y] = Math.min(1, Math.max(0, (db + 108) / 74));
+    }
+    return out;
+  }
+  function paint(vals, x) {
+    const d = col.data;
+    for (let y = 0; y < H; y++) {
+      const i = Math.max(0, Math.min(255, Math.round(Math.pow(Math.max(0, vals[y]), 0.9) * 255)));
+      d[y * 4] = LUT[i * 3]; d[y * 4 + 1] = LUT[i * 3 + 1]; d[y * 4 + 2] = LUT[i * 3 + 2]; d[y * 4 + 3] = 255;
+    }
+    cx.putImageData(col, x, 0);
+  }
+
+  // fill the screen once so the page opens on an image, not on black
+  { let t = 0; for (let x = 0; x < W; x++) { t += 1 / SPEED; paint(idleColumn(t), x); } }
+
+  let acc = 0, last = performance.now(), clock = W / SPEED;
+  function frame(now) {
+    const dt = Math.min(0.1, (now - last) / 1000); last = now;
+    acc += dt * SPEED;
+    const n = Math.floor(acc);
+    if (n > 0) {
+      acc -= n;
+      cx.drawImage(cv, n, 0, W - n, H, 0, 0, W - n, H);            // the image moves left
+      for (let k = n; k > 0; k--) { clock += 1 / SPEED; paint(tx ? liveColumn() : idleColumn(clock), W - k); }
+    }
+    if (!document.hidden) requestAnimationFrame(frame);
+  }
+  if (!reduce) requestAnimationFrame(frame);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && !reduce) { last = performance.now(); requestAnimationFrame(frame); } });
+
+  /* ── the generative signal: the home page's transmission, a little lower and with a longer row ── */
+  const moveBtn = document.getElementById("move");
+  const btn = document.getElementById("signal"), lb = document.getElementById("signal-b"), ls = document.getElementById("signal-s"), st = document.getElementById("state");
+  // the signal comes from a random place between Ireland and Sweden; its weather now shapes the sound
+  const AREA = { lon: [-11.5, 20.5], lat: [49.8, 66.5] };
+  async function weatherSomewhere() {
+    const lat = AREA.lat[0] + Math.random() * (AREA.lat[1] - AREA.lat[0]), lon = AREA.lon[0] + Math.random() * (AREA.lon[1] - AREA.lon[0]);
+    const place = { lat: +lat.toFixed(2), lon: +lon.toFixed(2) };
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 4500);
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,pressure_msl,wind_speed_10m,wind_direction_10m,relative_humidity_2m,cloud_cover`, { signal: ctl.signal });
+      clearTimeout(to);
+      const c = (await r.json()).current;
+      return { place, wx: { t: c.temperature_2m, p: c.pressure_msl, ws: c.wind_speed_10m, wd: c.wind_direction_10m, rh: c.relative_humidity_2m, cc: c.cloud_cover } };
+    } catch (_) {
+      // previews that cannot reach the service may carry real readings captured once at random places
+      const S = window.SA_WX_PLACES;
+      if (S && S.length) { const k = S[Math.floor(Math.random() * S.length)]; return { place: k.place, wx: k.wx, snap: k.time }; }
+      return { place, wx: null };
+    }
+  }
+  const fmt = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
+  const compass = (d) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((d % 360) + 360) % 360 / 45) % 8];
+  const ll = (p) => `${Math.abs(p.lat).toFixed(2)}° ${p.lat >= 0 ? "N" : "S"}, ${Math.abs(p.lon).toFixed(2)}° ${p.lon >= 0 ? "E" : "W"}`;
+  function showSource(src) {
+    const box = document.getElementById("source"), w = src.wx;
+    document.getElementById("src-at").textContent = (src.name ? src.name + " · " : "") + ll(src.place);
+    document.getElementById("src-wx").innerHTML = w
+      ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %` + (src.snap ? ` · recorded ${src.snap.slice(11, 16)} UTC` : "")
+      : `no weather reached from here · neutral settings`;
+    box.hidden = false;
+  }
+  /* field recordings from radio aporee ::: maps nearest to the place, drifting in one after another */
+  let field = null;
+  function playField(recs) {
+    const list = document.getElementById("src-rec"), row = document.getElementById("src-rec-row");
+    if (!recs.length) { list.innerHTML = "none close enough to mix"; row.hidden = list.hidden = false; return; }
+    list.innerHTML = recs.map((r, i) => `<a href="${r.page}" target="_blank" rel="noopener noreferrer" data-i="${i}"><span class="dot"></span>${r.title || r.id}</a> <span class="by">${r.creator} · ${r.km < 1 ? "<1" : Math.round(r.km)} km · <a href="${r.licenseurl}" target="_blank" rel="noopener noreferrer">${r.license}</a></span>`).join("<br>");
+    row.hidden = list.hidden = false;
+    const me = { stop: false, nodes: [] };
+    field = me;
+    let k = 0;
+    const next = () => {
+      if (me.stop || !tx) return;
+      const r = recs[k % recs.length]; k++;
+      const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.src = r.src;
+      const node = ctxA.createMediaElementSource(a);
+      const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
+      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 9000;
+      const g = ctxA.createGain(); g.gain.value = 0;
+      const p = ctxA.createStereoPanner(); p.pan.value = Math.max(-0.8, Math.min(0.8, Math.sin((r.bearing * Math.PI) / 180) * 0.8));
+      const send = ctxA.createGain(); send.gain.value = 0.35;
+      node.connect(hp).connect(lp).connect(g).connect(p);
+      p.connect(tx.input); p.connect(send).connect(tx.space);
+      const hold = 50 + Math.random() * 60, fade = 10;
+      a.addEventListener("loadedmetadata", () => {
+        const len = a.duration || r.length || 0;
+        if (len > hold + 2 * fade) a.currentTime = Math.random() * (len - hold - 2 * fade);
+        a.play().catch(() => {});
+        const t = ctxA.currentTime, lvl = 1.15;           // the recording sits a little under the signal
+        g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + fade);
+        g.gain.setValueAtTime(lvl, t + fade + hold); g.gain.linearRampToValueAtTime(0, t + 2 * fade + hold);
+        list.querySelectorAll("a[data-i]").forEach((x) => x.classList.toggle("on", +x.dataset.i === (k - 1) % recs.length));
+        me.timer = setTimeout(next, (fade + hold) * 1000);   // the next one rises while this one fades
+        setTimeout(() => { a.pause(); a.src = ""; try { node.disconnect(); } catch (_) {} }, (2 * fade + hold + 1) * 1000);
+      }, { once: true });
+      a.addEventListener("error", () => { if (!me.stop) me.timer = setTimeout(next, 1000); }, { once: true });
+      me.nodes.push({ a, g });
+    };
+    me.timer = setTimeout(next, 6000);                     // let the signal rise first
+  }
+  function stopField() {
+    if (!field) return;
+    field.stop = true; clearTimeout(field.timer);
+    const t = ctxA.currentTime;
+    field.nodes.forEach(({ a, g }) => { g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(g.gain.value, t); g.gain.linearRampToValueAtTime(0, t + 4); setTimeout(() => { a.pause(); a.src = ""; }, 4500); });
+    field = null;
+  }
+
+  let busy = false;
+  let tuneId = 0;
+  async function startSignal(change) {
+    if (busy) return; busy = true;
+    const my = ++tuneId, old = change ? tx : null;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctxA = ctxA || new AC(); ctxA.resume();               // unlocked inside the click, before the network
+    lb.textContent = "TUNING"; ls.textContent = "listening for a place"; moveBtn.disabled = true;
+    const src = await weatherSomewhere();
+    const named = window.SignalSource ? window.SignalSource.name(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
+    const nearby = window.SignalSource ? window.SignalSource.recordings(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
+    src.name = ((await named) || {}).label;
+    // changing place: the old signal and its recordings fade out while the new one rises
+    if (old) { stopField(); old.stop(); }
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4 } : { f0: F0, row: ROW, level: 0.4 });
+    tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
+    spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
+    tx.start();
+    showSource(src);
+    document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
+    nearby.then((recs) => { if (tx && my === tuneId) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "the archive could not be reached from here")); });
+    btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
+    busy = false; moveBtn.disabled = false; moveBtn.hidden = false;
+    if (reduce) { for (let x = 0; x < W; x++) paint(idleColumn(x), x); }
+  }
+  function stopSignal() {
+    if (!tx) return;
+    stopField();
+    tx.stop(); tx = null;
+    document.getElementById("source").hidden = true; moveBtn.hidden = true;
+    document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = true;
+    btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal from a random place, shaped by its weather and its field recordings"; st.textContent = "NOISE FLOOR";
+  }
+  btn.addEventListener("click", () => (tx ? stopSignal() : startSignal()));
+  moveBtn.addEventListener("click", () => { if (tx) startSignal(true); });
+})();
+</script>
+</body>
+</html>
