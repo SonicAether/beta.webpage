@@ -79,6 +79,9 @@ main { display: grid; grid-template-columns: max-content minmax(0, 460px); align
 .signal .lbl { display: grid; gap: 4px; text-align: left; }
 .signal .lbl b { font-weight: 400; font-size: 11px; letter-spacing: 0.24em; }
 .signal .lbl span { color: var(--dim); font-size: 9px; letter-spacing: 0.18em; }
+.move { margin-left: auto; color: var(--dim); font-size: 9px; letter-spacing: 0.2em; border: 1px solid var(--line); padding: 8px 12px; transition: color .3s, border-color .3s; }
+.move:hover, .move:focus-visible { color: var(--ink); border-color: var(--accent); }
+.move:disabled { opacity: .4; cursor: default; }
 .source { margin: -14px 0 0 62px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 9px; letter-spacing: 0.12em; line-height: 1.6; }
 .source dt { color: var(--faint); text-transform: uppercase; letter-spacing: 0.2em; }
 .source dd { margin: 0; color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -150,6 +153,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
           <i aria-hidden="true"></i>
           <span class="lbl"><b id="signal-b">LISTEN</b><span id="signal-s">a generative signal from a random place, shaped by its weather and its field recordings</span></span>
         </button>
+        <button id="move" class="move" type="button" hidden>CHANGE LOCATION ↻</button>
       </div>
       <dl class="source" id="source" hidden><dt>Received from</dt><dd id="src-at">—</dd><dt>Weather there now</dt><dd id="src-wx">—</dd><dt id="src-rec-row" hidden>Recordings nearby</dt><dd id="src-rec" hidden></dd></dl>
 
@@ -302,6 +306,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   document.addEventListener("visibilitychange", () => { if (!document.hidden && !reduce) { last = performance.now(); requestAnimationFrame(frame); } });
 
   /* ── the generative signal: the home page's transmission, a little lower and with a longer row ── */
+  const moveBtn = document.getElementById("move");
   const btn = document.getElementById("signal"), lb = document.getElementById("signal-b"), ls = document.getElementById("signal-s"), st = document.getElementById("state");
   // the signal comes from a random place between Ireland and Sweden; its weather now shapes the sound
   const AREA = { lon: [-11.5, 20.5], lat: [49.8, 66.5] };
@@ -380,35 +385,40 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
   }
 
   let busy = false;
-  async function startSignal() {
+  let tuneId = 0;
+  async function startSignal(change) {
     if (busy) return; busy = true;
+    const my = ++tuneId, old = change ? tx : null;
     const AC = window.AudioContext || window.webkitAudioContext;
     ctxA = ctxA || new AC(); ctxA.resume();               // unlocked inside the click, before the network
-    lb.textContent = "TUNING"; ls.textContent = "listening for a place";
+    lb.textContent = "TUNING"; ls.textContent = "listening for a place"; moveBtn.disabled = true;
     const src = await weatherSomewhere();
     const named = window.SignalSource ? window.SignalSource.name(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
     const nearby = window.SignalSource ? window.SignalSource.recordings(src.place.lat, src.place.lon).catch(() => null) : Promise.resolve(null);
     src.name = ((await named) || {}).label;
+    // changing place: the old signal and its recordings fade out while the new one rises
+    if (old) { stopField(); old.stop(); }
     tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4 } : { f0: F0, row: ROW, level: 0.4 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
     showSource(src);
     document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
-    nearby.then((recs) => { if (tx) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "could not be reached from here")); });
+    nearby.then((recs) => { if (tx && my === tuneId) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "the archive could not be reached from here")); });
     btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
-    busy = false;
+    busy = false; moveBtn.disabled = false; moveBtn.hidden = false;
     if (reduce) { for (let x = 0; x < W; x++) paint(idleColumn(x), x); }
   }
   function stopSignal() {
     if (!tx) return;
     stopField();
     tx.stop(); tx = null;
-    document.getElementById("source").hidden = true;
+    document.getElementById("source").hidden = true; moveBtn.hidden = true;
     document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = true;
     btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal from a random place, shaped by its weather and its field recordings"; st.textContent = "NOISE FLOOR";
   }
   btn.addEventListener("click", () => (tx ? stopSignal() : startSignal()));
+  moveBtn.addEventListener("click", () => { if (tx) startSignal(true); });
 })();
 </script>
 </body>

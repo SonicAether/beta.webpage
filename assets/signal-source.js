@@ -22,10 +22,11 @@
   let places = null, seas = null;
   async function load() {
     if (places) return;
-    const [txt, meta] = await Promise.all([fetch(BASE + "places.txt").then((r) => r.text()), fetch(BASE + "seas.json").then((r) => r.json())]);
+    const G = window.SA_GEO;                       // a page may carry the data inline (previews)
+    const [txt, meta] = G ? [G.places, G.seas] : await Promise.all([fetch(BASE + "places.txt").then((r) => r.text()), fetch(BASE + "seas.json").then((r) => r.json())]);
     places = txt.split("\n").map((l) => { const [n, a, b, c] = l.split("|"); return { n, lat: +a, lon: +b, c }; });
     const img = new Image();
-    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = BASE + "seas.png"; });
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = G ? G.png : BASE + "seas.png"; });
     const cv = document.createElement("canvas"); cv.width = img.width; cv.height = img.height;
     const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0);
     seas = { ...meta, px: cx.getImageData(0, 0, img.width, img.height).data };
@@ -45,7 +46,8 @@
     const where = `${best.n}, ${COUNTRY[best.c] || best.c}`;
     const rel = bd < 2.5 ? where : `${Math.round(bd)} km ${point8(bearing(best.lat, best.lon, lat, lon))} of ${where}`;
     const sea = seaAt(lat, lon);
-    return { label: sea ? `${sea} · ${rel}` : rel, sea, town: best, km: bd };
+    // far out at sea a town says little: the sea's name is enough
+    return { label: sea ? (bd > 120 ? sea : `${sea} · ${rel}`) : rel, sea, town: best, km: bd };
   }
 
   // licences the page may mix freely: public domain, CC BY, CC BY-NC (no ShareAlike, no NoDerivatives)
