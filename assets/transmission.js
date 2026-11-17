@@ -2,8 +2,16 @@
    Brown-noise carrier, a beating overtone row, sub bass, singing band-passes, an ether hiss and rare artefacts. */
 (() => {
   function createTransmission(ctx, destination, opt = {}) {
-    const sr = ctx.sampleRate, rnd = Math.random, F0 = opt.f0 || 54;   // carrier fundamental, Hz
-    const LEVEL = opt.level || 0.42;                                 // master level
+    // opt.wx: current weather { t °C, p hPa, ws km/h, wd °, rh %, cc % } shapes the sound (all optional)
+    const wx = opt.wx || {}, cl = (v, a, b) => Math.min(b, Math.max(a, v));
+    const warm = cl(((wx.t ?? 8) + 15) / 40, 0, 1);          // 0 deep frost … 1 warm summer day
+    const low = cl((1022 - (wx.p ?? 1013)) / 42, 0, 1);      // 0 settled high … 1 deep low
+    const wind = cl((wx.ws ?? 12) / 55, 0, 1);               // 0 calm … 1 gale
+    const hum = cl((wx.rh ?? 75) / 100, 0, 1), cloud = cl((wx.cc ?? 50) / 100, 0, 1);
+    const side = Math.sin(((wx.wd ?? 240) * Math.PI) / 180);  // where the wind comes from, east (+1) to west (-1)
+    const sr = ctx.sampleRate, rnd = Math.random;
+    const F0 = opt.f0 || (opt.wx ? 34 + 18 * warm : 54);      // carrier fundamental, Hz: warmer air sounds higher
+    const LEVEL = opt.level || 0.42;                          // master level
     const G = (v = 1) => { const g = ctx.createGain(); g.gain.value = v; return g; };
     const pan = (p) => { const n = ctx.createStereoPanner(); n.pan.value = p; return n; };
 
@@ -19,8 +27,10 @@
       for (let i = 0; i < d.length; i++) { const t = i / sr; lp += 0.18 * ((rnd() * 2 - 1) - lp); d[i] = lp * Math.exp(-t / 1.9) * (t < 0.03 ? t / 0.03 : 1); }
     }
     const verb = ctx.createConvolver(); verb.buffer = ir;
-    const dry = G(0.8), wet = G(0.75);
-    dry.connect(master); verb.connect(wet).connect(master);
+    // humid air: a larger, softer space; dry air: a closer, clearer one
+    const dry = G(0.8), wet = G(opt.wx ? 0.42 + 0.6 * hum : 0.75);
+    const wetLp = ctx.createBiquadFilter(); wetLp.type = "lowpass"; wetLp.frequency.value = opt.wx ? 9500 - 7000 * hum : 20000;
+    dry.connect(master); verb.connect(wetLp).connect(wet).connect(master);
     const send = (node, d = 0.6, w = 0.4) => { node.connect(G(d)).connect(dry); node.connect(G(w)).connect(verb); };
 
     // shared noise buffers
@@ -35,19 +45,21 @@
 
     // 1 · carrier: brown noise that breathes
     const bed = ctx.createBufferSource(); bed.buffer = brown; bed.loop = true;
-    const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = 340; bedLp.Q.value = 0.4;
-    const bedG = G(0.36);
-    bed.connect(bedLp).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
-    live.push(bed, lfo(0.008, 150, bedLp.frequency), lfo(0.005, 0.16, bedG.gain));
+    // wind opens the noise and makes it gust
+    const bedLp = ctx.createBiquadFilter(); bedLp.type = "lowpass"; bedLp.frequency.value = opt.wx ? 220 + 520 * wind : 340; bedLp.Q.value = 0.4;
+    const bedG = G(opt.wx ? 0.26 + 0.24 * wind : 0.36);
+    bed.connect(bedLp).connect(pan(side * 0.35 * wind)).connect(bedG); send(bedG, 0.7, 0.35); bed.start();
+    live.push(bed, lfo(0.008 + 0.05 * wind, 150 + 380 * wind, bedLp.frequency), lfo(0.005 + 0.09 * wind, 0.16 + 0.12 * wind, bedG.gain));
 
     // 2 · standing waves: overtone row, each partial a slowly beating L/R pair
     const ROW = opt.row || [1, 1.5, 2, 3, 4, 5, 6, 7, 9, 11];
     const drones = [];
     ROW.forEach((n, i) => {
-      const base = 0.075 / Math.pow(n, 0.8) * (n > 6 ? 0.55 : 1);
+      // a clear sky lets the upper partials ring; cloud covers them
+      const base = 0.075 / Math.pow(n, 0.8) * (n > 6 ? 0.55 : 1) * (opt.wx && n > 3 ? 1.25 - 0.85 * cloud : 1);
       const amp = G(base * 0.5);
       lfo(1 / (60 + rnd() * 140), base * 0.5, amp.gain);         // bloom and recede, 60–200 s
-      const beat = 0.015 + rnd() * 0.09;                           // Hz between the pair: slow beating
+      const beat = 0.015 + rnd() * (opt.wx ? 0.04 + 0.3 * low : 0.09);   // Hz between the pair: a low makes them restless
       [-1, 1].forEach((side) => {
         const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = F0 * n + side * beat / 2;
         o.connect(pan(side * (0.25 + 0.5 * (i / ROW.length)))).connect(amp);
@@ -64,22 +76,23 @@
     const rum = ctx.createBufferSource(); rum.buffer = brown; rum.loop = true; rum.loopStart = 5;
     const rumLp = ctx.createBiquadFilter(); rumLp.type = "lowpass"; rumLp.frequency.value = 70; rumLp.Q.value = 0.7;
     rum.connect(rumLp).connect(G(0.35)).connect(sub); rum.start(); live.push(rum);
-    sub.gain.value = 0.75; lfo(1 / 140, 0.25, sub.gain);                  // swells over ~2½ min
+    sub.gain.value = opt.wx ? 0.5 + 0.6 * low : 0.75; lfo(1 / 140, 0.25, sub.gain);   // swells over ~2½ min; deeper in a low
     sub.connect(dry);
 
     // 3 · overtones singing out of the noise (very narrow band-passes that wander)
     const singers = [0, 1].map((k) => {
       const s = ctx.createBufferSource(); s.buffer = brown; s.loop = true; s.loopStart = k * 3;
       const bp = ctx.createBiquadFilter(); bp.type = "bandpass"; bp.Q.value = 60; bp.frequency.value = F0 * (7 + k * 2);
-      const g = G(0.75); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
+      const g = G(opt.wx ? 0.45 + 0.6 * (1 - cloud) : 0.75); s.connect(bp).connect(pan(k ? 0.6 : -0.6)).connect(g); send(g, 0.25, 0.8); s.start(); live.push(s);
       return bp;
     });
 
     // 3b · a faint, high ether hiss that comes and goes
     const air = ctx.createBufferSource(); air.buffer = white; air.loop = true;
     const airBp = ctx.createBiquadFilter(); airBp.type = "bandpass"; airBp.frequency.value = 7200; airBp.Q.value = 0.9;
-    const airG = G(0.006); air.connect(airBp).connect(airG); send(airG, 0.3, 0.7); air.start();
-    live.push(air, lfo(0.007, 0.005, airG.gain), lfo(0.012, 1800, airBp.frequency));
+    const airLevel = opt.wx ? 0.003 + 0.022 * wind * wind : 0.006;
+    const airG = G(airLevel); air.connect(airBp).connect(pan(side * 0.7)).connect(airG); send(airG, 0.3, 0.7); air.start();
+    live.push(air, lfo(0.007 + 0.12 * wind, airLevel * 0.85, airG.gain), lfo(0.012 + 0.04 * wind, 1800, airBp.frequency));
 
     // state for the readout
     const state = { drift: 0, event: "" };
@@ -143,12 +156,12 @@
       while (nextAt < until) {
         const k = pick(); ARTEFACTS[k](nextAt);
         const at = nextAt; setTimeout(() => (state.event = k), Math.max(0, (at - ctx.currentTime) * 1000));
-        nextAt += 8 + rnd() * 18;
+        nextAt += (8 + rnd() * 18) * (opt.wx ? 1.5 - 1.1 * low : 1);   // a falling glass brings more disturbance
       }
     }
 
     return {
-      analyser, state, F0,
+      analyser, state, F0, shape: { warm, low, wind, hum, cloud, side },
       start() {
         const t = ctx.currentTime;
         master.gain.cancelScheduledValues(t); master.gain.setValueAtTime(0, t); master.gain.linearRampToValueAtTime(LEVEL, t + 12);

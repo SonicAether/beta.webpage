@@ -79,6 +79,10 @@ main { display: grid; grid-template-columns: max-content minmax(0, 460px); align
 .signal .lbl { display: grid; gap: 4px; text-align: left; }
 .signal .lbl b { font-weight: 400; font-size: 11px; letter-spacing: 0.24em; }
 .signal .lbl span { color: var(--dim); font-size: 9px; letter-spacing: 0.18em; }
+.source { margin: -14px 0 0 62px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; font-size: 9px; letter-spacing: 0.12em; line-height: 1.6; }
+.source dt { color: var(--faint); text-transform: uppercase; letter-spacing: 0.2em; }
+.source dd { margin: 0; color: var(--dim); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .source { margin-left: 0; grid-template-columns: 1fr; gap: 0; } .source dd { margin-bottom: 4px; } }
 
 /* releases */
 .releases { display: grid; gap: 0; border-top: 1px solid var(--line); }
@@ -139,9 +143,10 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       <div class="signal">
         <button id="signal" type="button" aria-pressed="false">
           <i aria-hidden="true"></i>
-          <span class="lbl"><b id="signal-b">LISTEN</b><span id="signal-s">a generative signal, drawn as it sounds</span></span>
+          <span class="lbl"><b id="signal-b">LISTEN</b><span id="signal-s">a generative signal from a random place, shaped by its weather</span></span>
         </button>
       </div>
+      <dl class="source" id="source" hidden><dt>Received from</dt><dd id="src-at">—</dd><dt>Weather there now</dt><dd id="src-wx">—</dd></dl>
 
       <section aria-label="Releases">
         <h2 class="h">Releases</h2>
@@ -169,7 +174,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
         <li><a href="https://music.apple.com/de/album/rivers-of-frequency/1710731325" target="_blank" rel="noopener noreferrer">APPLE MUSIC ↗</a></li>
       </ul>
     </section>
-    <div class="readout">SPECTROGRAM · 30 Hz – 16 kHz · <span id="state">NOISE FLOOR</span><br>Daniel Aron de Jong © 2026 · <a href="privacy.html">Privacy</a></div>
+    <div class="readout">SPECTROGRAM · 30 Hz – 16 kHz · <span id="state">NOISE FLOOR</span><br>weather · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> &nbsp; Daniel Aron de Jong © 2026 · <a href="privacy.html">Privacy</a></div>
   </footer>
 </div>
 
@@ -292,20 +297,51 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 
   /* ── the generative signal: the home page's transmission, a little lower and with a longer row ── */
   const btn = document.getElementById("signal"), lb = document.getElementById("signal-b"), ls = document.getElementById("signal-s"), st = document.getElementById("state");
-  function startSignal() {
+  // the signal comes from a random place between Ireland and Sweden; its weather now shapes the sound
+  const AREA = { lon: [-11.5, 20.5], lat: [49.8, 66.5] };
+  async function weatherSomewhere() {
+    const lat = AREA.lat[0] + Math.random() * (AREA.lat[1] - AREA.lat[0]), lon = AREA.lon[0] + Math.random() * (AREA.lon[1] - AREA.lon[0]);
+    const place = { lat: +lat.toFixed(2), lon: +lon.toFixed(2) };
+    try {
+      const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 4500);
+      const r = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&current=temperature_2m,pressure_msl,wind_speed_10m,wind_direction_10m,relative_humidity_2m,cloud_cover`, { signal: ctl.signal });
+      clearTimeout(to);
+      const c = (await r.json()).current;
+      return { place, wx: { t: c.temperature_2m, p: c.pressure_msl, ws: c.wind_speed_10m, wd: c.wind_direction_10m, rh: c.relative_humidity_2m, cc: c.cloud_cover } };
+    } catch (_) { return { place, wx: null }; }
+  }
+  const fmt = (v, d = 0) => (v == null ? "—" : (+v).toFixed(d));
+  const compass = (d) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((d % 360) + 360) % 360 / 45) % 8];
+  const ll = (p) => `${Math.abs(p.lat).toFixed(2)}° ${p.lat >= 0 ? "N" : "S"}, ${Math.abs(p.lon).toFixed(2)}° ${p.lon >= 0 ? "E" : "W"}`;
+  function showSource(src) {
+    const box = document.getElementById("source"), w = src.wx;
+    document.getElementById("src-at").textContent = ll(src.place);
+    document.getElementById("src-wx").innerHTML = w
+      ? `${fmt(w.t, 1)} °C · ${fmt(w.p)} hPa · wind ${fmt(w.ws)} km/h ${compass(w.wd)} · humidity ${fmt(w.rh)} % · cloud ${fmt(w.cc)} %`
+      : `no weather reached from here · neutral settings`;
+    box.hidden = false;
+  }
+  let busy = false;
+  async function startSignal() {
+    if (busy) return; busy = true;
     const AC = window.AudioContext || window.webkitAudioContext;
-    ctxA = ctxA || new AC(); ctxA.resume();
-    tx = window.createTransmission(ctxA, ctxA.destination, { f0: F0, row: ROW, level: 0.4 });
+    ctxA = ctxA || new AC(); ctxA.resume();               // unlocked inside the click, before the network
+    lb.textContent = "TUNING"; ls.textContent = "listening for a place";
+    const src = await weatherSomewhere();
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4 } : { f0: F0, row: ROW, level: 0.4 });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
+    showSource(src);
     btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
+    busy = false;
     if (reduce) { for (let x = 0; x < W; x++) paint(idleColumn(x), x); }
   }
   function stopSignal() {
     if (!tx) return;
     tx.stop(); tx = null;
-    btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal, drawn as it sounds"; st.textContent = "NOISE FLOOR";
+    document.getElementById("source").hidden = true;
+    btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal from a random place, shaped by its weather"; st.textContent = "NOISE FLOOR";
   }
   btn.addEventListener("click", () => (tx ? stopSignal() : startSignal()));
 })();
