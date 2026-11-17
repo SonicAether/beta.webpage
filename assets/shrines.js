@@ -473,6 +473,10 @@ function ringLine(x, z, r, hAt) {
 
 // Recordings of one area share a marker on the overview; it opens a short list.
 const markers = [];   // { el, top }
+// at the stop above a shrine that shares an area marker: a marker at its exact place
+const stopMark = document.createElement("div");
+stopMark.className = "shrine active off";
+stopMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"></span>`;
 const detMark = document.createElement("div");
 detMark.className = "shrine active off";
 detMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"></span>`;
@@ -498,7 +502,7 @@ function buildShrines() {
     li.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
     li.querySelector("button").addEventListener("click", () => openShrine(idx));
     list.appendChild(li);
-    shrineObjs.push({ s, base: bases[idx], li, el: null });
+    shrineObjs.push({ s, base: bases[idx], own: bases[idx], li, el: null, inArea: false });
   });
 
   for (const [area, members] of areas) {
@@ -530,9 +534,10 @@ function buildShrines() {
     }
     shrineLayer.appendChild(el);
     markers.push({ el, top });
-    members.forEach((i) => { shrineObjs[i].el = el; shrineObjs[i].base = base; });
+    members.forEach((i) => { shrineObjs[i].el = el; shrineObjs[i].base = base; shrineObjs[i].inArea = members.length > 1; });
   }
   shrineLayer.appendChild(detMark);
+  shrineLayer.appendChild(stopMark);
   shrineLayer.appendChild(radioMark);
   addEventListener("pointerdown", (e) => { for (const m of markers) if (!m.el.contains(e.target)) closeCluster(m.el); });
 }
@@ -552,7 +557,7 @@ const tmp = new THREE.Vector3();
 const VMIN = 0.06;
 const VMAX = 0.5;   // relief at the start view, as a share of the stored exaggeration
 const vertAt = (d) => VMIN + (VMAX - VMIN) * sstep(Math.log(76), Math.log(700), Math.log(Math.max(d, 1)));
-const groundOf = (o) => o.base.clone().setY(o.base.y * VMIN);   // a shrine's place as seen from close by
+const groundOf = (o) => o.own.clone().setY(o.own.y * VMIN);     // a shrine's own place (not its area's) as seen from close by
 function place(el, p, far) {
   const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
   tmp.copy(p);
@@ -566,15 +571,22 @@ function place(el, p, far) {
 function placeLabels() {
   if (mode === "detail") {
     for (const m of markers) m.el.classList.add("off");
-    scanLink.classList.add("off"); radioMark.classList.add("off");
+    scanLink.classList.add("off"); radioMark.classList.add("off"); stopMark.classList.add("off");
     for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
     return;
   }
   detMark.classList.add("off");
-  if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].base, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
+  // close to a shrine of an area: its own marker replaces the area's
+  const near = current >= 0 && shrineObjs[current].inArea && !panel.hidden && camera.position.distanceTo(controls.target) < 420;
+  if (near) {
+    const o = shrineObjs[current];
+    stopMark.querySelector(".shrine-label").innerHTML = `<b>${o.s.id}</b> ${o.s.name}`;
+    place(stopMark, o.own.clone().setY(o.own.y + 32), false);
+  } else stopMark.classList.add("off");
+  if (stopIdx >= 0 && !scanLink.hidden) { place(scanLink, shrineObjs[stopIdx].own, false); if (camera.position.distanceTo(controls.target) > 240) scanLink.classList.add("off"); }
   else scanLink.classList.add("off");
-  for (const m of markers) place(m.el, m.top, false);
+  for (const m of markers) { place(m.el, m.top, false); if (near && m.el === shrineObjs[current].el) m.el.classList.add("off"); }
   if (radio.on && radio.top) place(radioMark, radio.top, false); else radioMark.classList.add("off");
   for (const l of WX.labels) { place(l.el, l.p, false); if (!WX.on) l.el.classList.add("off"); }
 }
@@ -747,8 +759,10 @@ const scanBtn = document.createElement("button");
 scanBtn.id = "scan-btn"; scanBtn.type = "button"; scanBtn.className = "u"; scanBtn.hidden = true;
 const scanLink = document.createElement("button");
 scanLink.type = "button"; scanLink.className = "scan-link u off"; scanLink.textContent = "Detailed LIDAR view ↓";
+// a shrine without a LIDAR scan (scan: false) has no detail view: the overview is its map
+const hasScan = (idx) => idx >= 0 && SHRINES[idx].scan !== false;
 function showLinks() {
-  const atStop = mode === "europe" && stopIdx >= 0 && !busy;
+  const atStop = mode === "europe" && stopIdx >= 0 && !busy && hasScan(stopIdx);
   scanBtn.hidden = !(atStop || mode === "detail");
   scanBtn.textContent = mode === "detail" ? "← Back to the map" : "Detailed LIDAR view ↓";
   scanLink.hidden = !atStop;
@@ -760,7 +774,7 @@ async function flyToStop(idx) {
   const o = shrineObjs[idx], g = groundOf(o);
   if (stopIdx < 0 && !euCam) euCam = { p: camera.position.clone(), t: controls.target.clone() };
   stopIdx = -1; showLinks();
-  scanOf(idx);                                            // the scan loads during the flight
+  if (hasScan(idx)) scanOf(idx);                          // the scan loads during the flight
   const d0 = camera.position.distanceTo(controls.target), travel = controls.target.distanceTo(g);
   await zoomTo(g.clone().add(STOP), g, 2600 + 1700 * Math.abs(Math.log(d0 / STOP.length())) + Math.min(2600, travel * 9));
   stopIdx = idx;
@@ -770,6 +784,7 @@ async function flyToStop(idx) {
 async function enterScan() {
   if (busy || mode !== "europe" || stopIdx < 0) return;
   busy = true; showLinks();
+  if (!hasScan(stopIdx)) { busy = false; showLinks(); return; }
   const idx = stopIdx, sc = scanOf(idx);
   if (await sc.ready) {
     buildDetail(idx, sc.img);
@@ -841,7 +856,10 @@ function openShrine(idx) {
   for (const m of markers) closeCluster(m.el);
   detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b> ${s.name}`;
 
-  (mode === "europe" ? flyToStop(idx) : exchange(idx)).then(() => { busy = false; showLinks(); });
+  const go = mode === "europe" ? flyToStop(idx)
+    : hasScan(idx) ? exchange(idx)
+    : (async () => { busy = false; await leaveScan(false); busy = true; await flyToStop(idx); })();   // from a scan to a shrine without one
+  go.then(() => { busy = false; showLinks(); });
 
   $("#p-id").textContent = s.id;
   $("#p-name").textContent = s.name;
