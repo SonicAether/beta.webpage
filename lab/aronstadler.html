@@ -32,8 +32,20 @@ a { color: inherit; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 :focus-visible { outline: 1px solid var(--accent); outline-offset: 4px; }
 
-/* the spectrogram behind everything */
-#spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; }
+/* behind everything: a 2D relief of the map area, and over it the spectrogram, blended so the land shows through */
+.map { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.mapin { position: absolute; left: 0; top: 0; transform-origin: 0 0; transition: transform 6s cubic-bezier(.45, 0, .2, 1); will-change: transform; }
+#mapimg { display: block; opacity: .46; transition: opacity 4s ease; }
+body.live #mapimg { opacity: .3; }
+#spec { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; display: block; image-rendering: auto; mix-blend-mode: screen; opacity: .92; }
+.marks { z-index: 1; }
+#marks { position: absolute; left: 0; top: 0; overflow: visible; }
+#marks .ring { fill: none; stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+#marks .pulse { fill: none; stroke: var(--accent); vector-effect: non-scaling-stroke; animation: pulse 3.6s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+#marks .rec { fill: var(--ink); opacity: .85; }
+#marks .rec.on { fill: var(--accent); }
+#marks .link { stroke: rgba(236,230,240,.25); stroke-width: 1; vector-effect: non-scaling-stroke; stroke-dasharray: 3 4; }
+@keyframes pulse { from { transform: scale(.4); opacity: .9; } to { transform: scale(2.6); opacity: 0; } }
 .veil { position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background: linear-gradient(90deg, rgba(7,4,15,.9) 0%, rgba(7,4,15,.66) 34%, rgba(7,4,15,.12) 64%, rgba(7,4,15,0) 100%),
               linear-gradient(180deg, rgba(7,4,15,.6) 0%, rgba(7,4,15,0) 14%, rgba(7,4,15,0) 82%, rgba(7,4,15,.7) 100%); }
@@ -131,7 +143,9 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 </style>
 </head>
 <body>
+<div class="map" id="map" aria-hidden="true"><div class="mapin" id="mapin"><img id="mapimg" src="assets/geo/map.jpg" alt=""></div></div>
 <canvas id="spec" aria-hidden="true"></canvas>
+<div class="map marks" aria-hidden="true"><div class="mapin" id="marksin"><svg id="marks" xmlns="http://www.w3.org/2000/svg"></svg></div></div>
 <div class="veil" aria-hidden="true"></div>
 <div class="axis" aria-hidden="true" id="axis"></div>
 <div class="wrap">
@@ -194,6 +208,47 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
 <script>
 (() => {
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ── the map behind: Web Mercator, the same area and tiles as the Listening Shrines overview ── */
+  const MAP = { n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336 };
+  const mapImg = document.getElementById("mapimg"), mapIn = document.getElementById("mapin"), marksIn = document.getElementById("marksin"), marks = document.getElementById("marks");
+  const toXY = (lat, lon) => {
+    const tx_ = (lon + 180) / 360 * MAP.n, ty_ = (1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * MAP.n;
+    return [(tx_ - MAP.x0) / (MAP.x1 - MAP.x0) * mapImg.naturalWidth, (ty_ - MAP.y0) / (MAP.y1 - MAP.y0) * mapImg.naturalHeight];
+  };
+  let focus = null, recPts = [];
+  function frameMap(instant) {
+    const iw = mapImg.naturalWidth, ih = mapImg.naturalHeight; if (!iw) return;
+    const vw = innerWidth, vh = innerHeight, small = vw < 760;
+    // at rest the whole area fills the screen; with a place, the map comes closer and the place sits right of the text
+    const cover = Math.max(vw / iw, vh / ih);
+    const s = focus ? cover * (small ? 2.2 : 2.6) : cover;
+    const [fx, fy] = focus ? toXY(focus.lat, focus.lon) : [iw / 2, ih / 2];
+    const ax = focus ? (small ? 0.5 : 0.68) : 0.5, ay = focus ? (small ? 0.62 : 0.48) : 0.5;
+    let x = vw * ax - fx * s, y = vh * ay - fy * s;
+    x = Math.min(0, Math.max(vw - iw * s, x)); y = Math.min(0, Math.max(vh - ih * s, y));
+    for (const el of [mapIn, marksIn]) {
+      if (instant) el.style.transition = "none";
+      el.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${s.toFixed(4)})`;
+      if (instant) { void el.offsetWidth; el.style.transition = ""; }
+    }
+    marks.setAttribute("width", iw); marks.setAttribute("height", ih); marks.setAttribute("viewBox", `0 0 ${iw} ${ih}`);
+    drawMarks(s);
+  }
+  function drawMarks(s) {
+    if (!focus) { marks.innerHTML = ""; return; }
+    const [fx, fy] = toXY(focus.lat, focus.lon), u = 1 / (s || 1);   // u: one screen pixel in map pixels
+    let h = "";
+    for (const r of recPts) { const [rx, ry] = toXY(r.lat, r.lon); h += `<line class="link" x1="${fx}" y1="${fy}" x2="${rx}" y2="${ry}"/><circle class="rec" data-i="${r.i}" cx="${rx}" cy="${ry}" r="${3 * u}"/>`; }
+    h += `<circle class="ring" cx="${fx}" cy="${fy}" r="${7 * u}"/><circle class="pulse" cx="${fx}" cy="${fy}" r="${7 * u}"/>`;
+    marks.innerHTML = h;
+  }
+  function showPlace(p) { focus = p; recPts = []; frameMap(false); }
+  function showRecs(recs) { recPts = recs.map((r, i) => ({ lat: r.lat, lon: r.lon, i })); frameMap(false); }
+  function markSounding(i) { marks.querySelectorAll(".rec").forEach((c) => c.classList.toggle("on", +c.dataset.i === i)); }
+  mapImg.addEventListener("load", () => frameMap(true));
+  if (mapImg.complete) frameMap(true);
+  addEventListener("resize", () => frameMap(true));
 
   /* ── releases: a title each; the player opens beneath it ── */
   const RELEASES = [
@@ -355,10 +410,11 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       const a = new Audio(); a.crossOrigin = "anonymous"; a.preload = "auto"; a.src = r.src;
       const node = ctxA.createMediaElementSource(a);
       const hp = ctxA.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 70;
-      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 9000;
+      const lp = ctxA.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 15000;
       const g = ctxA.createGain(); g.gain.value = 0;
-      const p = ctxA.createStereoPanner(); p.pan.value = Math.max(-0.8, Math.min(0.8, Math.sin((r.bearing * Math.PI) / 180) * 0.8));
-      const send = ctxA.createGain(); send.gain.value = 0.35;
+      // the recording stands in the middle, in front of the drone
+      const p = ctxA.createStereoPanner(); p.pan.value = 0;
+      const send = ctxA.createGain(); send.gain.value = 0.18;
       node.connect(hp).connect(lp).connect(g).connect(p);
       p.connect(tx.input); p.connect(send).connect(tx.space);
       const hold = 50 + Math.random() * 60, fade = 10;
@@ -366,10 +422,12 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
         const len = a.duration || r.length || 0;
         if (len > hold + 2 * fade) a.currentTime = Math.random() * (len - hold - 2 * fade);
         a.play().catch(() => {});
-        const t = ctxA.currentTime, lvl = 1.15;           // the recording sits a little under the signal
+        const t = ctxA.currentTime, lvl = 2.1;            // the recording carries the mix; the drone steps back
+        tx.duck(0.55, fade);
         g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + fade);
         g.gain.setValueAtTime(lvl, t + fade + hold); g.gain.linearRampToValueAtTime(0, t + 2 * fade + hold);
         list.querySelectorAll("a[data-i]").forEach((x) => x.classList.toggle("on", +x.dataset.i === (k - 1) % recs.length));
+        markSounding((k - 1) % recs.length);
         me.timer = setTimeout(next, (fade + hold) * 1000);   // the next one rises while this one fades
         setTimeout(() => { a.pause(); a.src = ""; try { node.disconnect(); } catch (_) {} }, (2 * fade + hold + 1) * 1000);
       }, { once: true });
@@ -377,6 +435,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
       me.nodes.push({ a, g });
     };
     me.timer = setTimeout(next, 6000);                     // let the signal rise first
+    showRecs(recs);
   }
   function stopField() {
     if (!field) return;
@@ -400,11 +459,12 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     src.name = ((await named) || {}).label;
     // changing place: the old signal and its recordings fade out while the new one rises
     if (old) { stopField(); old.stop(); }
-    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4 } : { f0: F0, row: ROW, level: 0.4 });
+    tx = window.createTransmission(ctxA, ctxA.destination, src.wx ? { wx: src.wx, row: ROW, level: 0.4, breathe: true } : { f0: F0, row: ROW, level: 0.4, breathe: true });
     tx.analyser.fftSize = 8192; tx.analyser.smoothingTimeConstant = 0.6; tx.analyser.minDecibels = -120; tx.analyser.maxDecibels = -20;
     spec = new Float32Array(tx.analyser.frequencyBinCount); binHz = ctxA.sampleRate / tx.analyser.fftSize;
     tx.start();
     showSource(src);
+    showPlace(src.place); document.body.classList.add("live");
     document.getElementById("src-rec").textContent = "searching radio aporee ::: maps …"; document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = false;
     nearby.then((recs) => { if (tx && my === tuneId) (recs ? playField(recs) : (document.getElementById("src-rec").textContent = "the archive could not be reached from here")); });
     btn.setAttribute("aria-pressed", "true"); lb.textContent = "STILL"; ls.textContent = "the signal is sounding"; st.textContent = "LIVE";
@@ -416,6 +476,7 @@ footer { display: flex; justify-content: space-between; align-items: flex-end; g
     stopField();
     tx.stop(); tx = null;
     document.getElementById("source").hidden = true; moveBtn.hidden = true;
+    showPlace(null); document.body.classList.remove("live");
     document.getElementById("src-rec-row").hidden = document.getElementById("src-rec").hidden = true;
     btn.setAttribute("aria-pressed", "false"); lb.textContent = "LISTEN"; ls.textContent = "a generative signal from a random place, shaped by its weather and its field recordings"; st.textContent = "NOISE FLOOR";
   }
