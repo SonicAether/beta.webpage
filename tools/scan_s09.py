@@ -9,6 +9,8 @@ from PIL import Image
 from scipy import ndimage
 SRC = '/mnt/user-data/attachments/fedef7e3-dda8-5218-a993-10271ea187b5/29df8baa-image.png'
 NX = int(sys.argv[1]) if len(sys.argv) > 1 else 1015
+WTH = float(sys.argv[2]) if len(sys.argv) > 2 else 1.1
+BTH = float(sys.argv[3]) if len(sys.argv) > 3 else 2.0
 rgb = np.asarray(Image.open(SRC).convert('RGB')).astype(np.float32)
 H0, W0 = rgb.shape[:2]
 r, g, b = rgb[..., 0], rgb[..., 1], rgb[..., 2]
@@ -37,6 +39,31 @@ sea = ndimage.binary_closing(sea, iterations=3) & ~scan
 # keep the open water only: pieces of map-grey inland are left out
 lab, n = ndimage.label(sea); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
 sea = np.isin(lab, [l for l in range(1, n + 1) if sz[l] > 20000])
+# water inside the scan: the smooth band of sea and wet sand off the shore, and the lagoon behind
+# the dunes. Smooth at the scale of ~30 px (fields have hedges, roofs, banks), and either touching the
+# open water or a large single sheet.
+gy_, gx_ = np.gradient(ndimage.gaussian_filter(rgb.mean(-1), 4))
+gm = ndimage.uniform_filter(np.hypot(gx_, gy_), 31)
+dsea0 = ndimage.distance_transform_edt(~sea)
+cand = scan & ((gm < WTH) | ((gm < BTH) & (dsea0 < 160)))     # near the open water, rippled sand and surf count as water too
+cand = ndimage.binary_opening(cand, iterations=3)
+lab, n = ndimage.label(cand); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
+touch = ndimage.binary_dilation(sea, iterations=8)
+ids = set(np.unique(lab[touch & cand])) | {l for l in range(1, n + 1) if sz[l] > 40000}
+ids.discard(0)
+wet = np.isin(lab, list(ids))
+wet = ndimage.binary_closing(wet, iterations=4) & scan
+wet = ndimage.binary_fill_holes(wet) & scan
+# thin slivers left between water (the edge of the survey, lines of foam): water too
+land = scan & ~wet
+thin = land & ~ndimage.binary_opening(land, iterations=4) & (dsea0 < 200)
+wet |= thin
+land = scan & ~wet
+lab, n = ndimage.label(land); sz = ndimage.sum(np.ones_like(lab), lab, range(n + 1))
+wet |= np.isin(lab, [l for l in range(1, n + 1) if sz[l] < 3000])
+wet &= scan
+sea = sea | wet
+scan = scan & ~wet
 foot = scan | sea
 # smooth the outline of the added water so it reads as a soft band, not pixels
 foot = ndimage.gaussian_filter(foot.astype(np.float32), 3) > 0.5
