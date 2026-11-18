@@ -408,7 +408,8 @@ function renderPrayer() {
   el.lang = en ? "en" : "de";
   el.innerHTML = lines.map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}${en ? ", translated" : ""}</p>` : "");
   prayerBtn.hidden = !(s.prayerEn || []).length;
-  prayerBtn.textContent = en ? "Deutsches Original" : "English version";
+  prayerBtn.innerHTML = `<span class="${en ? "" : "on"}">DE</span> · <span class="${en ? "on" : ""}">EN</span>`;
+  prayerBtn.setAttribute("aria-label", en ? "Show the German original" : "Show the English version");
   prayerBtn.setAttribute("aria-pressed", en ? "true" : "false");
 }
 prayerBtn.addEventListener("click", () => {

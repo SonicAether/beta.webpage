@@ -427,8 +427,34 @@ body.listening #panel:hover .data, body.listening .data:focus-within { filter: n
 /* German original / English version of the prayer */
 .prayer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 0 14px; }
 .prayer-head h2 { margin: 0; }
-#prayer-lang { background: none; border: 0; padding: 4px 0; color: var(--dim); font: inherit; font-size: var(--s-0); letter-spacing: .14em; cursor: pointer; transition: color .4s; }
-#prayer-lang:hover, #prayer-lang:focus-visible { color: var(--ink); }
-#prayer-lang[aria-pressed="true"] { color: var(--ice); }
+#prayer-lang { background: none; border: 0; padding: 4px 0 4px 8px; color: var(--faint); font: inherit; font-size: 9px; letter-spacing: .18em; cursor: pointer; transition: color .4s; }
+#prayer-lang span { transition: color .4s; }
+#prayer-lang .on { color: var(--dim); }
+#prayer-lang:hover, #prayer-lang:focus-visible { color: var(--dim); }
+#prayer-lang:hover .on, #prayer-lang:focus-visible .on { color: var(--ice); }
 #p-prayer.swap { opacity: 0; }
 #p-prayer { transition: color 4s ease, text-shadow 4s ease, opacity .45s ease; }
+
+/* ── the shrine marker: a tall cross, the crossbar in the upper quarter; it stands on its stem ── */
+.shrine { margin: -22px 0 0 -6.5px; }
+.shrine-mark {
+  position: relative; width: 13px; height: 22px; border: 0; transform: none; background: none;
+  filter: drop-shadow(0 0 2px rgba(169, 219, 232, .55)); transition: filter .4s;
+}
+.shrine-mark::before, .shrine-mark::after { content: ""; position: absolute; display: block; margin: 0; background: var(--ice); }
+.shrine-mark::before { left: 5.75px; top: 0; width: 1.5px; height: 22px; }
+.shrine-mark::after { left: 0; top: 4.75px; width: 13px; height: 1.5px; }
+.shrine:hover .shrine-mark, .shrine.active .shrine-mark, .shrine.hover .shrine-mark, .shrine.cluster.hover > .shrine-mark {
+  background: none; box-shadow: none;
+  filter: drop-shadow(0 0 3px rgba(169, 219, 232, .9)) drop-shadow(0 0 10px rgba(169, 219, 232, .5));
+}
+/* Aether radio keeps its round mark */
+.shrine.radio-mark { margin: -7px 0 0 -7px; }
+.shrine.radio-mark .shrine-mark { width: 14px; height: 14px; border: 1px solid var(--ice); border-radius: 50%; filter: none; background: rgba(169, 219, 232, 0.08); }
+.shrine.radio-mark .shrine-mark::before { display: none; }
+.shrine.radio-mark .shrine-mark::after { left: 4px; top: 4px; width: 4px; height: 4px; border-radius: 50%; }
+/* the small mark in the index heading */
+.i-mark { position: relative; width: 7px; height: 12px; border: 0; transform: none; background: none; display: block; margin: 0 1px; }
+.i-mark::before, .i-mark::after { content: ""; position: absolute; background: var(--ice); }
+.i-mark::before { left: 3px; top: 0; width: 1px; height: 12px; }
+.i-mark::after { left: 0; top: 2.5px; width: 7px; height: 1px; }
