@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=25";
+import { SHRINES } from "./shrines-data.js?v=26";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/39f6c22da93e4d0b83928d5d5c1858c5be819f5e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/ffc041b7a33bffabc6dfc359d1ad34eff2bf677e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -187,7 +187,7 @@ const pointMat = new THREE.ShaderMaterial({
     // 2 m temperature as a quiet tint of the land, in the colours of the site:
     // ice blue in the cold, the plain ink when mild, a dusk violet and a faded rose in the warmth
     vec3 tempTint(float t) {
-      vec3 c0 = vec3(0.36, 0.66, 0.86), c1 = vec3(0.58, 0.80, 0.88), c2 = vec3(0.86, 0.89, 0.9), c3 = vec3(0.72, 0.58, 0.84), c4 = vec3(0.86, 0.52, 0.6);
+      vec3 c0 = vec3(0.22, 0.56, 0.9), c1 = vec3(0.45, 0.78, 0.9), c2 = vec3(0.84, 0.88, 0.86), c3 = vec3(0.66, 0.46, 0.86), c4 = vec3(0.9, 0.42, 0.52);
       if (t < 0.375) return mix(c0, c1, smoothstep(0.0, 0.375, t));
       if (t < 0.6) return mix(c1, c2, smoothstep(0.375, 0.6, t));
       if (t < 0.8) return mix(c2, c3, smoothstep(0.6, 0.8, t));
@@ -206,7 +206,7 @@ const pointMat = new THREE.ShaderMaterial({
       if (vWater < 0.5 && uTempOn > 0.0) {
         // the tint keeps the relief: same brightness, other hue
         vec3 tc = tempTint(vTemp), w = vec3(0.3, 0.59, 0.11);
-        col = mix(col, tc * dot(col, w) / dot(tc, w), uTempOn * 0.72);
+        col = mix(col, tc * dot(col, w) / dot(tc, w) * 1.12, uTempOn * 0.95);
       }
       col *= mix(1.0, 0.72, uListen);
       col += uInk * vSweep * 0.35;
