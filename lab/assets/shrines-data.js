@@ -171,4 +171,25 @@ export const SHRINES = [
     synth: { wind: 0.6, water: 0.7, birds: 0.1, tone: 520 },
     prayer: [],   // text to follow
   },
+  {
+    id: "S-10",
+    name: "Incoming flood tide",
+    region: "Vareler Schleuse, Jadebusen, Lower Saxony, DE",
+    coords: "53.4104° N, 8.1962° E · 1 m",
+    date: "2026-07-24",
+    time: "21:00",
+    temp: "—",
+    weather: "—",
+    wind: "—",
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834152/260724003VarelerSchleuseUferbschungWellenschmatzenFlutFellAPE40EQedit_dntubs.mp3",
+    area: "Jadebusen",
+    geo: [53.410385342996, 8.1961923837662],   // exactly as in the file's tags
+    // no scan of the Watt exists: a LIDAR-style terrain made from the outline of the bay (OpenStreetMap)
+    // and modelled tidal channels, salt marsh, dike and polder (tools/scan_s10.py)
+    relief: 0.35,
+    spot: [0.5384, 0.8248],   // on the Watt at the mouth of the Vareler Hafen, by the sluice
+    synth: { wind: 0.4, water: 0.8, birds: 0.4, tone: 380 },
+    prayer: [],   // text to follow
+  },
 ];
