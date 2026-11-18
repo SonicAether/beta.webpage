@@ -397,6 +397,28 @@ function makeSurface(img, opt) {
   return mesh;
 }
 
+/* ───────────── the prayer: German original, English version on request ───────────── */
+let prayerOf = null, prayerEn = false;
+try { prayerEn = localStorage.getItem("shrines-prayer-lang") === "en"; } catch (e) {}
+const prayerBtn = $("#prayer-lang");
+function renderPrayer() {
+  const s = prayerOf; if (!s) return;
+  const en = prayerEn && (s.prayerEn || []).length, lines = en ? s.prayerEn : (s.prayer || []);
+  const el = $("#p-prayer");
+  el.lang = en ? "en" : "de";
+  el.innerHTML = lines.map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}${en ? ", translated" : ""}</p>` : "");
+  prayerBtn.hidden = !(s.prayerEn || []).length;
+  prayerBtn.textContent = en ? "Deutsches Original" : "English version";
+  prayerBtn.setAttribute("aria-pressed", en ? "true" : "false");
+}
+prayerBtn.addEventListener("click", () => {
+  prayerEn = !prayerEn;
+  try { localStorage.setItem("shrines-prayer-lang", prayerEn ? "en" : "de"); } catch (e) {}
+  const el = $("#p-prayer");
+  el.classList.add("swap");
+  setTimeout(() => { renderPrayer(); el.classList.remove("swap"); }, 450);
+});
+
 /* ───────────── two views: Europe overview · one detail terrain ───────────── */
 const euGroup = new THREE.Group(), detGroup = new THREE.Group();
 scene.add(euGroup, detGroup);
@@ -985,7 +1007,7 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}</p>` : "");
+  prayerOf = s; renderPrayer();
   $(".prayer").hidden = !(s.prayer || []).length;
   for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
     $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";

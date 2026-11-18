@@ -5,7 +5,8 @@
 // spot: [u, v] position of the recording inside its scan, from the north-west corner (default: the centre).
 // The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan.
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
-// prayer: paragraphs of the prayer or poem (German; <br> for line breaks); prayerBy: its author, if any.
+// prayer: paragraphs of the prayer or poem (German; <br> for line breaks); prayerBy: its author, if any;
+// prayerEn: an English version, as close to the German as possible.
 export const SHRINES = [
   {
     id: "S-01",
@@ -29,6 +30,10 @@ export const SHRINES = [
       "Lass dieses Ich untergehen<br>und sei du allein alles in allem.<br>Führe so mich ganz aus mir selbst,<br>und aus dem Meinen heraus in dich,<br>o mein Gott, mein Ursprung und mein Ende.",
     ],
     prayerBy: "nach Gerhard Tersteegen",
+    prayerEn: [
+      "God, let fall silent what you yourself do not speak in me,<br>let stand still what you yourself do not move,<br>take wholly the place that I now am,<br>and do in me and through me what pleases you.",
+      "Let this self go under<br>and be you alone all in all.<br>So lead me wholly out of myself,<br>and out of what is mine into you,<br>O my God, my origin and my end.",
+    ],
   },
   {
     id: "S-02",
@@ -51,6 +56,10 @@ export const SHRINES = [
       "Geht mir nit darum,<br>ob mein Leib verdorrt wie Gras,<br>aber um dein Bild in mir geht es.<br>Zünd dein Licht an und lass mich sein<br>wie ein heiliges Feuer am Rande der finstern Öde,<br>damit die im Dunkeln wissen, wo du zu finden bist.<br>Aus dir kommt, was gut in mir ist,<br>aus mir das Schwache und Geringe.<br>Erbarm dich meiner, Herr!",
     ],
     prayerBy: "Matthias Nithart (Grünewald)",
+    prayerEn: [
+      "Jesus, dearest Lord Jesus!<br>I pray that you will take me<br>as the wick in the lamp<br>to which you give the oil.",
+      "It matters not to me<br>whether my body withers like grass,<br>but your image in me, that is what matters.<br>Kindle your light and let me be<br>like a holy fire at the edge of the dark wasteland,<br>so that those in the darkness know where you are to be found.<br>From you comes what is good in me,<br>from me the weak and the lowly.<br>Have mercy on me, Lord!",
+    ],
   },
   {
     id: "S-03",
@@ -91,6 +100,10 @@ export const SHRINES = [
       "Den Herrn preist meine Seele.<br>Ich freue mich, dass er mein Retter ist.<br>Der Hohe schaut die Niedrige an.<br>Halleluja.",
     ],
     prayerBy: "Svein Ellingsen / Jürgen Henkys",
+    prayerEn: [
+      "God’s praise is wandering, and the earth may hear.<br>Once Mary sang, rejoicing in answer.<br>We stand in the echo of the message of life:",
+      "My soul praises the Lord.<br>I rejoice that he is my saviour.<br>The Most High looks upon the lowly.<br>Hallelujah.",
+    ],
   },
   {
     id: "S-06",
@@ -114,6 +127,9 @@ export const SHRINES = [
       "Gott, ohne dein Wort hat die Seele kein Ohr,<br>ohne dein Ohr hat die Seele kein Wort.",
     ],
     prayerBy: "Rumi",
+    prayerEn: [
+      "God, without your word the soul has no ear,<br>without your ear the soul has no word.",
+    ],
   },
   {
     id: "S-07",
@@ -142,6 +158,10 @@ export const SHRINES = [
       "Wirke du in mir so,<br>dass du mein Leben bist.<br>Sei du um mich so,<br>dass du meine Welt bist.<br>Durchdringe mich,<br>dass ich selbst unwichtig werde<br>und du allein bleibst.",
     ],
     prayerBy: "Jörg Zink",
+    prayerEn: [
+      "Live in me, holy God.<br>I want nothing but to be here<br>and to live through you.<br>I want to let go of myself, to set myself free.<br>I want to open myself<br>and, opened, hold myself in my hand,<br>held out toward you.",
+      "Work in me so<br>that you are my life.<br>Be around me so<br>that you are my world.<br>Pervade me,<br>so that I myself become unimportant<br>and you alone remain.",
+    ],
   },
   {
     id: "S-08",
@@ -193,6 +213,11 @@ export const SHRINES = [
       "Weine,<br>wenn du kannst,<br>weine,<br>doch klage nicht.<br>Dich wählte der Weg –<br>und du sollst danken.",
     ],
     prayerBy: "Dag Hammarskjöld",
+    prayerEn: [
+      "Tired<br>and lonely.<br>Tired,<br>until the mind aches.<br>Down the cliffs<br>runs salt water.<br>Numb the fingers,<br>trembling the knees.<br>Now is the time,<br>now you must not let go.",
+      "Other ways<br>have resting places<br>in the sun<br>to meet one another.<br>But this way<br>is yours,<br>and now is the time,<br>now you must not fail.",
+      "Weep<br>if you can,<br>weep,<br>but do not complain.<br>The way chose you –<br>and you shall give thanks.",
+    ],
   },
   {
     id: "S-10",
@@ -218,6 +243,10 @@ export const SHRINES = [
     prayer: [
       "Nimm mich, lieber Gott. Dir will ich ganz gehören. Alle meine Pläne lege ich dir zu Füßen.",
       "Gebrauche mich heute in deinem Dienst. Bleib an meiner Seite und lass alles, was ich tue und sage, aus deiner Kraft heraus und in deinem Sinn geschehen. Amen.",
+    ],
+    prayerEn: [
+      "Take me, dear God. I want to belong to you wholly. All my plans I lay at your feet.",
+      "Use me today in your service. Stay at my side, and let all that I do and say come about out of your strength and in your spirit. Amen.",
     ],
   },
 ];
