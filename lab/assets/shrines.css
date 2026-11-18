@@ -418,10 +418,13 @@ body.listening #p-prayer { color: #f2f7f9; text-shadow: 0 0 18px rgba(169, 219, 
 body.listening .prayer h2 { color: var(--ice); }
 
 /* while listening the data sheet steps back: only player, spectrogram and prayer stay clear */
-.data, #scan-btn, .p-head .region { transition: filter 2.5s ease, opacity 2.5s ease; }
-body.listening .data { filter: blur(2.5px); opacity: .28; }
+#scan-btn, .p-head .region { transition: opacity 2.5s ease; }
 body.listening #scan-btn, body.listening .p-head .region { opacity: .4; }
-body.listening #panel:hover .data, body.listening .data:focus-within { filter: none; opacity: 1; transition-duration: .6s; }
+/* while listening the data sheet folds away and the prayer slides up under the player;
+   when the sound stops the data unfolds again */
+.data { max-height: 34em; overflow: hidden; transition: opacity 1.4s ease 1.6s, max-height 2.6s ease, padding 2.6s ease, border-color 2.6s ease; }
+body.listening .data { max-height: 0; padding-top: 0; padding-bottom: 0; opacity: 0; border-bottom-color: transparent;
+  transition: opacity 1.2s ease, max-height 2.8s ease .6s, padding 2.8s ease .6s, border-color 2.8s ease .6s; }
 .shrine.cluster .area-btn { pointer-events: auto; cursor: pointer; }
 
 /* German original / English version of the prayer */

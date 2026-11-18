@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=31";
+import { SHRINES } from "./shrines-data.js?v=32";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/7bbd5d00601ecdca491e0c734647f04b2c39fa5a/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/7f1c0c65d49e036866616d899b912760d87d4845/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -1218,6 +1218,8 @@ const player = (() => {
   }
 
   function setState(st) {
+    if (st === "playing" && !document.body.classList.contains("listening"))
+      $(".p-scroll").scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });   // the prayer comes up under the player
     document.body.classList.toggle("listening", st === "playing");
     uniforms._listenTarget = st === "playing" ? 1 : 0;
     ui.play.setAttribute("aria-pressed", st === "playing");
