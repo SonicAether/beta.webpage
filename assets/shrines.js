@@ -78,6 +78,8 @@ const uniforms = {
   uBg: { value: BG },
   uSolid: { value: 0 },
   uDrop: { value: 0.04 },
+  uTemp: { value: null },
+  uTempOn: { value: 0 },
 };
 
 const pointMat = new THREE.ShaderMaterial({
@@ -92,9 +94,10 @@ const pointMat = new THREE.ShaderMaterial({
     uniform float uHoleA, uHoleR, uCovOn;
     uniform vec4 uHole;
     uniform vec2 uCovN, uEuSize;
-    uniform sampler2D uCov;
+    uniform sampler2D uCov, uTemp;
+    uniform float uTempOn;
     uniform vec3 uFocus;
-    varying float vShade, vFog, vSweep, vRing, vWater;
+    varying float vShade, vFog, vSweep, vRing, vWater, vTemp;
     void main(){
       vec3 p = position;
       vWater = aWater;
@@ -154,6 +157,8 @@ const pointMat = new THREE.ShaderMaterial({
       }
       gl_PointSize = clamp(uSize * uPx * (230.0 / depthS), 0.9, 8.0 * uPx);
       vShade = aShade;
+      vTemp = 0.5;
+      if (uTempOn > 0.0) vTemp = texture2D(uTemp, (modelMatrix * vec4(position, 1.0)).xz / uEuSize + 0.5).r;
       // the overview makes room for a detail terrain where it lies, as that terrain fills in
       if (uHoleA > 0.0) {
         vec2 q = abs(position.xz - uHole.xy) / uHole.zw;
@@ -177,8 +182,17 @@ const pointMat = new THREE.ShaderMaterial({
     uniform vec3 uInk, uIce, uBg;
     uniform float uDim;
     uniform float uListen;
-    uniform float uTime;
-    varying float vShade, vFog, vSweep, vRing, vWater;
+    uniform float uTime, uTempOn;
+    varying float vShade, vFog, vSweep, vRing, vWater, vTemp;
+    // 2 m temperature as a quiet tint of the land, in the colours of the site:
+    // ice blue in the cold, the plain ink when mild, a dusk violet and a faded rose in the warmth
+    vec3 tempTint(float t) {
+      vec3 c0 = vec3(0.36, 0.66, 0.86), c1 = vec3(0.58, 0.80, 0.88), c2 = vec3(0.86, 0.89, 0.9), c3 = vec3(0.72, 0.58, 0.84), c4 = vec3(0.86, 0.52, 0.6);
+      if (t < 0.375) return mix(c0, c1, smoothstep(0.0, 0.375, t));
+      if (t < 0.6) return mix(c1, c2, smoothstep(0.375, 0.6, t));
+      if (t < 0.8) return mix(c2, c3, smoothstep(0.6, 0.8, t));
+      return mix(c3, c4, smoothstep(0.8, 1.0, t));
+    }
     void main(){
       vec2 c = gl_PointCoord - 0.5;
       if (dot(c,c) > 0.25) discard;
@@ -188,6 +202,11 @@ const pointMat = new THREE.ShaderMaterial({
         // water: cool tint with a slow, scattered glint
         float glint = pow(0.5 + 0.5 * sin(uTime * 0.9 + vShade * 61.0), 6.0);
         col = vec3(0.42, 0.66, 0.78) * (0.22 + 0.35 * vShade) + uIce * glint * 0.55;
+      }
+      if (vWater < 0.5 && uTempOn > 0.0) {
+        // the tint keeps the relief: same brightness, other hue
+        vec3 tc = tempTint(vTemp), w = vec3(0.3, 0.59, 0.11);
+        col = mix(col, tc * dot(col, w) / dot(tc, w), uTempOn * 0.72);
       }
       col *= mix(1.0, 0.72, uListen);
       col += uInk * vSweep * 0.35;
@@ -696,7 +715,7 @@ const STOP = STEEP.clone().multiplyScalar(84);
 const detUniforms = {
   uSpan: { value: DETAIL.world }, uDrift: { value: 6 }, uFar: { value: 6000 }, uForm: { value: 0 },
   uDim: { value: 1 }, uScale: { value: 1 }, uRise: { value: 0 }, uSoft: { value: 0 }, uHoleA: { value: 0 }, uCovOn: { value: 0 },
-  uFocus: { value: new THREE.Vector3(9999, 0, 9999) }, uSolid: { value: 0 }, uSize: { value: 1 }, uDrop: { value: 0.04 },
+  uFocus: { value: new THREE.Vector3(9999, 0, 9999) }, uSolid: { value: 0 }, uSize: { value: 1 }, uDrop: { value: 0.04 }, uTempOn: { value: 0 },
 };
 const detMat = pointMat.clone();
 detMat.uniforms = { ...uniforms, ...detUniforms };   // time, level and size are shared with the overview
@@ -954,10 +973,8 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  const pr = s.prayer || [];
-  $("#d-prayer-label").hidden = $("#d-prayer").hidden = !pr.length;
-  $("#d-prayer-btn").textContent = `${pr.length} ${pr.length === 1 ? "line" : "lines"} · read`;
-  inscription.load(pr);
+  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("");
+  $(".prayer").hidden = !(s.prayer || []).length;
   for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
     $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";
 
@@ -974,7 +991,6 @@ function openShrine(idx) {
 function closePanel() {
   if (busy) return;
   player.pause();
-  inscription.load([]);
   panel.classList.remove("open");
   document.body.classList.remove("has-panel", "listening");
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
@@ -991,39 +1007,6 @@ scanLink.addEventListener("click", enterScan);
 panel.querySelector(".player").after(scanBtn);
 shrineLayer.appendChild(scanLink);
 
-/* The prayer, written into the landscape. While the recording plays its lines appear one after
-   another, slowly, spread over the length of the recording; each stays until the next has come,
-   the last one stays. Nothing moves but the light of the letters. "read" in the panel shows the
-   whole text at once. */
-const inscription = (() => {
-  const el = document.createElement("div");
-  el.id = "inscription"; el.setAttribute("aria-live", "polite");
-  document.body.appendChild(el);
-  let lines = [], shown = -1, whole = false;
-  function draw(k) {
-    shown = k;
-    el.innerHTML = lines.map((l, i) => `<p class="${whole || i === k ? "on" : i < k ? "past" : ""}">${l}</p>`).join("");
-    el.classList.toggle("whole", whole);
-  }
-  function load(pr) { lines = pr; whole = false; shown = -2; el.innerHTML = ""; el.classList.remove("show", "whole"); document.body.classList.remove("inscribed"); $("#d-prayer-btn").setAttribute("aria-pressed", "false"); }
-  function step() {
-    if (!lines.length) return;
-    const playing = player.isPlaying();
-    el.classList.toggle("show", whole || (playing && shown >= 0) || (shown >= 0 && !panel.hidden));
-    document.body.classList.toggle("inscribed", el.classList.contains("show"));
-    if (whole) return;
-    const d = player.duration() || 300, t = player.now();
-    const first = 8, gap = Math.max(18, Math.min(75, (d - first) / (lines.length + 0.5)));
-    const k = t < first ? -1 : Math.min(lines.length - 1, Math.floor((t - first) / gap));
-    if (k !== shown && (playing || k < shown)) draw(k);
-  }
-  function toggleWhole() {
-    whole = !whole; $("#d-prayer-btn").setAttribute("aria-pressed", whole);
-    draw(whole ? lines.length - 1 : -1); step();
-  }
-  return { load, step, toggleWhole };
-})();
-$("#d-prayer-btn").addEventListener("click", () => inscription.toggleWhole());
 
 /* Audio engine. Real recordings first; if the file can't be reached
    (offline, blocked host) a quiet generated placeholder takes over so the
@@ -1300,7 +1283,7 @@ async function loadWeather() {
 function sampleWeather() {
   const p = [], t = [];
   const f = (lat, lon) => 1012 + 17 * Math.exp(-(((lon - 14) / 11) ** 2 + ((lat - 54) / 6) ** 2)) - 24 * Math.exp(-(((lon + 9) / 9) ** 2 + ((lat - 62) / 5) ** 2));
-  for (const lat of WX.lats) for (const lon of WX.lons) { p.push(f(lat, lon)); t.push(0); }
+  for (const lat of WX.lats) for (const lon of WX.lons) { p.push(f(lat, lon)); t.push(16 - (lat - 50) * 1.1 - Math.max(0, lon - 5) * 0.25); }
   for (const s of SHRINES) { p.push(f(s.geo[0], s.geo[1])); t.push(6); }
   return { time: null, p, t };
 }
@@ -1387,6 +1370,29 @@ function buildIsobars(d) {
 }
 
 // the map rests quiet; ATMOSPHERE lays the air over it: isobars, pressure, the instrument readout
+// the temperature field: the weather grid, read in world space over the overview (−15 °C … +25 °C → 0 … 1)
+const TEMP = { lo: -15, hi: 25, on: false, ready: false };
+function buildTempTexture(d) {
+  const nx = WX.lons.length, ny = WX.lats.length, N = 256, data = new Uint8Array(N * N * 4);
+  const T = (i, j) => d.t[Math.max(0, Math.min(ny - 1, j)) * nx + Math.max(0, Math.min(nx - 1, i))];
+  if (!d.t || d.t.slice(0, nx * ny).some((v) => v == null)) return;
+  for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+    const [lon, lat] = worldToLonLat((u / (N - 1) - 0.5) * eu.W, (v / (N - 1) - 0.5) * eu.D);
+    const fi = (lon - WX.lons[0]) / 2, fj = (lat - WX.lats[0]) / 1.5, i = Math.floor(fi), j = Math.floor(fj), a = fi - i, b = fj - j;
+    const t = T(i, j) * (1 - a) * (1 - b) + T(i + 1, j) * a * (1 - b) + T(i, j + 1) * (1 - a) * b + T(i + 1, j + 1) * a * b;
+    const k = (v * N + u) * 4, x = Math.round(255 * Math.min(1, Math.max(0, (t - TEMP.lo) / (TEMP.hi - TEMP.lo))));
+    data[k] = data[k + 1] = data[k + 2] = x; data[k + 3] = 255;
+  }
+  const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
+  tex.magFilter = tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  uniforms.uTemp.value = tex; TEMP.ready = true;
+  $("#temp-btn").hidden = false;
+}
+function setTemp(on) {
+  TEMP.on = on && TEMP.ready;
+  document.body.classList.toggle("temp", TEMP.on);
+  $("#temp-btn").setAttribute("aria-pressed", TEMP.on);
+}
 function setAtmo(on) {
   WX.on = on; WX.group.visible = on;
   document.body.classList.toggle("atmo", on);
@@ -1400,10 +1406,12 @@ function initWeather() {
     const n = WX.lons.length * WX.lats.length;
     WX.shrines = SHRINES.map((_, i) => ({ p: d.p[n + i], t: d.t[n + i], time: d.time }));
     buildIsobars(d);
+    buildTempTexture(d);
     $("#atmo-stamp").textContent = WX.sample ? "sample" : (WX.stamp || "now");
     if (current >= 0) fillNow(current);
   };
   btn.addEventListener("click", () => setAtmo(!WX.on));
+  $("#temp-btn").addEventListener("click", () => setTemp(!TEMP.on));
   loadWeather().then(show).catch(() => {
     // previews that cannot reach the service may carry a dated snapshot of real data
     const snap = window.SA_WEATHER_SNAPSHOT;
@@ -1488,10 +1496,11 @@ function loop() {
   uniforms.uListen.value = listen;
   lvl += (Math.max(player.level(), window.AetherRadio ? window.AetherRadio.level() : 0) - lvl) * Math.min(1, dt * 8);
   uniforms.uLevel.value = lvl;
+  uniforms.uTempOn.value += ((TEMP.on && mode === "europe" ? 1 : 0) - uniforms.uTempOn.value) * Math.min(1, dt * 1.2);
 
   renderer.render(scene, camera);
   placeLabels();
-  if (!panel.hidden) { player.render(); drawSpectro(); inscription.step(); }
+  if (!panel.hidden) { player.render(); drawSpectro(); }
   stepScale();
 
   const t = controls.target;
