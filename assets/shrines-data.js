@@ -185,10 +185,10 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1794834152/260724003VarelerSchleuseUferbschungWellenschmatzenFlutFellAPE40EQedit_dntubs.mp3",
     area: "Jadebusen",
     geo: [53.410385342996, 8.1961923837662],   // exactly as in the file's tags
-    // no scan of the Watt exists: a LIDAR-style terrain made from the outline of the bay (OpenStreetMap)
-    // and modelled tidal channels, salt marsh, dike and polder (tools/scan_s10.py)
+    // the Watt from the 1 m survey of the Jade (EMODnet Bathymetry, 1850 HRDTM Jade approach, CC BY 4.0);
+    // the land behind it filled in, the river Jade and the Vareler Hafen from OpenStreetMap (tools/scan_s10.py)
     relief: 0.35,
-    spot: [0.5384, 0.8248],   // on the Watt at the mouth of the Vareler Hafen, by the sluice
+    spot: [0.3666, 0.5696],   // on the Watt at the sluice, where the Jade and the harbour channel reach the bay
     synth: { wind: 0.4, water: 0.8, birds: 0.4, tone: 380 },
     prayer: [],   // text to follow
   },

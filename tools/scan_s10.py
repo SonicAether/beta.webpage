@@ -1,176 +1,99 @@
-"""S-10 Jadebusen: a LIDAR-style terrain made from map data (no scan exists).
+"""S-10 Jadebusen at the Vareler Schleuse, from real survey data.
 
-Real geometry: the outline of the Jadebusen and the Vareler Hafen from OpenStreetMap (via
-Nominatim, ODbL). Everything finer is modelled from how such ground looks in airborne LIDAR:
-  - the Watt: a nearly level sheet, falling gently towards a dendritic network of Priele that
-    gather towards the opening to the Jade (flow accumulation on a noisy cost surface),
-  - the salt marsh (Groden) along the dike with its parallel drainage ditches (Grüppen),
-  - the sea dike, the polder behind it with ditches, roads and a few Warften,
-  - the Jade to the north as open water.
-Output: same encoding as the scans (R = shade, 0 = sea; G + high nibble of B = 12-bit height).
-At flood tide (the recording): the Priele are filled, the flats still dry."""
+Watt and Priele: EMODnet Bathymetry, "1850 HRDTM Jade approach" (1 m composite DTM of the
+Wasserstraßen- und Schifffahrtsverwaltung, 2016–2018, CC BY 4.0), part 9, binned to ~4 m
+(cut on the author's computer: tools/scan_s10_cut.py). Elevation = -depth (m, chart datum).
+The survey ends at the shore; the land behind it is filled in: level marsh and polder with
+faint ditches, no dike. The river Jade (OpenStreetMap, ODbL) and the Vareler Hafen run through
+it to the Watt. At flood tide the Priele are filled; the water's edge fades instead of cutting.
+"""
 import json, math, sys
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
-from skimage.graph import MCP_Geometric
 
-rng = np.random.default_rng(7)
-LON0, LON1, LAT0, LAT1 = 8.035, 8.335, 53.385, 53.535
-NX = int(sys.argv[1]) if len(sys.argv) > 1 else 1600
-kx = 111320 * math.cos(math.radians((LAT0 + LAT1) / 2)); ky = 111320
-NY = round(NX * (LAT1 - LAT0) * ky / ((LON1 - LON0) * kx))
-mpp = (LON1 - LON0) * kx / NX
-px = lambda lon, lat: ((lon - LON0) / (LON1 - LON0) * NX, (LAT1 - lat) / (LAT1 - LAT0) * NY)
-osm = json.load(open('jade_osm.json'))
+h = np.load('jade_cut_s10.npz')['h'].astype(np.float64)
+LON0, LAT1, DX, DY = 8.150, 53.450, 0.00006, 0.00004             # grid of the cut (rows from the north)
+C_LON0, C_LON1, C_LAT0, C_LAT1 = 8.165, 8.250, 53.388, 53.440     # the window shown
+i0, i1 = int((LAT1 - C_LAT1) / DY), int((LAT1 - C_LAT0) / DY)
+j0, j1 = int((C_LON0 - LON0) / DX), int((C_LON1 - LON0) / DX)
+H = h[i0:i1, j0:j1]; NY, NX = H.shape
+mx = DX * 111320 * math.cos(math.radians(53.41)); my = DY * 111320    # metres per cell (~4.0 × 4.5)
+px = lambda lon, lat: ((lon - C_LON0) / DX, (C_LAT1 - lat) / DY)
+osm = json.load(open('jade_osm2.json'))
+rng = np.random.default_rng(3)
 
-def poly(ring):
-    im = Image.new('L', (NX, NY), 0); ImageDraw.Draw(im).polygon([px(*c) for c in ring], fill=1)
-    return np.asarray(im) > 0
-
-bay = poly(osm['bay']); hafen = poly(osm['hafen'])
-# the Jade: water north of the bay's closing line, between Wilhelmshaven and Butjadingen
-jade = poly([[8.1646, 53.5206], [8.227, 53.5205], [8.2766, 53.5202], [8.297, 53.5257], [8.335, 53.5257], [8.335, 53.535], [8.17, 53.535]])
-jade |= poly([[8.2765, 53.52], [8.3165, 53.5114], [8.3165, 53.535], [8.28, 53.535]])
-jade &= ~bay
-water_open = bay | jade
-land = ~water_open & ~hafen
-
-def fbm(shape, scales, seed):
-    r = np.random.default_rng(seed); out = np.zeros(shape)
-    for s, a in scales:
-        out += a * ndimage.gaussian_filter(r.standard_normal(shape), s, mode='wrap') * s
+surv = np.isfinite(H)
+surv = ndimage.binary_opening(surv, iterations=2)
+H[~surv] = np.nan
+land = ~surv
+# heights near the survey's edge carried onto the land, then a gentle rise: no dike
+dist = ndimage.distance_transform_edt(land, sampling=(my, mx))
+# the level of the upper Watt along the shore: one value, so nothing streaks out of the survey's edge
+rim = surv & (ndimage.distance_transform_edt(surv, sampling=(my, mx)) < 80)
+shore = float(np.nanpercentile(H[rim], 60))
+edge = np.where(land, shore, H)
+edge = np.where(surv, H, edge)
+edge = np.nan_to_num(edge, nan=shore)
+def fbm(scales, seed):
+    r = np.random.default_rng(seed); out = np.zeros((NY, NX))
+    for s, a in scales: out += a * ndimage.gaussian_filter(r.standard_normal((NY, NX)), s) * s
     return out / np.abs(out).max()
+marsh = shore + 1.1 * (1 - np.exp(-dist / 220)) + 0.12 * fbm([(30, 1), (6, 0.3)], 5)
+# fields: faint ditches on a skewed grid, a few lanes
+rot = math.radians(24)
+u = (np.arange(NX)[None, :] * mx * math.cos(rot) + np.arange(NY)[:, None] * my * math.sin(rot))
+v = (-np.arange(NX)[None, :] * mx * math.sin(rot) + np.arange(NY)[:, None] * my * math.cos(rot))
+wob = 40 * fbm([(60, 1), (15, 0.3)], 8)
+cell = np.floor((v + wob) / 420); jit = (np.sin(cell * 12.9898) * 43758.5453) % 1
+ditch = ((np.abs(((u + wob + jit * 200) % (150 + 110 * jit)) - 75) < 2.0) | (np.abs(((v + wob) % 420) - 210) < 2.0)) & (dist > 120)
+marsh = np.where(ditch, marsh - 0.14, marsh)
+lane = (np.abs(((v + 2 * wob) % 1700) - 850) < 4) & (dist > 150)
+marsh = np.where(lane, marsh + 0.35, marsh)
+# blend: across the first ~60 m from the survey edge the land eases into the Watt (no step)
+w = np.clip(dist / 60, 0, 1)
+H = np.where(land, edge * (1 - w) + marsh * w, H)
+# soften the survey's own outline (its edge row carries a seam)
+seam = ndimage.binary_dilation(land, iterations=3) & ndimage.binary_dilation(surv, iterations=3)
+H = np.where(seam, ndimage.gaussian_filter(H, 2.0), H)
 
-dl = ndimage.distance_transform_edt(~land) * mpp          # in the bay: distance from the shore (m)
-dw = ndimage.distance_transform_edt(~(bay | jade)) * mpp   # on land: distance from the shore (m); the harbour cuts through
-
-# ── 1 · Priele: flow accumulation towards the opening ──
-k = 4                                                      # the network is grown on a coarser grid
-bayc = bay[::k, ::k] | jade[::k, ::k]
-noise = fbm(bayc.shape, [(18, 1.0), (6, 0.45), (2, 0.15)], 11)
-noise = (noise - noise.min()) / (noise.max() - noise.min())
-cost = np.where(bayc, 0.3 + 6.0 * noise ** 2, np.inf)   # valleys in the noise become the channels
-root = jade[::k, ::k]
-mcp = MCP_Geometric(cost, fully_connected=True)
-starts = list(zip(*np.nonzero(root)))
-mcp.find_costs(starts)
-flow = np.zeros(bayc.shape)
-bi = np.argwhere(bay[::k, ::k])
-dlc = dl[::k, ::k]
-# sinks: everywhere in the bay, more near the shore; many at the Vareler Hafen mouth (its Fahrwasser)
-w = 0.35 + np.exp(-dlc[bi[:, 0], bi[:, 1]] / 1500)
-pick = bi[rng.choice(len(bi), 4000, p=w / w.sum())]
-vx, vy = px(8.1905, 53.4112); vx, vy = int(vx / k), int(vy / k)
-pick = np.vstack([pick, np.tile([[vy, vx]], (260, 1))])
-for (y, x) in pick:
-    try: path = mcp.traceback((int(y), int(x)))
-    except ValueError: continue
-    for (a, b) in path: flow[a, b] += 1
-flow = np.array(Image.fromarray(flow.astype(np.float32)).resize((NX, NY), Image.BILINEAR))
-# meanders: warp the straight network with smooth displacement at two scales
-yy, xx = np.mgrid[0:NY, 0:NX].astype(np.float64)
-d1 = [ndimage.gaussian_filter(np.random.default_rng(s_).standard_normal((NY, NX)), 45) for s_ in (41, 42)]
-d2 = [ndimage.gaussian_filter(np.random.default_rng(s_).standard_normal((NY, NX)), 9) for s_ in (43, 44)]
-n1 = 22 / max(np.abs(d1[0]).max(), 1e-9); n2 = 5 / max(np.abs(d2[0]).max(), 1e-9)
-flow = ndimage.map_coordinates(flow, [yy + d1[0] * n1 + d2[0] * n2, xx + d1[1] * n1 + d2[1] * n2], order=1, mode='nearest')
-flow = ndimage.gaussian_filter(flow, 0.8)
-flow *= bay | jade
-
-# ── 2 · heights (m, NN) ──
-H = np.zeros((NY, NX))
-# the Watt: ~+0.6 m near the shore, ~0 m in the middle; ripple fields and faint runnels
-watt = 0.05 + 0.6 * np.exp(-dl / 1800) + 0.25 * fbm((NY, NX), [(40, 1), (12, 0.4)], 3)
-ripple = 0.035 * np.sin((ndimage.gaussian_filter(rng.standard_normal((NY, NX)), 30) * 40 + np.arange(NX)[None, :] * 0.9))
-H = np.where(bay, watt + ripple, H)
-# carve the Priele: deeper and wider with the flow that gathers in them
-f = np.log1p(flow)
-for lvl in np.linspace(0.25, f.max(), 22):
-    m = f >= lvl
-    if not m.any(): continue
-    rad = 0.6 + 7.0 * (lvl / f.max()) ** 2.4                   # px
-    dep = 0.12 + 6.8 * (lvl / f.max()) ** 1.8                  # m below the flats: small runnels stay dry
-    dd = ndimage.distance_transform_edt(~m)
-    prof = np.clip(1 - (dd / rad) ** 2, 0, 1)
-    H = np.where(bay, np.minimum(H, watt - dep * prof + (prof == 0) * 9), H)
-H = np.where(bay, np.minimum(H, watt + ripple), H)
-# the Vareler Fahrwasser: the harbour mouth (the sluice) joined to the nearest deep Priel
-mx, my = px(8.1886, 53.4097)
-deep = bay & (H < -1.5)
-_, (iy, ix) = ndimage.distance_transform_edt(~deep, return_indices=True)
-tx, ty = ix[int(my), int(mx)], iy[int(my), int(mx)]
+# the Vareler Hafen and the river Jade, cut into the land down to the Watt's channel depth
 im = Image.new('L', (NX, NY), 0); dr = ImageDraw.Draw(im)
-pts = [(mx + (tx - mx) * t + 6 * math.sin(t * 5) * (t * (1 - t)) * 4, my + (ty - my) * t) for t in np.linspace(0, 1, 40)]
-dr.line(pts, fill=1, width=9)
-fw = np.asarray(im) > 0
-H = np.where(fw & (bay | land), np.minimum(H, -2.2), H)
-land &= ~fw
-# the Jade: deep water
-H = np.where(jade, -12 + 4 * np.exp(-dl / 600), H)
-H = np.where(hafen, -2.5, H)
+dr.polygon([px(*c) for c in osm['hafen']], fill=1)
+for line in osm['jade']:
+    dr.line([px(*c) for c in line], fill=1, width=int(round(22 / mx)))
+cut = (np.asarray(im) > 0) & land
+cut = ndimage.binary_dilation(cut, iterations=1) & land
+bed = ndimage.gaussian_filter(cut.astype(float), 1.5)
+H = np.where(land, H - bed * (H - 0.6) , H)
 
-# land: Groden (salt marsh) band, the dike, the polder
-dike_at = 260.0 + 140 * (fbm((NY, NX), [(80, 1)], 5) + 1)    # the dike stands 260–540 m behind the shore line
-groden = land & (dw < dike_at - 40)
-H = np.where(land, 0.3 + 0.25 * fbm((NY, NX), [(60, 1), (8, 0.3)], 9), H)          # polder ~ sea level
-H = np.where(groden, 1.4 + 0.15 * fbm((NY, NX), [(20, 1)], 12), H)               # marsh above mean high water
-# Grüppen: parallel ditches across the marsh, perpendicular to the shore
-gy, gx = np.gradient(ndimage.gaussian_filter(dw, 6))
-ang = np.arctan2(gy, gx)
-along = (np.cos(ang) * 0 + 1) * (-np.sin(ang) * np.arange(NX)[None, :] + np.cos(ang) * np.arange(NY)[:, None])
-grup = (np.abs(((along * mpp) % 45) - 22.5) < 2.2) & groden & (dw > 25)
-H = np.where(grup, H - 0.5, H)
-# the dike: a smooth ridge, ~8 m, ~70 m wide
-ddk = np.abs(dw - dike_at)
-dike = land & (ddk < 45)
-H = np.where(land, H + 7.6 * np.exp(-(ddk / 26) ** 2) * (dw > 30), H)
-# polder: ditches on a skewed grid, a few roads and Warften
-pold = land & (dw > dike_at + 50)
-rot = math.radians(28)
-u = (np.arange(NX)[None, :] * math.cos(rot) + np.arange(NY)[:, None] * math.sin(rot)) * mpp
-v = (-np.arange(NX)[None, :] * math.sin(rot) + np.arange(NY)[:, None] * math.cos(rot)) * mpp
-wob = 30 * fbm((NY, NX), [(50, 1)], 21)
-cellv = np.floor((v + wob) / 520); jit = (np.sin(cellv * 12.9898) * 43758.5453) % 1
-ditch = ((np.abs(((u + wob + jit * 300) % (180 + 140 * jit)) - 0) < 3.0) | (np.abs(((v + wob) % 520) - 260) < 3.0)) & pold
-H = np.where(ditch, H - 1.0, H)
-road = (np.abs(((v + 2 * wob) % 2080) - 1040) < 5) & pold
-H = np.where(road, H + 0.7, H)
-for _ in range(26):
-    y, x = rng.integers(0, NY), rng.integers(0, NX)
-    if not pold[y, x]: continue
-    rr = np.hypot(np.arange(NX)[None, :] - x, np.arange(NY)[:, None] - y) * mpp
-    H = np.where(pold, H + 2.2 * np.exp(-(rr / 90) ** 4), H)
-# trees and farmsteads on the land: fine rough patches
-rough = (fbm((NY, NX), [(25, 1)], 31) > 0.55) & pold
-H = np.where(rough, H + 1.2 * np.abs(rng.standard_normal((NY, NX))), H)
-
-# ── 3 · water at flood tide: the open Jade, the harbour and the Priele are wet ──
-LEVEL = -0.35
-sea = jade | hafen | (bay & (H < LEVEL))
-sea = ndimage.binary_opening(sea, iterations=1) | jade | hafen
+# flood tide: Priele, harbour and river hold water; the flats are still dry
+LEVEL = 1.55
+sea = (H < LEVEL) | (cut & (H < LEVEL + 1.0))
+sea = ndimage.binary_opening(sea, iterations=1)
 H = np.where(sea, np.minimum(H, LEVEL), H)
 
-# ── 4 · shade: a hillshade of the heights, lit from the north-west, flat ground mid-grey ──
-Hs = ndimage.gaussian_filter(H, 0.6)
-gy, gx = np.gradient(Hs, mpp)
+# shade: hillshade lit from the north-west, flat ground mid-grey; wet ground darker,
+# darkening gradually towards the water so the edge fades
+Hs = ndimage.gaussian_filter(H, 0.7)
+gy, gx = np.gradient(Hs, my, mx)
 a = math.radians(315); lx, ly = math.sin(a), -math.cos(a)
-slope = (gx * lx + gy * ly) * 8.0                          # exaggerated: the marsh is flat
-shade = np.clip(0.5 + 0.62 * np.tanh(slope), 0.03, 1)
-shade = np.where(bay & ~sea, shade * 0.62, shade * 0.82)   # wet mud dark, the land a little lighter: the channels and dike stand out
-
+shade = np.clip(0.5 + 0.62 * np.tanh((gx * lx + gy * ly) * 14), 0.03, 1)
+dsea = ndimage.distance_transform_edt(~sea, sampling=(my, mx))
+wet = surv & ~sea
+shade = np.where(wet, shade * (0.55 + 0.17 * np.clip(dsea / 120, 0, 1)), shade * 0.8)
 hmin, hmax = float(H.min()), float(H.max())
 Hn = (H - hmin) / (hmax - hmin)
 h12 = np.clip(np.round(Hn * 4095), 1, 4095).astype(np.uint32)
 R = (np.clip(np.round(shade * 125), 2, 127) * 2).astype(np.uint8); R[sea] = 0
 Image.fromarray(np.dstack([R, (h12 >> 4).astype(np.uint8), ((h12 & 15) << 4).astype(np.uint8)]), 'RGB').save('s-10.png', optimize=True)
 prev = np.dstack([(shade * 255).astype(np.uint8)] * 3); prev[sea] = (30, 80, 110)
-Image.fromarray(prev).save('prev.png')
-# the shrine: on the dry flat nearest to the recorded spot, beside the mouth of the harbour (the sluice)
-flat = bay & ~sea
-rx, ry = px(8.1962, 53.4108)
+# the shrine: on the dry Watt nearest to the recorded spot, where the Jade leaves the sluice
+rx, ry = px(8.196192, 53.410385)
+flat = wet
 _, (fy, fx) = ndimage.distance_transform_edt(~flat, return_indices=True)
-sx, sy = fx[int(ry), int(rx)] + 0.5, fy[int(ry), int(rx)] + 0.5
-# step two cells further onto the flat, away from the edge
-sx, sy = sx + 2, sy - 3
-print(json.dumps({'nx': NX, 'ny': NY, 'm_per_px': mpp, 'range_m': [hmin, hmax], 'sea_%': float(sea.mean() * 100),
-                  'spot': [sx / NX, sy / NY], 'spot_is_flat': bool(bay[int(sy), int(sx)] and not sea[int(sy), int(sx)])}))
+sx, sy = fx[int(ry), int(rx)], fy[int(ry), int(rx)]
+dd = ImageDraw.Draw(im2 := Image.fromarray(prev)); dd.ellipse((sx - 8, sy - 8, sx + 8, sy + 8), outline=(255, 60, 40), width=2)
+im2.save('prev.png')
+print(json.dumps({'nx': NX, 'ny': NY, 'm_per_px': [mx, my], 'km': [NX * mx / 1000, NY * my / 1000], 'range': [hmin, hmax],
+                  'sea_%': float(sea.mean() * 100), 'spot': [(sx + 0.5) / NX, (sy + 0.5) / NY], 'rec_px': [rx, ry]}))
