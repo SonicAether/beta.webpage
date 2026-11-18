@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=23";
+import { SHRINES } from "./shrines-data.js?v=24";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/a02bb9a6c844610c85cba8bdc07bfa3989d000a5/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/93d6883e210e88a576f1cfe7b05ce9dd15b3c82e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -235,6 +235,13 @@ function makeCloud(img, opt) {
   let pos = new Float32Array(cap * 3), shade = new Float32Array(cap), rnd = new Float32Array(cap), wat = new Float32Array(cap);
   let n = 0;
   const cell = W_ / NX;
+  // detail scans share one brightness: the land's mean shade is brought gently towards a common value
+  let gain = 1;
+  if (opt.norm) {
+    let sum = 0, cnt = 0;
+    for (let k = 0; k < NX * NZ; k += 7) { const r = px[k * 4]; if (r > 3) { sum += r / 255; cnt++; } }
+    if (cnt) gain = THREE.MathUtils.clamp(opt.norm / (sum / cnt), 0.72, 1.3);
+  }
   let seed = 7;
   const rand = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
   // two passes in a checkerboard: the first half alone is an even, thinner cloud,
@@ -255,7 +262,7 @@ function makeCloud(img, opt) {
       const z = (j / (NZ - 1) - 0.5) * D_ + (rand() - 0.5) * cell * stride;
       if (n >= cap) continue;
       pos[n * 3] = x; pos[n * 3 + 1] = H[k] * opt.relief; pos[n * 3 + 2] = z;
-      shade[n] = isW ? rand() : px[k * 4] / 255;
+      shade[n] = isW ? rand() : Math.min(1, px[k * 4] / 255 * gain);
       rnd[n] = rand(); wat[n] = WAT[isW]; n++;
     }
    }
@@ -517,6 +524,8 @@ radioMark.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><span
 function buildShrines() {
   const list = $("#index-list");
   $("#shrine-count").textContent = SHRINES.length;
+  const W = ["No", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
+  $("#intro-count").textContent = W[SHRINES.length] || SHRINES.length;
   const bases = SHRINES.map((s) => {
     const [x, z] = geoToWorld(s.geo[0], s.geo[1]);
     return new THREE.Vector3(x, eu.heightAt(x, z), z);
@@ -528,6 +537,8 @@ function buildShrines() {
     const li = document.createElement("li");
     li.innerHTML = `<button type="button"><span>${s.id}</span>${s.name}</button>`;
     li.querySelector("button").addEventListener("click", () => openShrine(idx));
+    li.addEventListener("pointerenter", () => hoverShrine(idx, true));
+    li.addEventListener("pointerleave", () => hoverShrine(idx, false));
     list.appendChild(li);
     shrineObjs.push({ s, base: bases[idx], own: bases[idx], li, el: null, inArea: false });
   });
@@ -548,6 +559,8 @@ function buildShrines() {
       const s = SHRINES[members[0]];
       el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b></span></button>`;
       el.querySelector("button").addEventListener("click", () => openShrine(members[0]));
+      el.addEventListener("pointerenter", () => hoverShrine(members[0], true));
+      el.addEventListener("pointerleave", () => hoverShrine(members[0], false));
     } else {
       // several recordings close together: from afar one marker listing them all; close by,
       // each stands at its own place (see placeLabels)
@@ -558,6 +571,8 @@ function buildShrines() {
         const s = SHRINES[i], item = document.createElement("li");
         item.innerHTML = `<button type="button" aria-label="${s.id} ${s.name}, open shrine"><span>${s.id}</span></button>`;
         item.querySelector("button").addEventListener("click", () => openShrine(i));
+        item.addEventListener("pointerenter", () => hoverShrine(i, true));
+        item.addEventListener("pointerleave", () => hoverShrine(i, false));
         ul.appendChild(item);
       });
     }
@@ -568,6 +583,8 @@ function buildShrines() {
       e.className = "shrine solo off";
       e.innerHTML = `<button type="button" class="shrine-btn" aria-label="${s.id} ${s.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${s.id}</b></span></button>`;
       e.querySelector("button").addEventListener("click", () => openShrine(i));
+      e.addEventListener("pointerenter", () => hoverShrine(i, true));
+      e.addEventListener("pointerleave", () => hoverShrine(i, false));
       shrineLayer.appendChild(e);
       const st = new THREE.Line(new THREE.BufferGeometry().setFromPoints([b, t]), lineMat), rg = ringLine(b.x, b.z, 3.2, eu.heightAt);
       st.visible = rg.visible = false; euGroup.add(st, rg);
@@ -582,6 +599,19 @@ function buildShrines() {
 
 }
 function closeCluster() {}   // area lists stay open now
+const indexBox = $(".hud-index");
+indexBox.querySelector("h2").addEventListener("click", () => indexBox.classList.toggle("open"));
+function hoverShrine(idx, on) {
+  const o = shrineObjs[idx]; if (!o) return;
+  o.li.classList.toggle("hover", on);
+  for (const m of markers) {
+    if (m.el === o.el) {
+      m.el.classList.toggle("hover", on);
+      m.el.querySelectorAll(".cluster-list li").forEach((li, k) => li.classList.toggle("hover", on && m.own[k] && m.own[k].i === idx));
+    }
+    for (const x of m.own) if (x.i === idx) x.el.classList.toggle("hover", on);
+  }
+}
 function markActive(idx) {
   for (const m of markers) {
     m.el.classList.toggle("active", idx >= 0 && shrineObjs[idx].el === m.el);
@@ -743,7 +773,7 @@ function buildDetail(idx, img) {
   // water "still": lakes that only sparkle, instead of water that drifts like the sea
   const still = s.water === "still";
   det = makeCloud(img, { world: DETAIL.world, relief: rel, keepLand: s.solid ? 0.7 : s.dense ? 0.72 : 0.92, keepSea: 0.085, keepLake: s.solid ? 0.9 : still ? 0.22 : undefined,
-    asSea: !still, hard: true, walls: !!s.walls, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
+    asSea: !still, hard: true, walls: !!s.walls, norm: 0.5, mat: detMat, stride: s.solid ? (isSmall ? 4 : 3) : s.dense ? (isSmall ? 2 : 1) : undefined, capShare: s.dense ? 1 : undefined });
   detSurface = s.solid ? makeSurface(img, { world: DETAIL.world, relief: rel, stride: isSmall ? 4 : 2 }) : null;
   detUniforms.uSolid.value = 0;
   // dense scans: finer points and a little dimmer, so the ground stays airy rather than a white sheet
@@ -759,6 +789,7 @@ function buildDetail(idx, img) {
   detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
   if (detSurface) { detSurface.renderOrder = -1; detGroup.add(detSurface); }
   detUniforms.uFocus.value.copy(detBase);
+  fillDetailFoot(idx);
 }
 // where the camera rests in a scan: the same steep view, looking toward `heading`
 // (degrees, 0 = north, 270 = west), so that for example a coast can lie at the bottom of the picture
@@ -903,6 +934,7 @@ function openShrine(idx) {
   const s = o.s;
   current = idx; busy = true;
   markActive(idx);
+  indexBox.classList.remove("open");
   for (const m of markers) closeCluster(m.el);
   detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b>`;
 
@@ -922,8 +954,12 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  $("#p-prayer").innerHTML = s.prayer.map((l) => `<p>${l}</p>`).join("");
-  $(".prayer").hidden = !s.prayer.length;
+  const pr = s.prayer || [];
+  $("#d-prayer-label").hidden = $("#d-prayer").hidden = !pr.length;
+  $("#d-prayer-btn").textContent = `${pr.length} ${pr.length === 1 ? "line" : "lines"} · read`;
+  inscription.load(pr);
+  for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
+    $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";
 
   player.load(s);
   const wasHidden = panel.hidden;
@@ -938,6 +974,7 @@ function openShrine(idx) {
 function closePanel() {
   if (busy) return;
   player.pause();
+  inscription.load([]);
   panel.classList.remove("open");
   document.body.classList.remove("has-panel", "listening");
   setTimeout(() => { if (!panel.classList.contains("open")) panel.hidden = true; }, 500);
@@ -953,6 +990,40 @@ scanBtn.addEventListener("click", () => (mode === "detail" ? leaveScan(false) : 
 scanLink.addEventListener("click", enterScan);
 panel.querySelector(".player").after(scanBtn);
 shrineLayer.appendChild(scanLink);
+
+/* The prayer, written into the landscape. While the recording plays its lines appear one after
+   another, slowly, spread over the length of the recording; each stays until the next has come,
+   the last one stays. Nothing moves but the light of the letters. "read" in the panel shows the
+   whole text at once. */
+const inscription = (() => {
+  const el = document.createElement("div");
+  el.id = "inscription"; el.setAttribute("aria-live", "polite");
+  document.body.appendChild(el);
+  let lines = [], shown = -1, whole = false;
+  function draw(k) {
+    shown = k;
+    el.innerHTML = lines.map((l, i) => `<p class="${whole || i === k ? "on" : i < k ? "past" : ""}">${l}</p>`).join("");
+    el.classList.toggle("whole", whole);
+  }
+  function load(pr) { lines = pr; whole = false; shown = -2; el.innerHTML = ""; el.classList.remove("show", "whole"); document.body.classList.remove("inscribed"); $("#d-prayer-btn").setAttribute("aria-pressed", "false"); }
+  function step() {
+    if (!lines.length) return;
+    const playing = player.isPlaying();
+    el.classList.toggle("show", whole || (playing && shown >= 0) || (shown >= 0 && !panel.hidden));
+    document.body.classList.toggle("inscribed", el.classList.contains("show"));
+    if (whole) return;
+    const d = player.duration() || 300, t = player.now();
+    const first = 8, gap = Math.max(18, Math.min(75, (d - first) / (lines.length + 0.5)));
+    const k = t < first ? -1 : Math.min(lines.length - 1, Math.floor((t - first) / gap));
+    if (k !== shown && (playing || k < shown)) draw(k);
+  }
+  function toggleWhole() {
+    whole = !whole; $("#d-prayer-btn").setAttribute("aria-pressed", whole);
+    draw(whole ? lines.length - 1 : -1); step();
+  }
+  return { load, step, toggleWhole };
+})();
+$("#d-prayer-btn").addEventListener("click", () => inscription.toggleWhole());
 
 /* Audio engine. Real recordings first; if the file can't be reached
    (offline, blocked host) a quiet generated placeholder takes over so the
@@ -1166,7 +1237,7 @@ const player = (() => {
     analyser.getByteFrequencyData(freq);
     return freq;
   }
-  return { load, toggle, play, pause, render, level, spectrum, isPlaying, get ctx() { return ctx; } };
+  return { load, toggle, play, pause, render, level, spectrum, isPlaying, now, duration, get ctx() { return ctx; } };
 })();
 
 /* spectrogram — a scrolling time/frequency image of what is playing */
@@ -1315,23 +1386,24 @@ function buildIsobars(d) {
   });
 }
 
+// the map rests quiet; ATMOSPHERE lays the air over it: isobars, pressure, the instrument readout
+function setAtmo(on) {
+  WX.on = on; WX.group.visible = on;
+  document.body.classList.toggle("atmo", on);
+  $("#atmo-btn").setAttribute("aria-pressed", on);
+}
 function initWeather() {
   euGroup.add(WX.group);
-  const btn = $("#wx-toggle"), src = $("#wx-source");
+  const btn = $("#atmo-btn"), src = $("#wx-source");
+  setAtmo(false);
   const show = (d) => {
     const n = WX.lons.length * WX.lats.length;
     WX.shrines = SHRINES.map((_, i) => ({ p: d.p[n + i], t: d.t[n + i], time: d.time }));
     buildIsobars(d);
-    $("#wx-label").hidden = $("#wx-cell").hidden = src.hidden = false;
-    btn.textContent = WX.sample ? "sample" : (WX.stamp || "on");
+    $("#atmo-stamp").textContent = WX.sample ? "sample" : (WX.stamp || "now");
     if (current >= 0) fillNow(current);
   };
-  btn.addEventListener("click", () => {
-    WX.on = !WX.on;
-    WX.group.visible = WX.on;
-    btn.textContent = WX.on ? (WX.sample ? "sample" : (WX.stamp || "on")) : "off";
-    btn.setAttribute("aria-pressed", WX.on);
-  });
+  btn.addEventListener("click", () => setAtmo(!WX.on));
   loadWeather().then(show).catch(() => {
     // previews that cannot reach the service may carry a dated snapshot of real data
     const snap = window.SA_WEATHER_SNAPSHOT;
@@ -1419,7 +1491,8 @@ function loop() {
 
   renderer.render(scene, camera);
   placeLabels();
-  if (!panel.hidden) { player.render(); drawSpectro(); }
+  if (!panel.hidden) { player.render(); drawSpectro(); inscription.step(); }
+  stepScale();
 
   const t = controls.target;
   if (mode === "europe") {
@@ -1435,6 +1508,40 @@ function loop() {
   hud.az.textContent = ((THREE.MathUtils.radToDeg(controls.getAzimuthalAngle()) + 360) % 360).toFixed(0).padStart(3, "0");
   requestAnimationFrame(loop);
 }
+
+/* ───────────── in a scan: scale, where the data comes from, the next shrine ───────────── */
+const scaleEl = $("#scale-bar"), scaleTxt = $("#scale-txt");
+const sA = new THREE.Vector3(), sB = new THREE.Vector3(), right = new THREE.Vector3();
+function stepScale() {
+  if (mode !== "detail" || detIdx < 0) return;
+  const km = SHRINES[detIdx].km; if (!km) { $("#scale").hidden = true; return; }
+  $("#scale").hidden = false;
+  const unitsPerM = det.W / (km * 1000), w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  right.set(1, 0, 0).applyQuaternion(camera.quaternion).setY(0).normalize();
+  sA.copy(controls.target); sB.copy(controls.target).addScaledVector(right, unitsPerM * 1000);
+  sA.project(camera); sB.project(camera);
+  const pxPerKm = Math.hypot((sB.x - sA.x) * w / 2, (sB.y - sA.y) * h / 2);
+  const nice = [50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000];
+  let m = nice[0]; for (const v of nice) if (pxPerKm * v / 1000 <= 140) m = v;
+  scaleEl.style.width = (pxPerKm * m / 1000).toFixed(1) + "px";
+  scaleTxt.textContent = m >= 1000 ? `${m / 1000} km` : `${m} m`;
+}
+const hav = (a, b) => {
+  const r = Math.PI / 180, dLa = (b[0] - a[0]) * r, dLo = (b[1] - a[1]) * r;
+  const x = Math.sin(dLa / 2) ** 2 + Math.cos(a[0] * r) * Math.cos(b[0] * r) * Math.sin(dLo / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(x));
+};
+function fillDetailFoot(idx) {
+  const s = SHRINES[idx];
+  $("#scan-source").textContent = s.source || "";
+  let best = -1, bd = Infinity;
+  SHRINES.forEach((o, i) => { if (i !== idx) { const d = hav(s.geo, o.geo); if (d < bd) { bd = d; best = i; } } });
+  const nx = $("#next-shrine");
+  if (best < 0) { nx.hidden = true; return; }
+  nx.hidden = false; nx.dataset.i = best;
+  nx.innerHTML = `<span>→ ${SHRINES[best].id}</span> ${SHRINES[best].name} · ${bd < 10 ? bd.toFixed(1) : Math.round(bd)} km`;
+}
+$("#next-shrine").addEventListener("click", (e) => openShrine(+e.currentTarget.dataset.i));
 
 /* ───────────── Aether radio: the map side ─────────────
    The radio picks a place and calls radioAt; the overview flies to a regional view of it, a marker
@@ -1507,6 +1614,7 @@ img.src = TERRAIN + "europe.png";
 
 $("#enter-btn").addEventListener("click", () => {
   entered = true;
+  document.body.classList.add("entered");
   // the scans of all shrines are fetched quietly in the background, so a descent never waits for one
   SHRINES.forEach((s, i) => setTimeout(() => { Object.assign(new Image(), { crossOrigin: "anonymous" }).src = TERRAIN + (s.terrain || s.id.toLowerCase() + ".png"); }, 1500 + i * 700));
   enter.classList.add("gone");

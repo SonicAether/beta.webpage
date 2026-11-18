@@ -21,6 +21,7 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1757937528/250801_002_Skedbrosj%C3%B6n_edit_o9juns.mp3",
     area: "Härjedalen",
     geo: [62.31, 12.38],
+    source: "LIDAR scan",
     synth: { wind: 0.15, water: 0.9, birds: 0.05, tone: 180 },
     prayer: [
       "Let the lake keep its small voice.",
@@ -60,6 +61,7 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748357450/250518_001_Maik%C3%A4fer_Abend_Reh_am_Teich_bearbeitet_wrnred.mp3",
     area: "Ostfriesland",
     geo: [53.39, 7.99],
+    source: "LIDAR scan",
     synth: { wind: 0.1, water: 0.2, birds: 0.1, tone: 140, drone: 0.7 },
     prayer: [
       "Blessed be the thousand wings in the oak crowns.",
@@ -81,6 +83,7 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1748211069/250329_002_Hopelser_Wald_lmbkap.mp3",
     area: "Ostfriesland",
     geo: [53.42, 7.70],
+    source: "LIDAR scan",
     synth: { wind: 0.7, water: 0.0, birds: 0.5, tone: 1200, bells: 0.6 },
     prayer: [
       "At six the bells came through the spruces and did not stop.",
@@ -104,6 +107,7 @@ export const SHRINES = [
     geo: [52.7817, -6.1457],
     view: 270,            // the scan is first seen looking west, the coast at the bottom
     spot: [0.835, 0.555],   // estimated position of the beach inside the scan
+    source: "LIDAR scan",
     synth: { wind: 0.2, water: 1.0, birds: 0.05, tone: 240 },
     prayer: [],   // text to follow
   },
@@ -126,6 +130,8 @@ export const SHRINES = [
     dense: true,          // every pixel of the scan a point
     water: "still",       // the lakes sparkle rather than drift
     spot: [0.5, 0.88],      // in the middle of the plateau in the south (the recorded coordinates lie about 10 km east of the scan)
+    km: 23.1,              // width of the scan, for the scale bar
+    source: "two LIDAR scans · large forms from a 3″ elevation model",
     synth: { wind: 0.3, water: 0.8, birds: 0.2, tone: 320 },
     prayer: [],   // text to follow
   },
@@ -147,6 +153,8 @@ export const SHRINES = [
     relief: 0.9,
     water: "still",
     spot: [0.4966, 0.5383],   // the southern inlet by the shelter (vindskydd)
+    km: 4.5,              // width of the scan, for the scale bar
+    source: "LIDAR scan · placed by the outline of Holmevatten, OpenStreetMap",
     synth: { wind: 0.2, water: 0.8, birds: 0.3, tone: 260 },
     prayer: [],   // text to follow
   },
@@ -168,6 +176,8 @@ export const SHRINES = [
     relief: 0.3,
     walls: true,          // cliff faces drawn down to the sea
     spot: [0.724, 0.905],   // on the cliffs of the eastern headland, above the sea
+    km: 6.4,              // width of the scan, for the scale bar
+    source: "LIDAR scan of the coast at Tramore · sea filled in",
     synth: { wind: 0.6, water: 0.7, birds: 0.1, tone: 520 },
     prayer: [],   // text to follow
   },
@@ -189,6 +199,8 @@ export const SHRINES = [
     // the land behind it filled in, the river Jade and the Vareler Hafen from OpenStreetMap (tools/scan_s10.py)
     relief: 0.35,
     spot: [0.3666, 0.5696],   // on the Watt at the sluice, where the Jade and the harbour channel reach the bay
+    km: 5.64,              // width of the scan, for the scale bar
+    source: "survey: EMODnet Bathymetry, 1850 HRDTM Jade, CC BY 4.0 · land modelled · OpenStreetMap",
     synth: { wind: 0.4, water: 0.8, birds: 0.4, tone: 380 },
     prayer: [],   // text to follow
   },

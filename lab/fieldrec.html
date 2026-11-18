@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@87.5,300;87.5,400;87.5,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap">
-<link rel="stylesheet" href="assets/shrines.css?v=23">
+<link rel="stylesheet" href="assets/shrines.css?v=24">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -68,10 +68,17 @@
   <dt>ELEV m</dt><dd id="hud-z">000.0</dd>
   <dt>AZ °</dt><dd id="hud-az">000</dd>
   <dt>POINTS</dt><dd id="hud-pts">—</dd>
-  <dt id="wx-label" hidden>ISOBARS hPa</dt><dd id="wx-cell" hidden><button id="wx-toggle" type="button" class="u" aria-pressed="true" aria-label="Isobars">on</button></dd>
   <dt class="hint">drag · orbit &nbsp; right-drag · pan &nbsp; scroll · descend</dt>
   <dt class="hint" id="wx-source">pressure now · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <a href="../privacy.html">privacy</a></dt>
 </dl>
+
+<button id="atmo-btn" class="hud-atmo u" type="button" aria-pressed="false"><span class="a-mark" aria-hidden="true"></span>Atmosphere <span id="atmo-stamp"></span></button>
+
+<div class="hud hud-detail" aria-label="About this scan">
+  <div id="scale" hidden><span id="scale-bar"></span><span id="scale-txt" class="u"></span></div>
+  <p id="scan-source"></p>
+  <button id="next-shrine" type="button" hidden></button>
+</div>
 
 <aside id="panel" hidden aria-labelledby="p-name">
   <div class="p-head">
@@ -108,17 +115,14 @@
     <dl class="data">
       <dt>Date</dt><dd id="d-date">—</dd>
       <dt>Local time</dt><dd id="d-time">—</dd>
-      <dt>Air temp.</dt><dd id="d-temp">—</dd>
+      <dt id="d-temp-label">Air temp.</dt><dd id="d-temp">—</dd>
       <dt id="d-now-label" hidden>There now</dt><dd id="d-now" hidden>—</dd>
-      <dt>Sky</dt><dd id="d-weather">—</dd>
-      <dt>Wind</dt><dd id="d-wind">—</dd>
+      <dt id="d-weather-label">Sky</dt><dd id="d-weather">—</dd>
+      <dt id="d-wind-label">Wind</dt><dd id="d-wind">—</dd>
       <dt>Position</dt><dd id="d-coords">—</dd>
-      <dt>Rig</dt><dd id="d-rig">—</dd>
+      <dt id="d-rig-label">Rig</dt><dd id="d-rig">—</dd>
+      <dt id="d-prayer-label">Prayer</dt><dd id="d-prayer"><button id="d-prayer-btn" type="button" aria-pressed="false">—</button></dd>
     </dl>
-    <section class="prayer">
-      <h2 class="u">Prayer <span>placeholder</span></h2>
-      <div id="p-prayer"></div>
-    </section>
   </div>
 </aside>
 
@@ -128,15 +132,15 @@
   <div class="veil">
     <span class="eyebrow u">Sonic Aether · Field recordings</span>
     <h1>Listening Shrines</h1>
-    <p>Six recordings rest on a relief of Europe. Choose a shrine and descend into the ground it was recorded on, drawn from laser scans. Move slowly, and listen.</p>
+    <p><span id="intro-count">Nine</span> recordings rest on a relief of Europe. Choose a shrine and descend into the ground it was recorded on, drawn from laser scans. Move slowly, and listen.</p>
     <p class="phones-big u">◖◗ &nbsp;headphones on</p>
     <button id="enter-btn" type="button" class="u">Enter</button>
     <span id="boot-status" class="u">reading point cloud…</span>
   </div>
 </div>
 
-<script src="assets/signal-source.js?v=23"></script>
-<script src="assets/aether-radio.js?v=23"></script>
-<script type="module" src="assets/shrines.js?v=23"></script>
+<script src="assets/signal-source.js?v=24"></script>
+<script src="assets/aether-radio.js?v=24"></script>
+<script type="module" src="assets/shrines.js?v=24"></script>
 </body>
 </html>
