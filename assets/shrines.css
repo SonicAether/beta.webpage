@@ -341,3 +341,89 @@ body.radio-on .hud-readout { opacity: 0; pointer-events: none; }
 #index-list button { color: rgba(223, 230, 234, 0.78); }
 #index-list button span { color: var(--ice); opacity: 0.85; }
 #index-list button:hover span, #index-list .active button span { opacity: 1; }
+
+/* ── a quiet map: the atmosphere (isobars, readout) only on request ── */
+body:not(.atmo) .hud-readout, body:not(.atmo) .iso-label { opacity: 0 !important; pointer-events: none; }
+.hud-atmo {
+  position: fixed; z-index: 5; right: max(22px, env(safe-area-inset-right, 0px)); top: calc(62px + env(safe-area-inset-top, 0px));
+  display: inline-flex; align-items: center; gap: 9px; color: var(--dim); font-size: var(--s-0); letter-spacing: 0.22em;
+  transition: color .4s, opacity 1.2s;
+}
+.hud-atmo:hover, .hud-atmo[aria-pressed="true"] { color: var(--ink); }
+.hud-atmo #atmo-stamp { color: var(--faint); letter-spacing: 0.12em; }
+.a-mark { width: 13px; height: 7px; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; border-radius: 50%; opacity: .7; }
+.hud-atmo[aria-pressed="true"] .a-mark { border-color: var(--ice); opacity: 1; }
+body.has-panel .hud-atmo, body.detail .hud-atmo { opacity: 0; pointer-events: none; }
+body.atmo .hud-readout { bottom: calc(22px + env(safe-area-inset-bottom, 0px)); }
+
+/* ── the index: a calm dark column under it, and markers answering it ── */
+.hud-index::before {
+  content: ""; position: fixed; left: 0; bottom: 0; z-index: -1; pointer-events: none;
+  width: min(460px, 70vw); height: min(520px, 75vh);
+  background: radial-gradient(ellipse at 0% 100%, rgba(6, 8, 10, .82) 0%, rgba(6, 8, 10, .55) 45%, rgba(6, 8, 10, 0) 72%);
+}
+#index-list li.hover button { color: var(--ink); }
+#index-list li.hover button span { opacity: 1; }
+.shrine.hover .shrine-mark, .shrine.cluster.hover > .shrine-mark { background: rgba(169, 219, 232, 0.35); box-shadow: 0 0 18px rgba(169, 219, 232, .45); }
+.shrine.hover .shrine-label { opacity: 1; }
+.cluster-list li.hover button { color: var(--ice); }
+
+/* ── panel: the prayer is one line of the data sheet ── */
+#d-prayer-btn { color: var(--ice); letter-spacing: 0.08em; border-bottom: 1px solid rgba(169, 219, 232, .35); padding: 0; }
+#d-prayer-btn:hover, #d-prayer-btn[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+
+/* ── the inscription: the prayer standing in the landscape ── */
+#inscription {
+  position: fixed; z-index: 4; pointer-events: none;
+  left: max(22px, env(safe-area-inset-left, 0px)); top: 24vh; width: min(30ch, 34vw);
+  font-family: var(--f-text); font-style: italic; font-weight: 300; font-size: clamp(19px, 1.8vw, 26px); line-height: 1.5;
+  color: var(--ink); text-shadow: 0 0 22px var(--void), 0 0 6px var(--void);
+  opacity: 0; transition: opacity 4s ease;
+}
+#inscription.show { opacity: 1; }
+#inscription p { margin: 0 0 .8em; text-wrap: pretty; opacity: 0; transition: opacity 6s ease; }
+#inscription p.past { opacity: .26; }
+#inscription p.on { opacity: .92; }
+#inscription.whole p { opacity: .85; transition-duration: 1.6s; }
+body.listening .hud-index, body.inscribed .hud-index { opacity: .12; }
+@media (max-width: 720px) {
+  #inscription { top: calc(150px + env(safe-area-inset-top, 0px)); width: auto; right: max(16px, env(safe-area-inset-right, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); font-size: 18px; }
+  #inscription p.past { display: none; }
+}
+
+/* ── in a scan: scale, source, the next shrine (bottom right, quiet) ── */
+.hud-detail {
+  right: max(22px, env(safe-area-inset-right, 0px)); bottom: calc(22px + env(safe-area-inset-bottom, 0px));
+  display: none; justify-items: end; gap: 8px; text-align: right; max-width: 360px;
+}
+body.detail .hud-detail { display: grid; }
+body.detail.has-panel .hud-detail { right: calc(min(440px, 100vw - 44px) + 44px); }
+#scale { display: flex; align-items: center; gap: 10px; color: var(--dim); font-size: var(--s-0); }
+#scale-bar { display: block; height: 6px; border: 1px solid var(--dim); border-top: 0; }
+#scan-source { margin: 0; color: var(--faint); font-size: 9px; letter-spacing: 0.06em; line-height: 1.6; }
+#next-shrine { color: var(--dim); font-size: var(--s-0); letter-spacing: 0.08em; pointer-events: auto; transition: color .3s; }
+#next-shrine span { color: var(--ice); margin-right: 6px; }
+#next-shrine:hover { color: var(--ink); }
+@media (max-width: 720px) {
+  body.detail.has-panel .hud-detail { display: none; }
+  .hud-atmo { top: calc(96px + env(safe-area-inset-top, 0px)); }
+}
+/* leaving the intro: its words go first, the dark after */
+.veil { transition: opacity .35s ease; }
+#enter.gone .veil { opacity: 0; }
+/* before entering, only the map shows through the intro */
+body:not(.entered) .hud-index, body:not(.entered) #shrine-layer, body:not(.entered) .hud-atmo { opacity: 0; pointer-events: none; }
+.hud-index, #shrine-layer, .hud-atmo { transition: opacity 1.2s ease; }
+@media (max-width: 720px) {
+  /* phones: the index folds to its heading; a tap opens it */
+  .hud-index h2 { pointer-events: auto; cursor: pointer; margin: 0; }
+  .hud-index h2::after { content: "+"; color: var(--ice); margin-left: 4px; }
+  .hud-index.open h2 { margin-bottom: 10px; }
+  .hud-index.open h2::after { content: "–"; }
+  .hud-index:not(.open) #index-list, .hud-index:not(.open) .radio-btn { display: none; }
+  .hud-index::before { height: 40vh; }
+  .hud-atmo { top: auto; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+  #panel { max-height: 60vh; }
+  #inscription { top: calc(170px + env(safe-area-inset-top, 0px)); }
+}
+@media (max-width: 720px) { .hud-index.open ~ .hud-atmo { opacity: 0; pointer-events: none; } }
