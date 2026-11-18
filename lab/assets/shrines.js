@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=28";
+import { SHRINES } from "./shrines-data.js?v=29";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/f32019d2e5c41ecfb577b92b2a9fa94a547f051e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/27c3eca2afa65b0775a32cfdd2b0684bae5e3a6f/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -985,7 +985,7 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("");
+  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}</p>` : "");
   $(".prayer").hidden = !(s.prayer || []).length;
   for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
     $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";
