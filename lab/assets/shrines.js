@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=21";
+import { SHRINES } from "./shrines-data.js?v=22";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/959646ef41b3a09edca07a9cd82b226cb6293e27/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/91d210174589da570d4ced61a82844cc8c203ef6/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
