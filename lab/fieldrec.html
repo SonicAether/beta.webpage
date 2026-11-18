@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Martian+Mono:wdth,wght@87.5,300;87.5,400;87.5,500&family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,300;1,6..72,400&display=swap">
-<link rel="stylesheet" href="assets/shrines.css?v=24">
+<link rel="stylesheet" href="assets/shrines.css?v=25">
 <script type="importmap">
 { "imports": {
   "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -72,7 +72,11 @@
   <dt class="hint" id="wx-source">pressure now · <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> · <a href="../privacy.html">privacy</a></dt>
 </dl>
 
-<button id="atmo-btn" class="hud-atmo u" type="button" aria-pressed="false"><span class="a-mark" aria-hidden="true"></span>Atmosphere <span id="atmo-stamp"></span></button>
+<div class="hud-atmo">
+  <button id="atmo-btn" class="u" type="button" aria-pressed="false"><span class="a-mark" aria-hidden="true"></span>Atmosphere <span id="atmo-stamp"></span></button>
+  <button id="temp-btn" class="u" type="button" aria-pressed="false" hidden><span class="t-mark" aria-hidden="true"></span>2 m temperature</button>
+  <div class="t-legend" aria-hidden="true"><span>−15°</span><i></i><span>+25°</span></div>
+</div>
 
 <div class="hud hud-detail" aria-label="About this scan">
   <div id="scale" hidden><span id="scale-bar"></span><span id="scale-txt" class="u"></span></div>
@@ -121,8 +125,11 @@
       <dt id="d-wind-label">Wind</dt><dd id="d-wind">—</dd>
       <dt>Position</dt><dd id="d-coords">—</dd>
       <dt id="d-rig-label">Rig</dt><dd id="d-rig">—</dd>
-      <dt id="d-prayer-label">Prayer</dt><dd id="d-prayer"><button id="d-prayer-btn" type="button" aria-pressed="false">—</button></dd>
     </dl>
+    <section class="prayer">
+      <h2 class="u">Prayer</h2>
+      <div id="p-prayer"></div>
+    </section>
   </div>
 </aside>
 
@@ -139,8 +146,8 @@
   </div>
 </div>
 
-<script src="assets/signal-source.js?v=24"></script>
-<script src="assets/aether-radio.js?v=24"></script>
-<script type="module" src="assets/shrines.js?v=24"></script>
+<script src="assets/signal-source.js?v=25"></script>
+<script src="assets/aether-radio.js?v=25"></script>
+<script type="module" src="assets/shrines.js?v=25"></script>
 </body>
 </html>
