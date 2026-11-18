@@ -608,7 +608,7 @@ function buildShrines() {
       // each stands at its own place (see placeLabels)
       el.classList.add("cluster", "open");
       el.innerHTML = `<button type="button" class="shrine-btn area-btn" aria-label="${area}: ${members.length} shrines, move closer"><span class="shrine-mark" aria-hidden="true"></span></button><ul class="cluster-list" aria-label="${area}"></ul>`;
-      el.querySelector(".area-btn").addEventListener("click", () => zoomToArea(base));
+      el.querySelector(".area-btn").addEventListener("click", () => (members.includes(stopIdx) && mode === "europe" && !busy ? enterScan() : zoomToArea(base)));
       const ul = el.querySelector("ul");
       members.forEach((i) => {
         const s = SHRINES[i], item = document.createElement("li");
@@ -841,7 +841,7 @@ function buildDetail(idx, img) {
   placeInScan(idx);
 }
 // several recordings can share one scan (terrain): the one playing stands as a beam of light,
-// the others as quiet crosses that open their recording
+// the others alike; a click on another one's cross opens its recording
 const terrainOf = (i) => SHRINES[i].terrain || SHRINES[i].id.toLowerCase() + ".png";
 const spotIn = (i) => {   // spot: [u, v] from the north-west corner; centre by default
   const [su, sv] = SHRINES[i].spot || [0.5, 0.5];
@@ -858,11 +858,10 @@ function placeInScan(idx) {
   detGlyph = shrineGlyph(detBase, det.heightAt);
   SHRINES.forEach((o, j) => {
     if (j === idx || terrainOf(j) !== terrainOf(idx)) return;
-    const b = spotIn(j), ring = [];
-    for (let a = 0; a <= 48; a++) { const t = (a / 48) * Math.PI * 2, x = b.x + Math.cos(t) * 2.4, z = b.z + Math.sin(t) * 2.4; ring.push(new THREE.Vector3(x, det.heightAt(x, z) + 0.35, z)); }
-    detGlyph.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring), detLineMat));
+    const b = spotIn(j);
+    detGlyph.push(...shrineGlyph(b, det.heightAt));   // every recording on this ground shines alike
     const el = document.createElement("div");
-    el.className = "shrine sib off";
+    el.className = "shrine sib active off";
     el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${o.id} ${o.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${o.id}</b></span></button>`;
     el.querySelector("button").addEventListener("click", () => openShrine(j));
     shrineLayer.appendChild(el);
@@ -1010,6 +1009,8 @@ let current = -1;
 
 function openShrine(idx) {
   if (busy || (mode === "detail" && idx === detIdx)) return;
+  // at the stop above this shrine, its cross leads straight into the LIDAR scan
+  if (mode === "europe" && idx === stopIdx && current === idx) { if (hasScan(idx)) enterScan(); return; }
   if (window.AetherRadio && window.AetherRadio.on()) window.AetherRadio.stop(true);
   const o = shrineObjs[idx];
   const s = o.s;
