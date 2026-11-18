@@ -1218,6 +1218,8 @@ const player = (() => {
   }
 
   function setState(st) {
+    if (st === "playing" && !document.body.classList.contains("listening"))
+      $(".p-scroll").scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });   // the prayer comes up under the player
     document.body.classList.toggle("listening", st === "playing");
     uniforms._listenTarget = st === "playing" ? 1 : 0;
     ui.play.setAttribute("aria-pressed", st === "playing");
