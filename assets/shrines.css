@@ -464,7 +464,3 @@ body.listening .data { max-height: 0; padding-top: 0; padding-bottom: 0; opacity
 
 /* the entry veil says the map is still growing */
 .veil h1 .beta { display: block; margin-top: 10px; font-family: var(--f-mono); font-size: 11px; line-height: 1; letter-spacing: .2em; color: var(--ice); }
-/* other recordings on the same ground, inside a scan */
-.shrine.sib .shrine-mark { opacity: .55; transition: opacity .4s, filter .4s; }
-.shrine.sib:hover .shrine-mark, .shrine.sib:focus-within .shrine-mark { opacity: 1; }
-.shrine.sib .shrine-label { opacity: .6; }

@@ -264,11 +264,11 @@ export const SHRINES = [
     src: "https://res.cloudinary.com/dainslgf8/video/upload/v1795040792/SturmbenHolunderRuineGrenorePointSHORT_gmedck.mp3",
     area: "Wexford",
     geo: [52.240347883026, -6.3157573342323],   // exactly as in the file's tags (Greenore Watch House)
-    // shares the scan of S-09 (the coast at Tramore), about 100 m inland, a little east of S-09
+    // shares the scan of S-09 (the coast at Tramore): across the bay from S-09, about 100 m inland
     terrain: "s-09.png",
     relief: 0.3,
     walls: true,
-    spot: [0.7507, 0.8793],
+    spot: [0.3128, 0.7911],
     km: 6.4,
     source: "LIDAR scan of the coast at Tramore · sea filled in",
     synth: { wind: 0.9, water: 0.3, birds: 0.0, tone: 300 },
