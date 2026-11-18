@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=27";
+import { SHRINES } from "./shrines-data.js?v=28";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/c140b167a5692e8d607aa61b5b11fcd4664da36b/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/f32019d2e5c41ecfb577b92b2a9fa94a547f051e/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -26,7 +26,7 @@ stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 6000);
 // start view: the whole map, seen from 45° above the ground
-const START = { angle: 45, dist: innerWidth < 720 ? 2500 : 1040, target: new THREE.Vector3(0, 0, 51) };
+const START = { angle: 30, dist: innerWidth < 720 ? 2500 : 1040, target: new THREE.Vector3(0, 0, 51) };
 const startPos = () => { const a = START.angle * Math.PI / 180; return START.target.clone().add(new THREE.Vector3(0, Math.sin(a) * START.dist, Math.cos(a) * START.dist)); };
 camera.position.copy(startPos());
 
