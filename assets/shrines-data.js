@@ -3,7 +3,8 @@
 // geo: [latitude, longitude] of the recording; places the shrine on the overview of Europe.
 // view: compass heading (degrees) the camera looks toward when the scan opens (default 0 = north).
 // spot: [u, v] position of the recording inside its scan, from the north-west corner (default: the centre).
-// The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan.
+// The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan;
+// terrain: another shrine's scan, shared (each recording then stands at its own spot in it).
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
 // prayer: paragraphs of the prayer or poem (German; <br> for line breaks); prayerBy: its author, if any;
 // prayerEn: an English version, as close to the German as possible.
@@ -248,5 +249,29 @@ export const SHRINES = [
       "Take me, dear God. I want to belong to you wholly. All my plans I lay at your feet.",
       "Use me today in your service. Stay at my side, and let all that I do and say come about out of your strength and in your spirit. Amen.",
     ],
+  },
+  {
+    id: "S-11",
+    name: "Ruin, elder, storm",
+    region: "Greenore Point, Rosslare, County Wexford, IE",
+    coords: "52.2403° N, 6.3158° W · 16 m",
+    date: "2025-11-28",
+    time: "18:14",
+    temp: "10 °C",
+    weather: "overcast",
+    wind: "4 Bft SW, gusts 6",   // weather filled in from the Open-Meteo archive (ERA5), the hour nearest the recording
+    rig: "—",
+    src: "https://res.cloudinary.com/dainslgf8/video/upload/v1795040792/SturmbenHolunderRuineGrenorePointSHORT_gmedck.mp3",
+    area: "Wexford",
+    geo: [52.240347883026, -6.3157573342323],   // exactly as in the file's tags (Greenore Watch House)
+    // shares the scan of S-09 (the coast at Tramore), about 100 m inland, a little east of S-09
+    terrain: "s-09.png",
+    relief: 0.3,
+    walls: true,
+    spot: [0.7507, 0.8793],
+    km: 6.4,
+    source: "LIDAR scan of the coast at Tramore · sea filled in",
+    synth: { wind: 0.9, water: 0.3, birds: 0.0, tone: 300 },
+    prayer: [],   // text to follow
   },
 ];
