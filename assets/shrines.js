@@ -985,7 +985,7 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("");
+  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}</p>` : "");
   $(".prayer").hidden = !(s.prayer || []).length;
   for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
     $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";

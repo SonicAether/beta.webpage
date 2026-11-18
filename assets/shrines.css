@@ -166,7 +166,9 @@ body.listening .clock .meta #p-state::before { content: "● "; animation: blink
 .prayer h2 { margin: 0 0 14px; font-weight: 400; font-size: var(--s-0); color: var(--dim); display: flex; justify-content: space-between; }
 .prayer h2 span { color: var(--faint); }
 #p-prayer { font-family: var(--f-text); font-style: italic; font-size: var(--s-3); line-height: 1.55; max-width: 36ch; color: var(--ink); }
-#p-prayer p { margin: 0 0 0.7em; text-wrap: pretty; }
+#p-prayer p { margin: 0 0 0.9em; text-wrap: pretty; hyphens: manual; }
+#p-prayer .by { margin: 1.3em 0 0; font-family: var(--f-mono, inherit); font-style: normal; font-size: var(--s-0); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); text-shadow: none; }
+#p-prayer .by::before { content: "— "; }
 
 /* ── entry veil ────────────────── */
 #enter {

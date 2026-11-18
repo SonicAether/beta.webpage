@@ -5,7 +5,7 @@
 // spot: [u, v] position of the recording inside its scan, from the north-west corner (default: the centre).
 // The ground around each shrine is assets/terrain/<id in lower case>.png (e.g. s-01.png), built from a LIDAR scan.
 // Fields marked "~" are estimated from the original blog text; coordinates are approximate.
-// prayer: placeholder texts — replace with the final prayers.
+// prayer: paragraphs of the prayer or poem (German; <br> for line breaks); prayerBy: its author, if any.
 export const SHRINES = [
   {
     id: "S-01",
@@ -25,10 +25,10 @@ export const SHRINES = [
     spot: [0.3866, 0.4793],   // on the eastern shore of the lake
     synth: { wind: 0.15, water: 0.9, birds: 0.05, tone: 180 },
     prayer: [
-      "Let the lake keep its small voice.",
-      "Let the stones be counted by water, one by one, until the counting is all that remains.",
-      "I ask for nothing but to stay a little longer at the edge of the stillness, and to carry it home unbroken.",
+      "Gott, lass schweigen, was du nicht selbst in mir redest,<br>lass still stehen, was du nicht selbst bewegst,<br>nimm die Stelle ganz ein, die jetzt ich bin,<br>und tue in mir und durch mich, was dir gefällt.",
+      "Lass dieses Ich untergehen<br>und sei du allein alles in allem.<br>Führe so mich ganz aus mir selbst,<br>und aus dem Meinen heraus in dich,<br>o mein Gott, mein Ursprung und mein Ende.",
     ],
+    prayerBy: "nach Gerhard Tersteegen",
   },
   {
     id: "S-02",
@@ -46,7 +46,11 @@ export const SHRINES = [
     geo: [53.37127037, 7.87380695],   // exactly as in the file's tags
     scan: false,                      // no LIDAR scan yet: the overview is its map
     synth: { wind: 0.3, water: 0.3, birds: 0.5, tone: 700 },
-    prayer: [],   // text to follow
+    prayer: [
+      "Jesus, liebster Herr Jesus!<br>Ich bitt, dass du mich annimmst<br>zum Docht auf der Lampen,<br>zu der du das Öl gibst.",
+      "Geht mir nit darum,<br>ob mein Leib verdorrt wie Gras,<br>aber um dein Bild in mir geht es.<br>Zünd dein Licht an und lass mich sein<br>wie ein heiliges Feuer am Rande der finstern Öde,<br>damit die im Dunkeln wissen, wo du zu finden bist.<br>Aus dir kommt, was gut in mir ist,<br>aus mir das Schwache und Geringe.<br>Erbarm dich meiner, Herr!",
+    ],
+    prayerBy: "Matthias Nithart (Grünewald)",
   },
   {
     id: "S-03",
@@ -64,11 +68,7 @@ export const SHRINES = [
     geo: [53.39, 7.99],
     source: "LIDAR scan",
     synth: { wind: 0.1, water: 0.2, birds: 0.1, tone: 140, drone: 0.7 },
-    prayer: [
-      "Blessed be the thousand wings in the oak crowns.",
-      "Blessed be the footsteps in the gravel that I did not see.",
-      "May the dark keep some of its secrets, and may I be content to only hear them.",
-    ],
+    prayer: [],   // text to follow
   },
   {
     id: "S-05",
@@ -87,10 +87,10 @@ export const SHRINES = [
     source: "LIDAR scan",
     synth: { wind: 0.7, water: 0.0, birds: 0.5, tone: 1200, bells: 0.6 },
     prayer: [
-      "At six the bells came through the spruces and did not stop.",
-      "The wind carried them, let them go, carried them again.",
-      "Teach me to ring like that: long, unhurried, until even the birds begin to answer.",
+      "Gottes Lob wandert und Erde darf hören.<br>Einst sang Maria, sie jubelte Antwort.<br>Wir stehn im Echo der Botschaft vom Leben:",
+      "Den Herrn preist meine Seele.<br>Ich freue mich, dass er mein Retter ist.<br>Der Hohe schaut die Niedrige an.<br>Halleluja.",
     ],
+    prayerBy: "Svein Ellingsen / Jürgen Henkys",
   },
   {
     id: "S-06",
@@ -110,7 +110,10 @@ export const SHRINES = [
     spot: [0.835, 0.555],   // estimated position of the beach inside the scan
     source: "LIDAR scan",
     synth: { wind: 0.2, water: 1.0, birds: 0.05, tone: 240 },
-    prayer: [],   // text to follow
+    prayer: [
+      "Gott, ohne dein Wort hat die Seele kein Ohr,<br>ohne dein Ohr hat die Seele kein Wort.",
+    ],
+    prayerBy: "Rumi",
   },
   {
     id: "S-07",
@@ -134,7 +137,11 @@ export const SHRINES = [
     km: 23.1,              // width of the scan, for the scale bar
     source: "two LIDAR scans · large forms from a 3″ elevation model",
     synth: { wind: 0.3, water: 0.8, birds: 0.2, tone: 320 },
-    prayer: [],   // text to follow
+    prayer: [
+      "Lebe du in mir, heiliger Gott.<br>Ich möchte nichts als dasein<br>und durch dich leben.<br>Ich will mich lassen, mich freigeben.<br>Ich möchte mich öffnen<br>und mich geöffnet in der Hand halten,<br>dir entgegen.",
+      "Wirke du in mir so,<br>dass du mein Leben bist.<br>Sei du um mich so,<br>dass du meine Welt bist.<br>Durchdringe mich,<br>dass ich selbst unwichtig werde<br>und du allein bleibst.",
+    ],
+    prayerBy: "Jörg Zink",
   },
   {
     id: "S-08",
@@ -180,7 +187,12 @@ export const SHRINES = [
     km: 6.4,              // width of the scan, for the scale bar
     source: "LIDAR scan of the coast at Tramore · sea filled in",
     synth: { wind: 0.6, water: 0.7, birds: 0.1, tone: 520 },
-    prayer: [],   // text to follow
+    prayer: [
+      "Müde<br>und einsam.<br>Müde,<br>bis der Verstand schmerzt.<br>Von den Klippen<br>rinnt Salzwasser.<br>Taub die Finger,<br>bebend die Knie.<br>Jetzt gilt es,<br>jetzt darfst du nicht loslassen.",
+      "Andrer Weg<br>hat Rastplätze<br>in der Sonne<br>sich zu begegnen.<br>Aber dieser Weg<br>ist der deine,<br>und es gilt jetzt,<br>jetzt darfst du nicht versagen.",
+      "Weine,<br>wenn du kannst,<br>weine,<br>doch klage nicht.<br>Dich wählte der Weg –<br>und du sollst danken.",
+    ],
+    prayerBy: "Dag Hammarskjöld",
   },
   {
     id: "S-10",
@@ -203,6 +215,9 @@ export const SHRINES = [
     km: 5.64,              // width of the scan, for the scale bar
     source: "survey: EMODnet Bathymetry, 1850 HRDTM Jade, CC BY 4.0 · land modelled · OpenStreetMap",
     synth: { wind: 0.4, water: 0.8, birds: 0.4, tone: 380 },
-    prayer: [],   // text to follow
+    prayer: [
+      "Nimm mich, lieber Gott. Dir will ich ganz gehören. Alle meine Pläne lege ich dir zu Füßen.",
+      "Gebrauche mich heute in deinem Dienst. Bleib an meiner Seite und lass alles, was ich tue und sage, aus deiner Kraft heraus und in deinem Sinn geschehen. Amen.",
+    ],
   },
 ];
