@@ -26,7 +26,7 @@ stage.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(48, 1, 0.05, 6000);
 // start view: the whole map, seen from 45° above the ground
-const START = { angle: 45, dist: innerWidth < 720 ? 2500 : 1040, target: new THREE.Vector3(0, 0, 51) };
+const START = { angle: 30, dist: innerWidth < 720 ? 2500 : 1040, target: new THREE.Vector3(0, 0, 51) };
 const startPos = () => { const a = START.angle * Math.PI / 180; return START.target.clone().add(new THREE.Vector3(0, Math.sin(a) * START.dist, Math.cos(a) * START.dist)); };
 camera.position.copy(startPos());
 
