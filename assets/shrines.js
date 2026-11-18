@@ -584,7 +584,8 @@ function buildShrines() {
       // several recordings close together: from afar one marker listing them all; close by,
       // each stands at its own place (see placeLabels)
       el.classList.add("cluster", "open");
-      el.innerHTML = `<span class="shrine-mark" aria-hidden="true"></span><ul class="cluster-list" aria-label="${area}"></ul>`;
+      el.innerHTML = `<button type="button" class="shrine-btn area-btn" aria-label="${area}: ${members.length} shrines, move closer"><span class="shrine-mark" aria-hidden="true"></span></button><ul class="cluster-list" aria-label="${area}"></ul>`;
+      el.querySelector(".area-btn").addEventListener("click", () => zoomToArea(base));
       const ul = el.querySelector("ul");
       members.forEach((i) => {
         const s = SHRINES[i], item = document.createElement("li");
@@ -618,6 +619,17 @@ function buildShrines() {
 
 }
 function closeCluster() {}   // area lists stay open now
+// the mark of an area: a click descends toward it until its recordings stand apart, each at its place
+async function zoomToArea(base) {
+  if (busy || mode !== "europe") return;
+  busy = true;
+  if (!euCam) euCam = { p: camera.position.clone(), t: controls.target.clone() };
+  stopIdx = -1; showLinks();
+  const g = base.clone().setY(base.y * VMIN), AREA_DIST = 150;
+  const d0 = camera.position.distanceTo(controls.target), travel = controls.target.distanceTo(g);
+  await zoomTo(g.clone().add(STEEP.clone().multiplyScalar(AREA_DIST)), g, 2600 + 1500 * Math.abs(Math.log(d0 / AREA_DIST)) + Math.min(2600, travel * 6));
+  busy = false; showLinks();
+}
 const indexBox = $(".hud-index");
 indexBox.querySelector("h2").addEventListener("click", () => indexBox.classList.toggle("open"));
 function hoverShrine(idx, on) {

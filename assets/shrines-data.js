@@ -22,6 +22,7 @@ export const SHRINES = [
     area: "Härjedalen",
     geo: [62.31, 12.38],
     source: "LIDAR scan",
+    spot: [0.3866, 0.4793],   // on the eastern shore of the lake
     synth: { wind: 0.15, water: 0.9, birds: 0.05, tone: 180 },
     prayer: [
       "Let the lake keep its small voice.",
