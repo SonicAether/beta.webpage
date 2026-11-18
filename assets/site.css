@@ -58,3 +58,9 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
   .bg::after { background: linear-gradient(180deg, rgba(5,6,7,.62), rgba(5,6,7,.8)); }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* footer link to the privacy notice */
+a[href="privacy.html"] { color: inherit; text-decoration: none; border-bottom: 1px solid var(--faint, currentColor); pointer-events: auto; }
+a[href="privacy.html"]:hover { color: var(--ink); }
+.foot a { color: inherit; text-decoration: none; }
+.foot a:hover { color: var(--ink); }
