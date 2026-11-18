@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=29";
+import { SHRINES } from "./shrines-data.js?v=30";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/27c3eca2afa65b0775a32cfdd2b0684bae5e3a6f/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/bbb449c889ca0b6e4f899ad23858669c609754ef/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -396,6 +396,28 @@ function makeSurface(img, opt) {
   mesh.frustumCulled = false; mesh.userData.own = true;
   return mesh;
 }
+
+/* ───────────── the prayer: German original, English version on request ───────────── */
+let prayerOf = null, prayerEn = false;
+try { prayerEn = localStorage.getItem("shrines-prayer-lang") === "en"; } catch (e) {}
+const prayerBtn = $("#prayer-lang");
+function renderPrayer() {
+  const s = prayerOf; if (!s) return;
+  const en = prayerEn && (s.prayerEn || []).length, lines = en ? s.prayerEn : (s.prayer || []);
+  const el = $("#p-prayer");
+  el.lang = en ? "en" : "de";
+  el.innerHTML = lines.map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}${en ? ", translated" : ""}</p>` : "");
+  prayerBtn.hidden = !(s.prayerEn || []).length;
+  prayerBtn.textContent = en ? "Deutsches Original" : "English version";
+  prayerBtn.setAttribute("aria-pressed", en ? "true" : "false");
+}
+prayerBtn.addEventListener("click", () => {
+  prayerEn = !prayerEn;
+  try { localStorage.setItem("shrines-prayer-lang", prayerEn ? "en" : "de"); } catch (e) {}
+  const el = $("#p-prayer");
+  el.classList.add("swap");
+  setTimeout(() => { renderPrayer(); el.classList.remove("swap"); }, 450);
+});
 
 /* ───────────── two views: Europe overview · one detail terrain ───────────── */
 const euGroup = new THREE.Group(), detGroup = new THREE.Group();
@@ -985,7 +1007,7 @@ function openShrine(idx) {
   $("#d-coords").textContent = s.coords;
   fillNow(idx);
   $("#d-rig").textContent = s.rig;
-  $("#p-prayer").innerHTML = (s.prayer || []).map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}</p>` : "");
+  prayerOf = s; renderPrayer();
   $(".prayer").hidden = !(s.prayer || []).length;
   for (const [dt, dd] of [["#d-rig-label", "#d-rig"], ["#d-temp-label", "#d-temp"], ["#d-weather-label", "#d-weather"], ["#d-wind-label", "#d-wind"]])
     $(dt).hidden = $(dd).hidden = !$(dd).textContent || $(dd).textContent === "—";

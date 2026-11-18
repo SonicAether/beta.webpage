@@ -423,3 +423,12 @@ body.listening .data { filter: blur(2.5px); opacity: .28; }
 body.listening #scan-btn, body.listening .p-head .region { opacity: .4; }
 body.listening #panel:hover .data, body.listening .data:focus-within { filter: none; opacity: 1; transition-duration: .6s; }
 .shrine.cluster .area-btn { pointer-events: auto; cursor: pointer; }
+
+/* German original / English version of the prayer */
+.prayer-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 0 14px; }
+.prayer-head h2 { margin: 0; }
+#prayer-lang { background: none; border: 0; padding: 4px 0; color: var(--dim); font: inherit; font-size: var(--s-0); letter-spacing: .14em; cursor: pointer; transition: color .4s; }
+#prayer-lang:hover, #prayer-lang:focus-visible { color: var(--ink); }
+#prayer-lang[aria-pressed="true"] { color: var(--ice); }
+#p-prayer.swap { opacity: 0; }
+#p-prayer { transition: color 4s ease, text-shadow 4s ease, opacity .45s ease; }
