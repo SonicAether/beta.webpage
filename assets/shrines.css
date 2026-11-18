@@ -442,7 +442,7 @@ body.listening .data { max-height: 0; padding-top: 0; padding-bottom: 0; opacity
 .shrine { margin: -22px 0 0 -6.5px; }
 .shrine-mark {
   position: relative; width: 13px; height: 22px; border: 0; transform: none; background: none;
-  filter: drop-shadow(0 0 2px rgba(169, 219, 232, .55)); transition: filter .4s;
+  filter: drop-shadow(0 0 1px rgba(6, 8, 10, .95)) drop-shadow(0 0 2px rgba(169, 219, 232, .55)); transition: filter .4s;
 }
 .shrine-mark::before, .shrine-mark::after { content: ""; position: absolute; display: block; margin: 0; background: var(--ice); }
 .shrine-mark::before { left: 5.75px; top: 0; width: 1.5px; height: 22px; }
@@ -464,3 +464,7 @@ body.listening .data { max-height: 0; padding-top: 0; padding-bottom: 0; opacity
 
 /* the entry veil says the map is still growing */
 .veil h1 .beta { display: block; margin-top: 10px; font-family: var(--f-mono); font-size: 11px; line-height: 1; letter-spacing: .2em; color: var(--ice); }
+/* other recordings on the same ground, inside a scan */
+.shrine.sib .shrine-mark { opacity: .55; transition: opacity .4s, filter .4s; }
+.shrine.sib:hover .shrine-mark, .shrine.sib:focus-within .shrine-mark { opacity: 1; }
+.shrine.sib .shrine-label { opacity: .6; }

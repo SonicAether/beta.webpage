@@ -709,6 +709,7 @@ function placeLabels() {
     scanLink.classList.add("off"); radioMark.classList.add("off"); stopMark.classList.add("off");
     for (const l of WX.labels) l.el.classList.add("off");
     if (detTop) place(detMark, detTop, false);
+    for (const m of sibMarks) place(m.el, m.top, false);
     return;
   }
   detMark.classList.add("off");
@@ -764,7 +765,8 @@ function clearDetail() {
     detGroup.remove(c); c.geometry.dispose();
     if (c.userData.own) { c.material.uniforms.uTex.value.dispose(); c.material.dispose(); }
   }
-  det = null; detSurface = null; detTop = null; detBase = null; detSpin = [];
+  det = null; detSurface = null; detTop = null; detBase = null; detSpin = []; detGlyph = [];
+  clearSibs();
 }
 
 // The shrine inside its scan: a beam of light rising from the place of the recording.
@@ -834,14 +836,39 @@ function buildDetail(idx, img) {
   detUniforms.uSize.value = uniforms.uSize.value * (s.dense ? 0.95 : 1);
   detUniforms.uDrop.value = s.dense ? 0.03 : 0.04;
   detUniforms.uDim.value = s.dense ? 0.82 : 1;
-  // the recording spot inside the scan (spot: [u, v] from the north-west corner; centre by default)
-  const [su, sv] = s.spot || [0.5, 0.5];
-  const sx = (su - 0.5) * det.W, sz = (sv - 0.5) * det.D;
-  const y = det.heightAt(sx, sz);
-  detBase = new THREE.Vector3(sx, y, sz);
-  detTop = new THREE.Vector3(sx, y + 9, sz);
-  detGroup.add(det.points, ...shrineGlyph(detBase, det.heightAt));
+  detGroup.add(det.points);
   if (detSurface) { detSurface.renderOrder = -1; detGroup.add(detSurface); }
+  placeInScan(idx);
+}
+// several recordings can share one scan (terrain): the one playing stands as a beam of light,
+// the others as quiet crosses that open their recording
+const terrainOf = (i) => SHRINES[i].terrain || SHRINES[i].id.toLowerCase() + ".png";
+const spotIn = (i) => {   // spot: [u, v] from the north-west corner; centre by default
+  const [su, sv] = SHRINES[i].spot || [0.5, 0.5];
+  const x = (su - 0.5) * det.W, z = (sv - 0.5) * det.D;
+  return new THREE.Vector3(x, det.heightAt(x, z), z);
+};
+let detGlyph = [], sibMarks = [];
+function clearSibs() { for (const m of sibMarks) m.el.remove(); sibMarks = []; }
+function placeInScan(idx) {
+  for (const o of detGlyph) { detGroup.remove(o); o.geometry.dispose(); }
+  clearSibs();
+  detBase = spotIn(idx);
+  detTop = detBase.clone().setY(detBase.y + 9);
+  detGlyph = shrineGlyph(detBase, det.heightAt);
+  SHRINES.forEach((o, j) => {
+    if (j === idx || terrainOf(j) !== terrainOf(idx)) return;
+    const b = spotIn(j), ring = [];
+    for (let a = 0; a <= 48; a++) { const t = (a / 48) * Math.PI * 2, x = b.x + Math.cos(t) * 2.4, z = b.z + Math.sin(t) * 2.4; ring.push(new THREE.Vector3(x, det.heightAt(x, z) + 0.35, z)); }
+    detGlyph.push(new THREE.Line(new THREE.BufferGeometry().setFromPoints(ring), detLineMat));
+    const el = document.createElement("div");
+    el.className = "shrine sib off";
+    el.innerHTML = `<button type="button" class="shrine-btn" aria-label="${o.id} ${o.name}, open shrine"><span class="shrine-mark" aria-hidden="true"></span><span class="shrine-label"><b>${o.id}</b></span></button>`;
+    el.querySelector("button").addEventListener("click", () => openShrine(j));
+    shrineLayer.appendChild(el);
+    sibMarks.push({ el, top: b.clone().setY(b.y + 9) });
+  });
+  detGroup.add(...detGlyph);
   detUniforms.uFocus.value.copy(detBase);
   fillDetailFoot(idx);
 }
@@ -993,6 +1020,7 @@ function openShrine(idx) {
   detMark.querySelector(".shrine-label").innerHTML = `<b>${s.id}</b>`;
 
   const go = mode === "europe" ? flyToStop(idx)
+    : det && terrainOf(idx) === terrainOf(detIdx) ? (async () => { placeInScan(idx); detIdx = idx; })()   // another recording on the same ground
     : hasScan(idx) ? exchange(idx)
     : (async () => { busy = false; await leaveScan(false); busy = true; await flyToStop(idx); })();   // from a scan to a shrine without one
   go.then(() => { busy = false; showLinks(); });
