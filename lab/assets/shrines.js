@@ -1,9 +1,9 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
-import { SHRINES } from "./shrines-data.js?v=30";
+import { SHRINES } from "./shrines-data.js?v=31";
 
 /* ───────────── constants ───────────── */
-const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/bbb449c889ca0b6e4f899ad23858669c609754ef/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
+const TERRAIN = "https://raw.githubusercontent.com/SonicAether/beta.webpage/7bbd5d00601ecdca491e0c734647f04b2c39fa5a/assets/terrain/";   // test copy: the map data of Pull Request 7   // terrain images (overview, fine chunks, shrines)
 // Overview: north-west Europe, Ireland to Sweden, in Web Mercator (zoom-7 tile coordinates of the image corners).
 const EU = { world: 930, relief: 32, n: 128, x0: 59.91111111111111, x1: 71.28888888888889, y0: 32.011827186209985, y1: 43.520931152007336, hmax: 2500, gamma: 0.72 };
 // Detail: the ground around one recording, built from one LIDAR scan.
@@ -408,7 +408,8 @@ function renderPrayer() {
   el.lang = en ? "en" : "de";
   el.innerHTML = lines.map((l) => `<p>${l}</p>`).join("") + (s.prayerBy ? `<p class="by">${s.prayerBy}${en ? ", translated" : ""}</p>` : "");
   prayerBtn.hidden = !(s.prayerEn || []).length;
-  prayerBtn.textContent = en ? "Deutsches Original" : "English version";
+  prayerBtn.innerHTML = `<span class="${en ? "" : "on"}">DE</span> · <span class="${en ? "on" : ""}">EN</span>`;
+  prayerBtn.setAttribute("aria-label", en ? "Show the German original" : "Show the English version");
   prayerBtn.setAttribute("aria-pressed", en ? "true" : "false");
 }
 prayerBtn.addEventListener("click", () => {
